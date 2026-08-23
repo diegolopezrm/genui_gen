@@ -1,0 +1,13 @@
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+# Single workspace lockfile at the root; member packages never get their own.
+pubspec.lock
+.idea/
+*.iml
+.DS_Store
+**/ios/Pods/
+**/macos/Pods/
+**/*.xcworkspace/xcuserdata/

@@ -1,0 +1,10 @@
+name: genui_gen_workspace
+publish_to: none
+
+environment:
+  sdk: ^3.10.0
+
+workspace:
+  - packages/genui_gen
+  - packages/genui_gen_builder
+  - example
