@@ -1,8 +1,8 @@
 name: genui_gen_builder
 description: build_runner generator for genui_gen. Turns @GenUiWidget-annotated Flutter widgets into genui CatalogItems with schema, builder and examples derived from the constructor.
 version: 0.1.0
-repository: https://github.com/dieg0lopez/genui_gen
-issue_tracker: https://github.com/dieg0lopez/genui_gen/issues
+repository: https://github.com/diegolopezrm/genui_gen
+issue_tracker: https://github.com/diegolopezrm/genui_gen/issues
 topics:
   - genui
   - generative-ui

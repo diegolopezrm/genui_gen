@@ -97,6 +97,6 @@ Checklist:
 
 ## Reporting issues
 
-Open an issue at <https://github.com/dieg0lopez/genui_gen/issues> with the
+Open an issue at <https://github.com/diegolopezrm/genui_gen/issues> with the
 genui version, the annotated constructor, and the generated output or the
 build error.

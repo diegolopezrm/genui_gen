@@ -4,7 +4,7 @@
 of its own. The annotated widgets and the app that renders their generated
 catalog items offline live in the repository's `example/` directory:
 
-<https://github.com/dieg0lopez/genui_gen/tree/main/example>
+<https://github.com/diegolopezrm/genui_gen/tree/main/example>
 
 Quick reference (see the package README for the full walkthrough):
 
