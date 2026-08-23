@@ -1,3 +1,12 @@
+## 0.1.1
+
+- Support `analyzer` 11.x through 14.x. Replaced the `isInitializingFormal` and
+  `isSuperFormal` getters, removed in `analyzer` 14, with the equivalent
+  `FieldFormalParameterElement` / `SuperFormalParameterElement` type checks,
+  which are available across every supported analyzer version.
+- Widened dependency ranges so the package resolves against the latest
+  `build`, `source_gen`, `build_runner` and `build_test` releases.
+
 ## 0.1.0
 
 Initial release.

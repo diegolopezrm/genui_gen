@@ -6,6 +6,18 @@ schema, widget builder and few-shot example are all derived from the widget's
 constructor. Nothing is written by hand, so the catalog can never drift from
 the widget.
 
+## Compatibility
+
+| | Supported |
+|---|---|
+| Dart SDK | `>=3.10.0 <4.0.0` |
+| `analyzer` | `>=8.0.0 <15.0.0` |
+| `genui` | `0.10.x` |
+
+The generator is written against the parts of the analyzer element model that
+are stable across major versions, so a new `analyzer` release does not require
+a new release of this package unless it removes API the generator uses.
+
 ## Install
 
 ```yaml

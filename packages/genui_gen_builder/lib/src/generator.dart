@@ -216,7 +216,9 @@ PropSpec? _analyseParameter(
 
   // Annotations may sit on the parameter or, for `this.x` formals, on the
   // backing field next to its doc comment.
-  final field = param.isInitializingFormal ? cls.getField(name) : null;
+  final field = param is FieldFormalParameterElement
+      ? cls.getField(name)
+      : null;
   final propAnnotation =
       _annotation(genUiPropChecker, param) ??
       (field == null ? null : _annotation(genUiPropChecker, field));
@@ -332,7 +334,7 @@ final _literalDefault = RegExp(
 /// schema.
 bool _isKeyParameter(FormalParameterElement param) {
   if (param.name != 'key') return false;
-  if (param.isSuperFormal) return true;
+  if (param is SuperFormalParameterElement) return true;
   final type = param.type;
   if (type is DynamicType) return true;
   return type.element?.name?.endsWith('Key') ?? false;

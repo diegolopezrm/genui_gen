@@ -1,3 +1,8 @@
+## 0.1.1
+
+- Widened dependency ranges so the package resolves against the latest
+  `genui` 0.10.x and `meta` releases. No API changes.
+
 ## 0.1.0
 
 Initial release.
