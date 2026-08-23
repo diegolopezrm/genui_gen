@@ -200,7 +200,10 @@ class Contact extends StatelessWidget {
 ''');
     expect(out, contains('"email":"user@example.com"'));
     expect(out, contains('"website":"Sample website"'));
-    expect(out, contains('"avatarUrl":"https://example.com/sample.png"'));
+    expect(
+      out,
+      contains('"avatarUrl":"https://picsum.photos/seed/genui_gen/400/225"'),
+    );
   });
 
   test('long descriptions are split into adjacent string literals', () async {

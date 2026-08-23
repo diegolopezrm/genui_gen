@@ -233,9 +233,8 @@ builders:
     build_extensions: {".dart": [".genui.dart"]}
     auto_apply: dependents
     build_to: source
-    applies_builders: ["source_gen:combining_builder"]? 
 ```
-Decision: use `PartBuilder([GenUiGenerator()], '.genui.dart')` with
+Decision (implemented): `PartBuilder([GenUiGenerator()], '.genui.dart')` with
 `build_to: source`, `auto_apply: dependents`. No combining builder needed.
 
 Diagnostics must be `InvalidGenerationSourceError` with `element:` set so

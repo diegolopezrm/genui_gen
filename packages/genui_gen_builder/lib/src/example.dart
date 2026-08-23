@@ -83,7 +83,9 @@ String? obviousStringSample(String name, String? description) {
   bool has(List<String> words) => words.any(hint.contains);
 
   if (has(['image', 'photo', 'avatar', 'thumbnail', 'picture'])) {
-    return 'https://example.com/sample.png';
+    // A real, stable placeholder so development tooling such as
+    // DebugCatalogView renders an actual picture instead of a broken image.
+    return 'https://picsum.photos/seed/genui_gen/400/225';
   }
   if (has(['url', 'uri', 'href', 'link'])) {
     return 'https://example.com';

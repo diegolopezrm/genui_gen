@@ -43,7 +43,7 @@ final CatalogItem productCardCatalogItem = CatalogItem(
     "component": "ProductCard",
     "title": "Sample title",
     "price": 42.5,
-    "imageUrl": "https://example.com/sample.png",
+    "imageUrl": "https://picsum.photos/seed/genui_gen/400/225",
     "onTap": {
       "event": {
         "name": "onTap"
