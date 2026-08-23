@@ -1,19 +1,4 @@
-## 0.1.1
+## 0.1.2
 
-- Widened dependency ranges so the package resolves against the latest
-  `genui` 0.10.x and `meta` releases. No API changes.
+- Version bump to stay aligned with `genui_gen_builder` 0.1.2. No API changes.
 
-## 0.1.0
-
-Initial release.
-
-- `@GenUiWidget`, `@GenUiProp` and `@GenUiAction` annotations.
-- `GenUiBindings`, `GenUiBinding` and `GenUiValues` runtime helpers that
-  resolve literal, `{"path": ...}` and `{"call": ...}` values by composing
-  genui's `Bound*` widgets.
-- `genUiActionHandler` for dispatching `event` and `functionCall` A2UI actions
-  the same way the core `Button` does. Malformed action data is reported as an
-  `A2uiValidationException` so the model receives the message.
-- `genUiReportMissing` for reporting required properties the model omitted,
-  once per component instance and never for unresolved data bindings.
-- `@GenUiProp` and `@GenUiAction` target both parameters and fields.

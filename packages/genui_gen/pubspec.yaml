@@ -1,6 +1,6 @@
 name: genui_gen
 description: Annotations and runtime helpers to generate genui CatalogItems from your own Flutter widgets. Derive the schema from the constructor so the catalog can never drift.
-version: 0.1.1
+version: 0.1.2
 repository: https://github.com/diegolopezrm/genui_gen
 issue_tracker: https://github.com/diegolopezrm/genui_gen/issues
 topics:
