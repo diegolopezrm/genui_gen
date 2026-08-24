@@ -136,3 +136,67 @@ class GenUiAction {
   /// Takes precedence over the parameter's and the field's doc comments.
   final String? description;
 }
+
+/// Marks a plain Dart class as a data shape an annotated widget may receive.
+///
+/// Use it for the value objects a [GenUiWidget] parameter takes: a table row,
+/// a chart point, a list item. The `genui_gen_builder` package reads the
+/// annotated class's constructor (the unnamed one by default, or [constructor]
+/// when set) with the same rules it applies to a widget, and generates two
+/// things from it: a JSON schema describing the object, and a decoder that
+/// rebuilds an instance from the map the model produced.
+///
+/// ```dart
+/// @GenUiData(description: 'One row of a comparison table.')
+/// class TableRow {
+///   const TableRow({required this.label, required this.value, this.trend});
+///
+///   /// Text shown in the first column.
+///   final String label;
+///
+///   /// Numeric value shown in the second column.
+///   final double value;
+///
+///   /// Direction of the change, if known.
+///   final Trend? trend;
+/// }
+///
+/// @GenUiWidget(description: 'A comparison table.')
+/// class ComparisonTable extends StatelessWidget {
+///   const ComparisonTable({super.key, required this.rows});
+///
+///   /// The rows to display.
+///   final List<TableRow> rows;
+///   // ...
+/// }
+/// ```
+///
+/// A data class holds data, not components: its fields may be the scalar types
+/// [GenUiWidget] supports (`String`, `int`, `double`, `num`, `bool`, enums,
+/// `List<String>`), other `@GenUiData` classes, or lists of them. `Widget` and
+/// callback fields are a build error, because the model emits a data object as
+/// a literal value and cannot reference a component from inside one.
+///
+/// [GenUiProp] applies to the constructor parameters of a data class exactly
+/// as it does to a widget's, so `description`, `name` and `ignore` all work.
+///
+/// Schemas are inlined wherever the class is used rather than referenced, so a
+/// data class that reaches itself, directly or through another data class, is
+/// a build error.
+@Target({TargetKind.classType})
+class GenUiData {
+  /// Creates a [GenUiData] annotation.
+  ///
+  /// Unlike [GenUiWidget.description], the description is optional: a data
+  /// class is only ever emitted inside a property whose own description
+  /// already tells the model what it is for. Supplying one still helps.
+  const GenUiData({this.description, this.constructor});
+
+  /// A description of the object, used as the schema description.
+  final String? description;
+
+  /// The named constructor to derive the schema and the decoder from.
+  ///
+  /// When `null` the unnamed constructor is used.
+  final String? constructor;
+}

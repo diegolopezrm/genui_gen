@@ -30,6 +30,14 @@ enum PropKind {
   /// `List<String>` (+nullable) → `A2uiSchemas.stringArrayReference`.
   stringList,
 
+  /// A class annotated with `@GenUiData` (+nullable) → the generated
+  /// `ObjectSchema` for that class.
+  data,
+
+  /// `List<T>` where `T` is annotated with `@GenUiData` (+nullable) →
+  /// `S.list(items: <T schema>)`.
+  dataList,
+
   /// `Widget` / `Widget?` → `A2uiSchemas.componentReference`.
   widget,
 
@@ -50,9 +58,14 @@ extension PropKindX on PropKind {
     PropKind.number ||
     PropKind.boolean ||
     PropKind.enumeration ||
-    PropKind.stringList => true,
+    PropKind.stringList ||
+    PropKind.data ||
+    PropKind.dataList => true,
     PropKind.widget || PropKind.widgetList || PropKind.action => false,
   };
+
+  /// Whether the value is a `@GenUiData` object or a list of them.
+  bool get isData => this == PropKind.data || this == PropKind.dataList;
 
   /// Whether the value is a child component reference built through
   /// `ctx.buildChild`.
@@ -73,6 +86,7 @@ final class PropSpec {
     this.enumTypeName,
     this.enumValues = const [],
     this.eventName,
+    this.data,
   });
 
   /// The constructor parameter name.
@@ -112,6 +126,9 @@ final class PropSpec {
   /// For [PropKind.action]: the event name used in the generated example.
   final String? eventName;
 
+  /// For [PropKind.data] and [PropKind.dataList]: the analysed data class.
+  final DataSpec? data;
+
   /// Whether the property is listed under `required` in the schema.
   ///
   /// A property is required iff the parameter is required in the constructor,
@@ -120,6 +137,51 @@ final class PropSpec {
   /// problem through `ctx.reportError`.
   bool get isSchemaRequired =>
       isRequiredInConstructor && defaultValueCode == null && !isNullable;
+}
+
+/// A fully analysed `@GenUiData` class.
+///
+/// A data class contributes two declarations to the generated part: the
+/// `ObjectSchema` describing the JSON the model must emit, and the decoder
+/// that turns that JSON back into an instance.
+final class DataSpec {
+  DataSpec({
+    required this.className,
+    required this.constructorName,
+    required this.description,
+    required this.fields,
+    required this.libraryUri,
+  });
+
+  /// The annotated class name.
+  final String className;
+
+  /// URI of the library that declares the class, used to tell two classes
+  /// with colliding generated names apart in diagnostics.
+  final String libraryUri;
+
+  /// The constructor to call; empty for the unnamed constructor.
+  final String constructorName;
+
+  /// Description written into the generated schema, or `null` when none was
+  /// given and the class has no doc comment.
+  final String? description;
+
+  /// Constructor parameters in declaration order.
+  final List<PropSpec> fields;
+
+  /// Name of the generated schema variable, e.g. `rowGenUiSchema`.
+  String get schemaVariableName => '${lowerCamel(className)}GenUiSchema';
+
+  /// Name of the generated decoder function, e.g. `rowFromGenUiJson`.
+  String get decoderName => '${lowerCamel(className)}FromGenUiJson';
+
+  /// The Dart expression used to invoke the chosen constructor.
+  String get constructorReference =>
+      constructorName.isEmpty ? className : '$className.$constructorName';
+
+  Iterable<PropSpec> get requiredFields =>
+      fields.where((f) => f.isSchemaRequired);
 }
 
 /// A fully analysed `@GenUiWidget` class.

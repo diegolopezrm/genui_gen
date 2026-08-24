@@ -9,7 +9,7 @@ import 'package:source_gen/source_gen.dart';
 
 import 'src/generator.dart';
 
-export 'src/generator.dart' show GenUiGenerator;
+export 'src/generator.dart' show GenUiDataGenerator, GenUiGenerator;
 
 /// Header written at the top of every generated `.genui.dart` file.
 const generatedFileHeader = '''
@@ -18,10 +18,10 @@ const generatedFileHeader = '''
 // coverage:ignore-file
 ''';
 
-/// Creates the builder that turns `@GenUiWidget` classes into
-/// `<file>.genui.dart` part files.
+/// Creates the builder that turns `@GenUiWidget` and `@GenUiData` classes
+/// into `<file>.genui.dart` part files.
 Builder genUiGenBuilder(BuilderOptions options) => PartBuilder(
-  const [GenUiGenerator()],
+  const [GenUiGenerator(), GenUiDataGenerator()],
   '.genui.dart',
   header: generatedFileHeader,
   options: options,

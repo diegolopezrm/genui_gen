@@ -2,7 +2,8 @@
 ///
 /// One example is produced per widget. It contains the required properties
 /// plus the optional ones that have an obvious sample value (enums, actions,
-/// child components and strings whose name hints at a URL, e-mail, etc.).
+/// child components, `@GenUiData` objects and strings whose name hints at a
+/// URL, e-mail, etc.).
 library;
 
 import 'dart:convert';
@@ -33,22 +34,33 @@ String buildExampleJson(WidgetSpec spec) {
 
 /// Computes the sample for [prop], or `null` when the property should be
 /// left out of the example. Child `Text` components are appended to [extra].
-Object? _sampleFor(PropSpec prop, List<Map<String, Object?>> extra) {
+Object? _sampleFor(
+  PropSpec prop,
+  List<Map<String, Object?>> extra, {
+  String suffix = '',
+  int index = 0,
+}) {
   final required = prop.isSchemaRequired;
   switch (prop.kind) {
     case PropKind.string:
       final obvious = obviousStringSample(prop.schemaName, prop.description);
       if (obvious != null) return obvious;
-      return required ? 'Sample ${humanize(prop.schemaName)}' : null;
+      return required ? 'Sample ${humanize(prop.schemaName)}$suffix' : null;
     case PropKind.integer:
     case PropKind.number:
-      return required ? 42 : null;
+      // Entries of a list of objects are spread apart so the example does not
+      // repeat one number down a whole column. At index 0 — every widget
+      // property and every standalone object — the sample is unchanged.
+      return required ? 42 + index : null;
     case PropKind.decimal:
-      return required ? 42.5 : null;
+      return required ? 42.5 + index : null;
     case PropKind.boolean:
       return required ? true : null;
     case PropKind.enumeration:
-      return prop.enumValues.isEmpty ? null : prop.enumValues.first;
+      if (prop.enumValues.isEmpty) return null;
+      // Entries of a list of objects walk the enum instead of repeating the
+      // first value, so the example shows the model that the field varies.
+      return prop.enumValues[index % prop.enumValues.length];
     case PropKind.stringList:
       return required ? ['Alpha', 'Beta'] : null;
     case PropKind.widget:
@@ -63,11 +75,40 @@ Object? _sampleFor(PropSpec prop, List<Map<String, Object?>> extra) {
         );
       }
       return ids;
+    case PropKind.data:
+      return buildExampleObject(prop.data!, suffix: suffix, index: index);
+    case PropKind.dataList:
+      return [
+        for (var i = 0; i < 2; i++)
+          buildExampleObject(prop.data!, suffix: ' ${i + 1}', index: i),
+      ];
     case PropKind.action:
       return {
         'event': {'name': prop.eventName ?? prop.schemaName},
       };
   }
+}
+
+/// Builds one sample object for a `@GenUiData` class.
+///
+/// The rules match the widget example: required fields always get a value,
+/// optional ones only when the sample is obvious (enums, nested objects,
+/// strings whose name hints at a format). [suffix] distinguishes the entries
+/// of a list of objects (`Sample label 1`, `Sample label 2`) and [index] is
+/// the 0-based position of the entry, which rotates enum samples and spreads
+/// numeric ones.
+Map<String, Object?> buildExampleObject(
+  DataSpec spec, {
+  String suffix = '',
+  int index = 0,
+}) {
+  final object = <String, Object?>{};
+  for (final field in spec.fields) {
+    final sample = _sampleFor(field, const [], suffix: suffix, index: index);
+    if (sample == null) continue;
+    object[field.schemaName] = sample;
+  }
+  return object;
 }
 
 Map<String, Object?> _text(String id, String text) => {

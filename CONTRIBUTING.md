@@ -10,7 +10,7 @@ lockfile.
 |---|---|---|
 | `packages/genui_gen` | annotations + runtime helpers (Flutter package) | `flutter test` |
 | `packages/genui_gen_builder` | `build_runner` generator (pure Dart) | `dart test` |
-| `example` | Flutter app with four annotated widgets | `flutter test` (smoke tests over the generated catalog) |
+| `example` | Flutter app with five annotated widgets and one `@GenUiData` model | `flutter test` (smoke tests over the generated catalog) |
 
 ## Setup
 
@@ -44,8 +44,9 @@ strings in the affected test and say so in the PR description.
 ## Regenerating the example
 
 The example app commits its generated `*.genui.dart` parts so it runs without
-a build step. After changing the generator or any annotated widget under
-`example/lib/widgets/`, regenerate and commit the result:
+a build step. After changing the generator, any annotated widget under
+`example/lib/widgets/` or any `@GenUiData` model under `example/lib/models/`,
+regenerate and commit the result:
 
 ```sh
 cd example
@@ -77,8 +78,10 @@ Checklist:
 - The example regenerated if the generator output changed.
 - `CHANGELOG.md` of each affected package updated under the unreleased
   version.
-- `DESIGN.md` updated when the public API, the type mapping or the generated
-  code shape changes. It is the contract the generator is written against.
+- The design docs updated when the public API, the type mapping or the
+  generated code shape changes. `DESIGN.md` is the 0.1 contract and must keep
+  holding; `DESIGN-0.2.md` covers `@GenUiData` and object bindings. Together
+  they are the contract the generator is written against.
 
 ## Conventions
 

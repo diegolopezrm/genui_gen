@@ -62,7 +62,9 @@ String _schema(WidgetSpec spec, Set<String> symbols) {
     symbols.add('A2uiSchemas');
     out.write('properties: {');
     for (final prop in spec.props) {
-      out.write('${dartString(prop.schemaName)}: ${_propertySchema(prop)},');
+      out.write(
+        '${dartString(prop.schemaName)}: ${_propertySchema(prop, symbols)},',
+      );
     }
     out.write('},');
     final required = spec.requiredProps.toList();
@@ -76,7 +78,31 @@ String _schema(WidgetSpec spec, Set<String> symbols) {
   return out.toString();
 }
 
-String _propertySchema(PropSpec prop) {
+/// The inlined schema for a *field* whose type is a `@GenUiData` class.
+///
+/// The nested class's own generated `ObjectSchema` variable is referenced, so
+/// the JSON produced is the fully inlined object schema and never a `$ref` —
+/// `A2uiSchemas.updateComponentsSchema` consumes `dataSchema` as a `oneOf`
+/// branch and there is no registry we control to resolve a reference against.
+///
+/// When the use site carries its own description — a doc comment or
+/// `@GenUiProp(description:)` on the parameter — the schema is copied with
+/// that description in place of the data class's own, so one field can explain
+/// what the object means *here* without changing the shared class. Without a
+/// use-site description the variable is referenced as-is.
+///
+/// A widget *property* does not go through here: it needs the literal wrapped
+/// in a union with the data-binding and function-call forms, and carries its
+/// description on that wrapper (see [_propertySchema]).
+String _objectSchema(DataSpec data, String? description, Set<String> symbols) {
+  final variable = data.schemaVariableName;
+  if (description == null) return variable;
+  symbols.add('ObjectSchema');
+  return 'ObjectSchema.fromMap({...$variable.value, '
+      "'description': ${dartWrappedString(description)}})";
+}
+
+String _propertySchema(PropSpec prop, Set<String> symbols) {
   final description = prop.description == null
       ? ''
       : 'description: ${dartWrappedString(prop.description!)}';
@@ -98,6 +124,24 @@ String _propertySchema(PropSpec prop) {
       return 'A2uiSchemas.stringReference($args)';
     case PropKind.stringList:
       return 'A2uiSchemas.stringArrayReference($description)';
+    case PropKind.data:
+      // Folded through `BoundObject`, which resolves `{"path": ...}` and
+      // `{"call": ...}` as well as a literal, so the schema has to allow all
+      // three. Same shape the core catalog uses for `ChoicePicker.value`.
+      final objectArgs = [
+        if (description.isNotEmpty) description,
+        'oneOf: [${prop.data!.schemaVariableName}, '
+            'A2uiSchemas.dataBindingSchema(), A2uiSchemas.functionCall()]',
+      ].join(', ');
+      return 'S.combined($objectArgs)';
+    case PropKind.dataList:
+      // Folded through `BoundList`, so the same three forms apply;
+      // `listOrReference` is the core helper for exactly that.
+      final args = [
+        if (description.isNotEmpty) description,
+        'items: ${prop.data!.schemaVariableName}',
+      ].join(', ');
+      return 'A2uiSchemas.listOrReference($args)';
     case PropKind.widget:
       return 'A2uiSchemas.componentReference($description)';
     case PropKind.widgetList:
@@ -124,6 +168,10 @@ String _widgetBuilder(WidgetSpec spec, Set<String> symbols) {
 
   if (spec.requiredProps.isNotEmpty) {
     out.writeln(_missingHelper(spec, symbols));
+  }
+
+  if (spec.props.any((p) => p.kind.isData)) {
+    out.writeln(_missingFieldHelper(spec, symbols));
   }
 
   for (final prop in spec.childProps) {
@@ -168,6 +216,17 @@ T missing<T>(String property, T fallback) {
 }''';
 }
 
+/// A local helper that builds the reporter handed to a generated decoder, so
+/// a required field the model left out of a data object is reported as
+/// `<property>.<field>` rather than staying silent.
+String _missingFieldHelper(WidgetSpec spec, Set<String> symbols) {
+  symbols.addAll(['genUiReportMissing', 'GenUiMissingFieldReporter']);
+  return 'GenUiMissingFieldReporter missingIn(String property) => '
+      '(field) => genUiReportMissing(ctx, '
+      '${dartString(spec.catalogName)}'
+      r""", '$property.$field');""";
+}
+
 /// The default value of [prop] as an expression that is safe to place after
 /// `??` or `:`.
 ///
@@ -191,6 +250,8 @@ String _bindingFactory(PropSpec prop) => switch (prop.kind) {
   PropKind.integer || PropKind.decimal || PropKind.number => 'number',
   PropKind.boolean => 'bool',
   PropKind.stringList => 'stringList',
+  PropKind.data => 'object',
+  PropKind.dataList => 'objectList',
   PropKind.widget ||
   PropKind.widgetList ||
   PropKind.action => throw StateError('${prop.kind} is not a bound property'),
@@ -258,6 +319,36 @@ String _argument(PropSpec prop, Set<String> symbols) {
         'List<String>',
         'const <String>[]',
       );
+    case PropKind.data:
+      final decoder = prop.data!.decoderName;
+      if (prop.isSchemaRequired) {
+        // The reporter is passed only when the object actually resolved. A
+        // `{"path": ...}` that has not resolved yet is reported once by
+        // `missing`, which stays silent for a pending binding; decoding the
+        // empty fallback with a reporter would instead send the model one
+        // false `<property>.<field>` error per required field of a component
+        // that was never malformed.
+        return 'switch (v.object($key)) { '
+            'final Map<String, Object?> json => '
+            '$decoder(json, missingIn($key)), '
+            '_ => $decoder('
+            'missing<JsonMap>($key, const <String, Object?>{})) }';
+      }
+      final fallback = prop.defaultValueCode == null
+          ? 'null'
+          : _defaultExpression(prop);
+      return 'switch (v.object($key)) { '
+          'final Map<String, Object?> json => '
+          '$decoder(json, missingIn($key)), '
+          '_ => $fallback }';
+    case PropKind.dataList:
+      final type = prop.data!.className;
+      return withFallback(
+        'v.objectList($key)?.map((json) => '
+            '${prop.data!.decoderName}(json, missingIn($key))).toList()',
+        'List<$type>',
+        'const <$type>[]',
+      );
     case PropKind.widget:
       final local = _childLocal(prop);
       final String fallback;
@@ -291,5 +382,238 @@ String _argument(PropSpec prop, Set<String> symbols) {
         'void Function()',
         '() {}',
       );
+  }
+}
+
+// --- Data classes --------------------------------------------------------
+
+/// Emits the `ObjectSchema` and the decoder function for [spec].
+///
+/// Fields of a data class use the plain `S.*` schemas rather than the
+/// `A2uiSchemas.*Reference` ones: the values inside a data object are literals
+/// the model emits, not per-field data bindings. The binding applies to the
+/// whole object, which is the widget property that carries it.
+EmittedCode emitDataClass(DataSpec spec) {
+  final symbols = <String>{'ObjectSchema', 'GenUiMissingFieldReporter'};
+  final out = StringBuffer();
+
+  out.writeln('/// Generated schema for [${spec.className}].');
+  out.writeln(
+    'final ObjectSchema ${spec.schemaVariableName} = '
+    '${_dataSchema(spec, symbols)};',
+  );
+  out.writeln();
+  out.writeln(
+    '/// Decodes a [${spec.className}] from the map the model produced.',
+  );
+  out.writeln('///');
+  out.writeln(
+    '/// Values are coerced the same way genui\'s `Bound*` widgets coerce a',
+  );
+  out.writeln(
+    '/// widget property, so a field of the wrong type degrades instead of',
+  );
+  out.writeln(
+    '/// throwing. Every required field that had to fall back is reported',
+  );
+  out.writeln('/// through [onMissing], when one is given.');
+  out.write(
+    '${spec.className} ${spec.decoderName}(Map<String, Object?> json, '
+    '[GenUiMissingFieldReporter? onMissing]) => '
+    '${spec.constructorReference}(${_decodeArguments(spec, symbols)});',
+  );
+
+  return EmittedCode(out.toString(), symbols);
+}
+
+/// The schema literal for a data class.
+///
+/// `ObjectSchema(...)` rather than `S.object(...)`: the redirecting factory
+/// `Schema.object` is statically typed as `Schema`, so it cannot initialise
+/// the `ObjectSchema` variable the generated code declares. Both build the
+/// very same schema.
+String _dataSchema(DataSpec spec, Set<String> symbols) {
+  final out = StringBuffer('ObjectSchema(');
+  if (spec.description != null) {
+    out.write('description: ${dartWrappedString(spec.description!)},');
+  }
+  if (spec.fields.isNotEmpty) {
+    out.write('properties: {');
+    for (final field in spec.fields) {
+      out.write(
+        '${dartString(field.schemaName)}: ${_fieldSchema(field, symbols)},',
+      );
+    }
+    out.write('},');
+    final required = spec.requiredFields.toList();
+    if (required.isNotEmpty) {
+      out.write('required: [');
+      out.write(required.map((f) => dartString(f.schemaName)).join(', '));
+      out.write('],');
+    }
+  }
+  out.write(')');
+  return out.toString();
+}
+
+String _fieldSchema(PropSpec field, Set<String> symbols) {
+  final description = field.description == null
+      ? ''
+      : 'description: ${dartWrappedString(field.description!)}';
+  if (!field.kind.isData) symbols.add('S');
+  switch (field.kind) {
+    case PropKind.string:
+      return 'S.string($description)';
+    case PropKind.integer:
+      // A field of a data class is a literal the model emits, so the schema
+      // can say "integer" and have it validated. A widget property cannot:
+      // `A2uiSchemas` only offers `numberReference`.
+      return 'S.integer($description)';
+    case PropKind.decimal:
+    case PropKind.number:
+      return 'S.number($description)';
+    case PropKind.boolean:
+      return 'S.boolean($description)';
+    case PropKind.enumeration:
+      final values = field.enumValues.map(dartString).join(', ');
+      final args = [
+        if (description.isNotEmpty) description,
+        'enumValues: [$values]',
+      ].join(', ');
+      return 'S.string($args)';
+    case PropKind.stringList:
+      final args = [
+        if (description.isNotEmpty) description,
+        'items: S.string()',
+      ].join(', ');
+      return 'S.list($args)';
+    case PropKind.data:
+      return _objectSchema(field.data!, field.description, symbols);
+    case PropKind.dataList:
+      symbols.add('S');
+      final args = [
+        if (description.isNotEmpty) description,
+        'items: ${field.data!.schemaVariableName}',
+      ].join(', ');
+      return 'S.list($args)';
+    case PropKind.widget:
+    case PropKind.widgetList:
+    case PropKind.action:
+      throw StateError('${field.kind} is not valid inside a data class');
+  }
+}
+
+String _decodeArguments(DataSpec spec, Set<String> symbols) {
+  final out = StringBuffer();
+  for (final field in spec.fields.where((f) => !f.isNamed)) {
+    out.write('${_decodeArgument(field, symbols)}, ');
+  }
+  for (final field in spec.fields.where((f) => f.isNamed)) {
+    out.write('${field.dartName}: ${_decodeArgument(field, symbols)}, ');
+  }
+  return out.toString();
+}
+
+/// The expression that reads one field out of the decoded JSON map.
+///
+/// Nothing is cast: the raw value goes through the `genUiAs*` coercions, which
+/// apply the very rules genui's `Bound*` widgets apply to a widget property.
+/// A model that puts a number where a string was declared therefore degrades
+/// the same way in both places instead of throwing a `TypeError` inside
+/// `build`.
+///
+/// Required fields fall back to the same neutral values the widget builder
+/// uses and report through `onMissing`, fields with a default fall back to
+/// that default, and everything else stays nullable.
+String _decodeArgument(PropSpec field, Set<String> symbols) {
+  final key = dartString(field.schemaName);
+  final raw = 'json[$key]';
+
+  // The type argument is always explicit: inside parentheses the `??` operand
+  // would otherwise be inferred from the literal fallback (`0` gives `int`,
+  // not `num`) and the result would not accept `.toDouble()`.
+  String reportMissing(String type, String fallback) {
+    symbols.add('genUiMissingField');
+    return 'genUiMissingField<$type>(onMissing, $key, $fallback)';
+  }
+
+  String withFallback(String value, String type, String fallback) {
+    if (field.isSchemaRequired) {
+      return '$value ?? ${reportMissing(type, fallback)}';
+    }
+    if (field.defaultValueCode != null) {
+      return '$value ?? ${_defaultExpression(field)}';
+    }
+    return value;
+  }
+
+  String orElse(String type, String requiredFallback) {
+    if (field.isSchemaRequired) return reportMissing(type, requiredFallback);
+    if (field.defaultValueCode != null) return _defaultExpression(field);
+    return 'null';
+  }
+
+  switch (field.kind) {
+    case PropKind.string:
+      symbols.add('genUiAsString');
+      return withFallback('genUiAsString($raw)', 'String', "''");
+    case PropKind.integer:
+      symbols.add('genUiAsNum');
+      if (field.isSchemaRequired) {
+        return '(genUiAsNum($raw) ?? ${reportMissing('num', '0')}).toInt()';
+      }
+      return withFallback('genUiAsNum($raw)?.toInt()', 'int', '0');
+    case PropKind.decimal:
+      symbols.add('genUiAsNum');
+      if (field.isSchemaRequired) {
+        return '(genUiAsNum($raw) ?? ${reportMissing('num', '0')}).toDouble()';
+      }
+      return withFallback('genUiAsNum($raw)?.toDouble()', 'double', '0');
+    case PropKind.number:
+      symbols.add('genUiAsNum');
+      return withFallback('genUiAsNum($raw)', 'num', '0');
+    case PropKind.boolean:
+      symbols.add('genUiAsBool');
+      return withFallback('genUiAsBool($raw)', 'bool', 'false');
+    case PropKind.enumeration:
+      symbols.add('genUiAsString');
+      final enumType = field.enumTypeName!;
+      return withFallback(
+        '$enumType.values.asNameMap()[genUiAsString($raw)]',
+        enumType,
+        '$enumType.values.first',
+      );
+    case PropKind.stringList:
+      symbols.add('genUiAsStringList');
+      return withFallback(
+        'genUiAsStringList($raw)',
+        'List<String>',
+        'const <String>[]',
+      );
+    case PropKind.data:
+      symbols.addAll(['genUiAsObject', 'genUiNestedField']);
+      final decoder = field.data!.decoderName;
+      final orElseCode = orElse(
+        field.data!.className,
+        '$decoder(const <String, Object?>{})',
+      );
+      return 'switch (genUiAsObject($raw)) { '
+          'final Map<String, Object?> nested => '
+          '$decoder(nested, genUiNestedField(onMissing, $key)), '
+          '_ => $orElseCode }';
+    case PropKind.dataList:
+      symbols.addAll(['genUiAsObjectList', 'genUiNestedField']);
+      final decoder = field.data!.decoderName;
+      final type = field.data!.className;
+      return withFallback(
+        'genUiAsObjectList($raw)?.map((nested) => '
+            '$decoder(nested, genUiNestedField(onMissing, $key))).toList()',
+        'List<$type>',
+        'const <$type>[]',
+      );
+    case PropKind.widget:
+    case PropKind.widgetList:
+    case PropKind.action:
+      throw StateError('${field.kind} is not valid inside a data class');
   }
 }

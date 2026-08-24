@@ -46,9 +46,25 @@ class Schema {
     String? description,
     Map<String, Schema>? properties,
     List<String>? required,
-  }) = Schema._;
-  factory Schema.list({String? description, Schema? items}) = Schema._;
+  }) = ObjectSchema;
+  factory Schema.list({String? description, Schema? items}) => const Schema();
+  factory Schema.string({String? description, List<Object?>? enumValues}) =>
+      const Schema();
+  factory Schema.number({String? description}) => const Schema();
+  factory Schema.integer({String? description}) => const Schema();
+  factory Schema.boolean({String? description}) => const Schema();
+  factory Schema.combined({String? description, List<Object?>? oneOf}) =>
+      const Schema();
   const Schema._();
+  Map<String, Object?> get value => const {};
+}
+
+class ObjectSchema extends Schema {
+  const ObjectSchema({
+    String? description,
+    Map<String, Schema>? properties,
+    List<String>? required,
+  }) : super._();
 }
 
 typedef S = Schema;
@@ -101,12 +117,19 @@ abstract final class A2uiSchemas {
       const Schema();
   static Schema componentReference({String? description}) => const Schema();
   static Schema action({String? description}) => const Schema();
+  static Schema dataBindingSchema({String? description}) => const Schema();
+  static Schema functionCall() => const Schema();
+  static Schema listOrReference({
+    required Schema items,
+    String? description,
+  }) => const Schema();
 }
 ''',
   'genui_gen|lib/genui_gen.dart': '''
 library;
 
-export 'package:json_schema_builder/json_schema_builder.dart' show S, Schema;
+export 'package:json_schema_builder/json_schema_builder.dart'
+    show ObjectSchema, S, Schema;
 
 class GenUiWidget {
   const GenUiWidget({
@@ -119,6 +142,12 @@ class GenUiWidget {
   final String description;
   final String? constructor;
   final bool isImplicitlyFlexible;
+}
+
+class GenUiData {
+  const GenUiData({this.description, this.constructor});
+  final String? description;
+  final String? constructor;
 }
 
 class GenUiProp {
@@ -150,6 +179,8 @@ sealed class GenUiBinding {
   const factory GenUiBinding.number(Object? raw) = _Binding;
   const factory GenUiBinding.bool(Object? raw) = _Binding;
   const factory GenUiBinding.stringList(Object? raw) = _Binding;
+  const factory GenUiBinding.object(Object? raw) = _Binding;
+  const factory GenUiBinding.objectList(Object? raw) = _Binding;
 }
 
 class _Binding implements GenUiBinding {
@@ -162,11 +193,35 @@ class GenUiValues {
   num? number(String key) => null;
   bool? boolean(String key) => null;
   List<String>? stringList(String key) => null;
+  Map<String, Object?>? object(String key) => null;
+  List<Map<String, Object?>>? objectList(String key) => null;
 }
+
+typedef GenUiDecoder<T> = T Function(Map<String, Object?> json);
+
+typedef GenUiMissingFieldReporter = void Function(String field);
 
 void Function()? genUiActionHandler(Object ctx, Object? actionData) => null;
 
 void genUiReportMissing(Object ctx, String component, String property) {}
+
+String? genUiAsString(Object? value) => null;
+num? genUiAsNum(Object? value) => null;
+bool? genUiAsBool(Object? value) => null;
+List<String>? genUiAsStringList(Object? value) => null;
+Map<String, Object?>? genUiAsObject(Object? value) => null;
+List<Map<String, Object?>>? genUiAsObjectList(Object? value) => null;
+
+T genUiMissingField<T>(
+  GenUiMissingFieldReporter? onMissing,
+  String field,
+  T fallback,
+) => fallback;
+
+GenUiMissingFieldReporter? genUiNestedField(
+  GenUiMissingFieldReporter? onMissing,
+  String field,
+) => onMissing;
 ''',
 };
 

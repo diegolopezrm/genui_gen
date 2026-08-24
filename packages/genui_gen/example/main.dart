@@ -3,7 +3,7 @@
 // `part 'main.genui.dart';` below the imports to get `productCardCatalogItem`.
 //
 // The complete, runnable app lives in the repository's `example/` directory:
-// https://github.com/dieg0lopez/genui_gen/tree/main/example
+// https://github.com/diegolopezrm/genui_gen/tree/main/example
 
 import 'package:flutter/material.dart';
 import 'package:genui/genui.dart';

@@ -105,7 +105,7 @@ void genUiReportMissing(CatalogItemContext ctx, String component, String propert
 | `String` / `String?` | `A2uiSchemas.stringReference(description:)` | `GenUiBinding.string` → `values.string(k)` |
 | `int`, `double`, `num` (+nullable) | `A2uiSchemas.numberReference(description:)` | `GenUiBinding.number` → `.toInt()` / `.toDouble()` as needed |
 | `bool` / `bool?` | `A2uiSchemas.booleanReference(description:)` | `GenUiBinding.bool` |
-| `enum E` / `E?` | `A2uiSchemas.stringReference(description:, enumValues: E.values names)` | `GenUiBinding.string` → `E.values.byName(s)` |
+| `enum E` / `E?` | `A2uiSchemas.stringReference(description:, enumValues: E.values names)` | `GenUiBinding.string` → `E.values.asNameMap()[s]` |
 | `List<String>` (+nullable) | `A2uiSchemas.stringArrayReference(description:)` | `GenUiBinding.stringList` |
 | `Widget` / `Widget?` | `A2uiSchemas.componentReference(description:)` | `ctx.buildChild(id)` (wrapped in `KeyedSubtree`? no — plain) |
 | `List<Widget>` (+nullable) | `S.list(items: A2uiSchemas.componentReference())` | `ids.map(ctx.buildChild).toList()` |
@@ -245,7 +245,7 @@ build_runner points at the right line.
 Use `source_gen_test`-style golden tests or `build_test`'s `testBuilder`:
 - `string_props_test` — required/optional/nullable strings, doc comments.
 - `numbers_and_bools_test` — int/double/num/bool, defaults.
-- `enum_test` — enumValues and byName mapping.
+- `enum_test` — enumValues and `asNameMap()` mapping.
 - `children_test` — `Widget`, `Widget?`, `List<Widget>`.
 - `actions_test` — `VoidCallback`, `@GenUiAction(eventName:)`.
 - `errors_test` — unsupported type, missing description, ignore on required.

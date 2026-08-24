@@ -3,19 +3,9 @@ import 'package:genui/genui.dart';
 import 'package:genui_gen/genui_gen.dart';
 import 'package:json_schema_builder/json_schema_builder.dart';
 
+import '../models/trend.dart';
+
 part 'stat_tile.genui.dart';
-
-/// The direction a metric is moving in.
-enum Trend {
-  /// The value increased since the previous period.
-  up,
-
-  /// The value decreased since the previous period.
-  down,
-
-  /// The value is unchanged.
-  flat,
-}
 
 /// A compact Material tile that shows a single metric with its trend.
 @GenUiWidget(

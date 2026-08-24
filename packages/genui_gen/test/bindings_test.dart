@@ -324,8 +324,233 @@ void main() {
     expect(const GenUiBinding.string('a').raw, 'a');
     expect(const GenUiBinding.bool(true).raw, isTrue);
     expect(const GenUiBinding.stringList(['a']).raw, ['a']);
+    expect(const GenUiBinding.object({'a': 1}).raw, {'a': 1});
+    expect(const GenUiBinding.objectList([]).raw, isEmpty);
+  });
+
+  testWidgets('resolves object bindings from literals and from the model', (
+    tester,
+  ) async {
+    model.update(DataPath('/row'), <String, Object?>{
+      'label': 'Bound row',
+      'value': 2,
+    });
+
+    late GenUiValues received;
+
+    await tester.pumpWidget(
+      host(
+        GenUiBindings(
+          dataContext: dataContext,
+          bindings: const {
+            'literal': GenUiBinding.object({
+              'label': 'Literal row',
+              'value': 1,
+            }),
+            'bound': GenUiBinding.object({'path': '/row'}),
+            'notAnObject': GenUiBinding.object('nope'),
+            'unresolved': GenUiBinding.object({'path': '/nowhere'}),
+            'absent': GenUiBinding.object(null),
+          },
+          builder: (context, values) {
+            received = values;
+            return Text(values.object('bound')?['label'] as String? ?? '-');
+          },
+        ),
+      ),
+    );
+
+    expect(find.text('Bound row'), findsOneWidget);
+    expect(find.byType(BoundObject), findsNWidgets(5));
+    expect(received.object('literal'), {'label': 'Literal row', 'value': 1});
+    expect(received.object('bound'), {'label': 'Bound row', 'value': 2});
+    expect(received.object('notAnObject'), isNull);
+    expect(received.object('unresolved'), isNull);
+    expect(received.object('absent'), isNull);
+    expect(received.has('absent'), isFalse);
+  });
+
+  testWidgets('rebuilds when a bound object changes in the model', (
+    tester,
+  ) async {
+    model.update(DataPath('/row'), <String, Object?>{'label': 'one'});
+
+    await tester.pumpWidget(
+      host(
+        GenUiBindings(
+          dataContext: dataContext,
+          bindings: const {
+            'row': GenUiBinding.object({'path': '/row'}),
+          },
+          builder: (context, values) =>
+              Text(values.object('row')?['label'] as String? ?? '-'),
+        ),
+      ),
+    );
+
+    expect(find.text('one'), findsOneWidget);
+
+    model.update(DataPath('/row'), <String, Object?>{'label': 'two'});
+    await tester.pump();
+    expect(find.text('two'), findsOneWidget);
+  });
+
+  testWidgets('resolves object lists and skips entries that are not maps', (
+    tester,
+  ) async {
+    model.update(DataPath('/rows'), <Object?>[
+      <String, Object?>{'label': 'a'},
+      'junk',
+      null,
+      <String, Object?>{'label': 'b'},
+    ]);
+
+    late GenUiValues received;
+
+    await tester.pumpWidget(
+      host(
+        GenUiBindings(
+          dataContext: dataContext,
+          bindings: const {
+            'literal': GenUiBinding.objectList([
+              {'label': 'x'},
+              'junk',
+              null,
+              {'label': 'y'},
+            ]),
+            'bound': GenUiBinding.objectList({'path': '/rows'}),
+            'notAList': GenUiBinding.objectList('nope'),
+            'unresolved': GenUiBinding.objectList({'path': '/nowhere'}),
+            'absent': GenUiBinding.objectList(null),
+          },
+          builder: (context, values) {
+            received = values;
+            return Text('${values.objectList('bound')?.length}');
+          },
+        ),
+      ),
+    );
+
+    expect(find.text('2'), findsOneWidget);
+    expect(received.objectList('literal'), [
+      {'label': 'x'},
+      {'label': 'y'},
+    ]);
+    expect(received.objectList('bound'), [
+      {'label': 'a'},
+      {'label': 'b'},
+    ]);
+    expect(received.objectList('notAList'), isNull);
+    expect(received.objectList('unresolved'), isNull);
+    expect(received.objectList('absent'), isNull);
+    expect(received.objectList('never bound'), isNull);
+  });
+
+  testWidgets('rebuilds when a bound object list changes in the model', (
+    tester,
+  ) async {
+    model.update(DataPath('/rows'), <Object?>[
+      <String, Object?>{'label': 'a'},
+    ]);
+
+    await tester.pumpWidget(
+      host(
+        GenUiBindings(
+          dataContext: dataContext,
+          bindings: const {
+            'rows': GenUiBinding.objectList({'path': '/rows'}),
+          },
+          builder: (context, values) => Text(
+            (values.objectList('rows') ?? const <Map<String, Object?>>[])
+                .map((row) => row['label'])
+                .join(','),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('a'), findsOneWidget);
+
+    model.update(DataPath('/rows'), <Object?>[
+      <String, Object?>{'label': 'a'},
+      <String, Object?>{'label': 'b'},
+    ]);
+    await tester.pump();
+    expect(find.text('a,b'), findsOneWidget);
+  });
+
+  testWidgets('decodes resolved objects with a GenUiDecoder', (tester) async {
+    const GenUiDecoder<_Row> decode = _rowFromGenUiJson;
+    model.update(DataPath('/rows'), <Object?>[
+      <String, Object?>{'label': 'first', 'value': 1},
+      <String, Object?>{'label': 'second'},
+    ]);
+
+    await tester.pumpWidget(
+      host(
+        GenUiBindings(
+          dataContext: dataContext,
+          bindings: const {
+            'header': GenUiBinding.object({'label': 'head', 'value': 9}),
+            'rows': GenUiBinding.objectList({'path': '/rows'}),
+          },
+          builder: (context, values) {
+            final _Row? header = switch (values.object('header')) {
+              final Map<String, Object?> json => decode(json),
+              _ => null,
+            };
+            final List<_Row> rows =
+                (values.objectList('rows') ?? const <Map<String, Object?>>[])
+                    .map(decode)
+                    .toList();
+            return Text('$header|${rows.join('|')}');
+          },
+        ),
+      ),
+    );
+
+    expect(find.text('head:9.0|first:1.0|second:0.0'), findsOneWidget);
+  });
+
+  test('GenUiValues object accessors tolerate values of the wrong shape', () {
+    const GenUiValues values = GenUiValues({
+      'object': {'a': 1},
+      'list': [
+        {'a': 1},
+        'junk',
+        null,
+      ],
+      'string': 'nope',
+      'nil': null,
+    });
+
+    expect(values.object('object'), {'a': 1});
+    expect(values.object('string'), isNull);
+    expect(values.object('nil'), isNull);
+    expect(values.object('never bound'), isNull);
+    expect(values.objectList('list'), [
+      {'a': 1},
+    ]);
+    expect(values.objectList('string'), isNull);
+    expect(values.objectList('nil'), isNull);
+    expect(values.objectList('never bound'), isNull);
   });
 }
+
+class _Row {
+  const _Row({required this.label, required this.value});
+
+  final String label;
+  final double value;
+
+  @override
+  String toString() => '$label:$value';
+}
+
+_Row _rowFromGenUiJson(Map<String, Object?> json) => _Row(
+  label: json['label'] as String? ?? '',
+  value: (json['value'] as num? ?? 0).toDouble(),
+);
 
 class _UpperCase extends SynchronousClientFunction {
   const _UpperCase();

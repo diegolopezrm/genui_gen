@@ -35,12 +35,12 @@ widget.
 ```yaml
 dependencies:
   genui: ^0.10.0
-  genui_gen: ^0.1.0
+  genui_gen: ^0.2.0
   json_schema_builder: ^0.1.3
 
 dev_dependencies:
   build_runner: ^2.15.0
-  genui_gen_builder: ^0.1.0
+  genui_gen_builder: ^0.2.0
 ```
 
 `json_schema_builder` is a direct dependency because the generated code is a
@@ -197,8 +197,10 @@ because `GenUiBindings` composes genui's `BoundString`, `BoundNumber`,
 | `String`, `String?` | string reference | the resolved `String` |
 | `int`, `double`, `num` and nullable variants | number reference | converted with `toInt()` / `toDouble()` as needed |
 | `bool`, `bool?` | boolean reference | the resolved `bool` |
-| `enum E`, `E?` | string reference with `enumValues` set to the enum's `name`s | `E.values.byName(value)` |
+| `enum E`, `E?` | string reference with `enumValues` set to the enum's `name`s | `E.values.asNameMap()[value]`, falling back to the first constant when the property is required |
 | `List<String>`, `List<String>?` | string array reference | `List<String>` |
+| a class annotated with `@GenUiData`, and its nullable variant | a `oneOf` of the inlined object schema, a data binding and a function call | the decoded instance |
+| `List<T>`, `List<T>?` where `T` is `@GenUiData` | `A2uiSchemas.listOrReference(items: <that object schema>)` | one decoded `T` per element |
 | `Widget`, `Widget?` | component reference | `ctx.buildChild(id)` |
 | `List<Widget>`, `List<Widget>?` | list of component references | one `ctx.buildChild` per id |
 | `VoidCallback`, `void Function()` and nullable variants | action | a callback that dispatches a `UserActionEvent` |
@@ -269,14 +271,207 @@ for `this.x` parameters, on the field.
 
 `@GenUiAction` is only valid on `VoidCallback` / `void Function()` parameters.
 
-## Limitations (0.1)
+## Structured data (`@GenUiData`)
+
+Scalars only get you so far. A table, a chart series or a list of items needs
+objects, and faking them with parallel arrays (`labels`, `values`, `trends`)
+invites the model to emit three arrays of different lengths. `@GenUiData` marks
+a plain Dart class as a shape the model may emit, so a widget parameter can be
+that class or a `List` of it.
+
+`lib/models/metric_row.dart`:
+
+```dart
+import 'package:genui_gen/genui_gen.dart';
+import 'package:json_schema_builder/json_schema_builder.dart';
+
+import 'trend.dart';    // enum Trend { up, down, flat }
+
+part 'metric_row.genui.dart';
+
+@GenUiData(description: 'One row of a metrics table.')
+class MetricRow {
+  const MetricRow({
+    required this.label,
+    required this.value,
+    required this.trend,
+    this.note,
+  });
+
+  /// A short caption naming the metric.
+  final String label;
+
+  /// The current numeric value of the metric.
+  final double value;
+
+  /// Whether the metric went up, down or stayed flat.
+  final Trend trend;
+
+  /// An optional one-line comment about this row.
+  final String? note;
+}
+```
+
+A data class is not a widget, so its generated part holds a schema and a
+decoder instead of a `CatalogItem`:
+
+```dart
+/// Generated schema for [MetricRow].
+final ObjectSchema metricRowGenUiSchema = ObjectSchema(
+  description: 'One row of a metrics table.',
+  properties: {
+    'label': S.string(description: 'A short caption naming the metric.'),
+    'value': S.number(description: 'The current numeric value of the metric.'),
+    'trend': S.string(
+      description: 'Whether the metric went up, down or stayed flat.',
+      enumValues: ['up', 'down', 'flat'],
+    ),
+    'note': S.string(description: 'An optional one-line comment about this row.'),
+  },
+  required: ['label', 'value', 'trend'],
+);
+
+/// Decodes a [MetricRow] from the map the model produced.
+MetricRow metricRowFromGenUiJson(
+  Map<String, Object?> json, [
+  GenUiMissingFieldReporter? onMissing,
+]) => MetricRow(...);
+```
+
+`ObjectSchema(...)` and not `S.object(...)`: `Schema.object` is a redirecting
+factory typed as `Schema`, so it cannot initialise an `ObjectSchema` variable.
+Both build the same schema.
+
+Now any annotated widget may take `MetricRow` or `List<MetricRow>`:
+
+```dart
+import '../models/metric_row.dart';
+
+part 'metrics_table.genui.dart';
+
+@GenUiWidget(
+  description:
+      'A titled table of metrics. Each row has a label, a numeric value, a '
+      'trend and an optional note.',
+)
+class MetricsTable extends StatelessWidget {
+  const MetricsTable({super.key, required this.title, required this.rows});
+
+  /// The heading shown above the table.
+  final String title;
+
+  /// The rows of the table, in display order.
+  final List<MetricRow> rows;
+
+  @override
+  Widget build(BuildContext context) => /* a DataTable */;
+}
+```
+
+The row schema is inlined into the widget schema and the decoder is called per
+element:
+
+```dart
+    properties: {
+      'title': A2uiSchemas.stringReference(
+        description: 'The heading shown above the table.',
+      ),
+      'rows': A2uiSchemas.listOrReference(
+        description: 'The rows of the table, in display order.',
+        items: metricRowGenUiSchema,
+      ),
+    },
+    required: ['title', 'rows'],
+```
+
+```dart
+      bindings: {
+        'title': GenUiBinding.string(data['title']),
+        'rows': GenUiBinding.objectList(data['rows']),
+      },
+      builder: (context, v) => MetricsTable(
+        title: v.string('title') ?? missing<String>('title', ''),
+        rows:
+            v
+                .objectList('rows')
+                ?.map((json) => metricRowFromGenUiJson(json, missingIn('rows')))
+                .toList() ??
+            missing<List<MetricRow>>('rows', const <MetricRow>[]),
+      ),
+```
+
+so the model composes one component with real objects in it:
+
+```json
+{
+  "id": "root",
+  "component": "MetricsTable",
+  "title": "Q3 performance",
+  "rows": [
+    {"label": "Revenue", "value": 128400, "trend": "up", "note": "vs. Q2"},
+    {"label": "Churn", "value": 2.4, "trend": "down"}
+  ]
+}
+```
+
+### Rules for a data class
+
+- Field types are the 0.1 scalar set (`String`, `int`, `double`, `num`, `bool`,
+  enums, `List<String>`) plus nested `@GenUiData` classes and lists of them.
+  A `Widget` or a callback inside a data class is a build error naming the
+  field: a data class is data the model emits, not a component reference.
+- Inside the object the schema uses plain `S.string` / `S.integer` /
+  `S.number`, not the `A2uiSchemas.*Reference` forms, because those values are
+  literals. The binding applies to the whole property, so
+  `"rows": {"path": "/report/rows"}` resolves through genui's `BoundList` while
+  a `{"path": ...}` on an individual field inside a row does not — which is why
+  the *property* schema is a union of the literal, a data binding and a
+  function call, and the *field* schemas are not.
+- No field is cast. Each one goes through the `genUiAs*` coercions the runtime
+  exports, which apply genui's own `Bound*` rules, so a wrong-typed field
+  degrades instead of throwing a `TypeError` inside `build`.
+- Nested data schemas are inlined rather than `$ref`'d, so a data class that
+  reaches itself (directly or transitively) is a build error naming the cycle.
+- A required field the model omits falls back exactly as in 0.1 (`''`, `0`,
+  `false`, the first enum value, `const []`) instead of throwing during build,
+  and is reported to the model as `<property>.<field>` through
+  `genUiReportMissing`. An optional field decodes to `null`, or to its Dart
+  default, and is never reported. Nor is anything reported field by field when
+  a `{"path": ...}` on the whole object has simply not resolved yet: that is
+  one silent report of the property itself, not a burst of field errors.
+- `@GenUiProp(description:, name:, ignore:)` applies to a data class
+  constructor parameter the same way it applies to a widget parameter, and
+  descriptions come from the same three places.
+- A description on a property or field whose *type* is a data class is kept
+  too, so one use site can say what the object means there without changing the
+  shared class. On a widget property it becomes the description of the `oneOf`
+  wrapper; on a field of another data class the inlined schema is copied with
+  that description in place of the class's own.
+- A generic data class, a field whose wire key would be the reserved `path` or
+  `call`, and two data classes whose generated names collide at a use site are
+  all build errors.
+
+```dart
+@GenUiData(
+  description: 'Fed to the model as the object schema description.',
+  constructor: 'fromRecord',    // named constructor to read; defaults to the unnamed one
+)
+```
+
+A runnable version of all of this is in
+[`example/lib/models/metric_row.dart`](example/lib/models/metric_row.dart) and
+[`example/lib/widgets/metrics_table.dart`](example/lib/widgets/metrics_table.dart).
+
+## Limitations (0.2)
 
 Not supported yet; each produces a build error that names the parameter:
 
-- Nested objects and maps (`Map<String, Object?>`, your own data classes).
-- Lists other than `List<String>` and `List<Widget>` (`List<int>`, `List<E>`).
+- Maps with arbitrary keys (`Map<String, Object?>`, `Map<String, double>`).
+- Lists of scalars other than `List<String>` (`List<int>`, `List<E>`).
 - Records.
 - Callbacks with arguments (`ValueChanged<T>`, `void Function(String)`).
+- Widgets or callbacks used as fields of a `@GenUiData` class, and data
+  classes that reference themselves.
 
 Two ways around it in the meantime:
 
@@ -288,17 +483,21 @@ Two ways around it in the meantime:
 
 ## Roadmap
 
-- 0.2: nested objects and lists of numbers; an aggregating builder that emits
-  a single `genui_catalog.g.dart` with every generated item in the package.
-- 0.3: smarter example generation (descriptions and enum context feeding the
-  sample values instead of fixed `42` / `Sample <name>` placeholders).
+- 0.2 (done): `@GenUiData` — a widget parameter may be an annotated data class
+  or a `List` of one, with the object schema inlined and a generated decoder.
+- 0.3 (proposed): an aggregating builder that emits a single
+  `genui_catalog.g.dart` with every generated item in the package, so
+  registering a catalog stops being a hand-maintained import list; lists of
+  scalars (`List<int>`, `List<double>`, `List<E>`); and smarter example
+  generation, where descriptions and enum context feed the sample values
+  instead of the fixed `42` / `Sample <name>` placeholders.
 
 ## Compatibility
 
 - `genui ^0.10.0`
 - Flutter `>=3.35.0`
 - Dart `>=3.10.0 <4.0.0`
-- `build_runner ^2.15.0`, `source_gen ^4.0.0`, `analyzer >=8.0.0 <11.0.0`
+- `build_runner ^2.15.0`, `source_gen ^4.1.0`, `analyzer >=10.0.0 <15.0.0`
 
 genui lives in [flutter/genui](https://github.com/flutter/genui) and is
 pre-1.0; its `CatalogItem`, `A2uiSchemas` and binding APIs still move between
@@ -309,9 +508,9 @@ breaks. If you are on a newer genui than the constraint allows, open an issue.
 
 | Package | Put it in | What it holds |
 |---|---|---|
-| [`genui_gen`](packages/genui_gen) | `dependencies` | `@GenUiWidget`, `@GenUiProp`, `@GenUiAction` and the runtime helpers the generated code calls |
+| [`genui_gen`](packages/genui_gen) | `dependencies` | `@GenUiWidget`, `@GenUiData`, `@GenUiProp`, `@GenUiAction` and the runtime helpers the generated code calls |
 | [`genui_gen_builder`](packages/genui_gen_builder) | `dev_dependencies` | the `build_runner` generator |
-| [`example`](example) | - | four annotated widgets rendered offline through genui's `DebugCatalogView` |
+| [`example`](example) | - | five annotated widgets, one of them driven by a `@GenUiData` class, rendered offline through genui's `DebugCatalogView` |
 
 ## Contributing
 

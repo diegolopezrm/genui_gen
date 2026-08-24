@@ -22,10 +22,20 @@ const importForSymbol = <String, String>{
   'A2uiSchemas': _genui,
   'JsonMap': _genui,
   'S': _jsonSchemaBuilder,
+  'ObjectSchema': _jsonSchemaBuilder,
   'GenUiBindings': _genuiGen,
   'GenUiBinding': _genuiGen,
+  'GenUiMissingFieldReporter': _genuiGen,
   'genUiActionHandler': _genuiGen,
   'genUiReportMissing': _genuiGen,
+  'genUiAsString': _genuiGen,
+  'genUiAsNum': _genuiGen,
+  'genUiAsBool': _genuiGen,
+  'genUiAsStringList': _genuiGen,
+  'genUiAsObject': _genuiGen,
+  'genUiAsObjectList': _genuiGen,
+  'genUiMissingField': _genuiGen,
+  'genUiNestedField': _genuiGen,
   'SizedBox': _flutter,
   'Widget': _flutter,
 };
@@ -69,8 +79,8 @@ void checkImports(
       : '\n${prefixed.join('\n')}. Add an unprefixed import next to it '
             '(a `show` list is fine).';
   throw InvalidGenerationSourceError(
-    'The generated catalog item for `${element.displayName}` references '
-    'identifiers that are not in scope in ${library.uri}. Generated files are '
+    'The generated code for `${element.displayName}` references identifiers '
+    'that are not in scope in ${library.uri}. Generated files are '
     'parts of the annotated library, so add the following import(s) to it:\n'
     '${lines.join('\n')}$prefixNote',
     element: element,

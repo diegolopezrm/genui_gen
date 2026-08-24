@@ -1,6 +1,14 @@
 import 'package:flutter/widgets.dart';
 import 'package:genui/genui.dart';
 
+/// Rebuilds a `T` from the JSON map the model produced for it.
+///
+/// Generated code passes one of these for every `@GenUiData` property: the
+/// binding resolves the property to a map (or a list of maps), and the decoder
+/// turns each map into the Dart object the widget constructor expects.
+/// Decoding always happens after resolution, never inside the runtime.
+typedef GenUiDecoder<T> = T Function(Map<String, Object?> json);
+
 /// A typed description of how to resolve one property value.
 ///
 /// The [raw] value is whatever the model emitted for the property: a literal,
@@ -23,6 +31,18 @@ sealed class GenUiBinding {
   /// non-null element is converted with `toString()`).
   const factory GenUiBinding.stringList(Object? raw) = _StringListBinding;
 
+  /// Binds a single JSON object (resolved with genui's `BoundObject`).
+  ///
+  /// The resolved value is exposed as a `Map<String, Object?>` through
+  /// [GenUiValues.object]; anything that is not a map resolves to `null`.
+  const factory GenUiBinding.object(Object? raw) = _ObjectBinding;
+
+  /// Binds a list of JSON objects (resolved with genui's `BoundList`).
+  ///
+  /// The resolved value is exposed as a `List<Map<String, Object?>>` through
+  /// [GenUiValues.objectList]; entries that are not maps are skipped.
+  const factory GenUiBinding.objectList(Object? raw) = _ObjectListBinding;
+
   /// The literal, `{"path": ...}` or `{"call": ...}` value to resolve.
   final Object? raw;
 }
@@ -41,6 +61,14 @@ final class _BoolBinding extends GenUiBinding {
 
 final class _StringListBinding extends GenUiBinding {
   const _StringListBinding(super.raw) : super._();
+}
+
+final class _ObjectBinding extends GenUiBinding {
+  const _ObjectBinding(super.raw) : super._();
+}
+
+final class _ObjectListBinding extends GenUiBinding {
+  const _ObjectListBinding(super.raw) : super._();
 }
 
 /// Typed accessors over the values resolved by [GenUiBindings].
@@ -69,6 +97,26 @@ class GenUiValues {
   /// The resolved `List<String>` for [key], if any.
   List<String>? stringList(String key) => _values[key] as List<String>?;
 
+  /// The resolved JSON object for [key], if any.
+  ///
+  /// Returns `null` when the key was not bound or when the resolved value is
+  /// not a map, so a model that emits the wrong shape degrades instead of
+  /// throwing inside `build`.
+  Map<String, Object?>? object(String key) => _asObject(_values[key]);
+
+  /// The resolved list of JSON objects for [key], if any.
+  ///
+  /// Returns `null` when the key was not bound or when the resolved value is
+  /// not a list. Entries of the list that are not maps are skipped rather than
+  /// reported: the model can emit junk inside an otherwise valid list, and
+  /// dropping the bad entries keeps the good ones usable.
+  List<Map<String, Object?>>? objectList(String key) {
+    final Object? value = _values[key];
+    if (value is List<Map<String, Object?>>) return value;
+    if (value is List) return _asObjectList(value);
+    return null;
+  }
+
   /// The raw resolved value for [key], if any.
   Object? operator [](String key) => _values[key];
 
@@ -91,9 +139,9 @@ typedef GenUiValuesWidgetBuilder =
 /// [builder] once with all of them resolved.
 ///
 /// Internally the bindings are folded into a chain of genui `BoundString`,
-/// `BoundNumber`, `BoundBool` and `BoundList` widgets, so data bindings and
-/// function calls behave exactly as they do in the core catalog, and the
-/// widget rebuilds whenever any bound value changes in the data model.
+/// `BoundNumber`, `BoundBool`, `BoundList` and `BoundObject` widgets, so data
+/// bindings and function calls behave exactly as they do in the core catalog,
+/// and the widget rebuilds whenever any bound value changes in the data model.
 ///
 /// With an empty [bindings] map, [builder] is called directly.
 ///
@@ -188,6 +236,19 @@ class GenUiBindings extends StatelessWidget {
         value: raw,
         builder: (innerContext, list) => next(innerContext, _toStrings(list)),
       ),
+      _ObjectBinding(:final raw) => BoundObject(
+        key: key,
+        dataContext: dataContext,
+        value: raw,
+        builder: (innerContext, value) => next(innerContext, _asObject(value)),
+      ),
+      _ObjectListBinding(:final raw) => BoundList(
+        key: key,
+        dataContext: dataContext,
+        value: raw,
+        builder: (innerContext, list) =>
+            next(innerContext, list == null ? null : _asObjectList(list)),
+      ),
     };
   }
 
@@ -198,4 +259,27 @@ class GenUiBindings extends StatelessWidget {
         .map((Object? element) => element.toString())
         .toList(growable: false);
   }
+}
+
+/// Views [value] as a JSON object, or returns `null` when it is not a map.
+Map<String, Object?>? _asObject(Object? value) {
+  if (value is Map<String, Object?>) return value;
+  if (value is Map) {
+    return <String, Object?>{
+      for (final MapEntry<Object?, Object?> entry in value.entries)
+        entry.key.toString(): entry.value,
+    };
+  }
+  return null;
+}
+
+/// Views [list] as a list of JSON objects, skipping every entry that is not a
+/// map.
+List<Map<String, Object?>> _asObjectList(List<Object?> list) {
+  final List<Map<String, Object?>> objects = <Map<String, Object?>>[];
+  for (final Object? element in list) {
+    final Map<String, Object?>? object = _asObject(element);
+    if (object != null) objects.add(object);
+  }
+  return List<Map<String, Object?>>.unmodifiable(objects);
 }
