@@ -12,6 +12,13 @@
   enum does not declare is dropped rather than defaulted: the list is the
   model's, and one bad entry should not silently become a value the author
   never wrote.
+- Re-exported `S`, `Schema` and `ObjectSchema` from `json_schema_builder`, so
+  an annotated file imports `genui_gen` alone and `json_schema_builder` stops
+  being a direct dependency of consumers. `show`n rather than exported
+  wholesale; if `S` collides with another one-letter name, import with
+  `hide S`.
+- `json_schema_builder` moved from dev_dependencies to dependencies, since
+  those three names are now part of this package's public API.
 - Additive release: widgets that only use 0.2 types generate identical code.
 
 ## 0.2.0

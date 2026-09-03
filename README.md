@@ -36,15 +36,18 @@ widget.
 dependencies:
   genui: ^0.10.0
   genui_gen: ^0.3.0
-  json_schema_builder: ^0.1.3
 
 dev_dependencies:
   build_runner: ^2.15.0
   genui_gen_builder: ^0.3.0
 ```
 
-`json_schema_builder` is a direct dependency because the generated code is a
-`part` of your file and uses its `S.object(...)` factory through your imports.
+The generated code is a `part` of your file and builds its schema with
+`S.object(...)`, so it needs that name in scope. `genui_gen` re-exports `S`,
+`Schema` and `ObjectSchema` from `json_schema_builder` for exactly that, which
+is why the package is not a direct dependency of yours. If `S` collides with
+another one-letter name in a file — a generated localization class, say —
+import `genui_gen` there with `hide S`.
 
 ### 2. Annotate a widget
 
@@ -54,7 +57,6 @@ dev_dependencies:
 import 'package:flutter/material.dart';
 import 'package:genui/genui.dart';
 import 'package:genui_gen/genui_gen.dart';
-import 'package:json_schema_builder/json_schema_builder.dart';
 
 part 'product_card.genui.dart';
 
@@ -99,8 +101,8 @@ class ProductCard extends StatelessWidget {
 ```
 
 The `part` directive names the file the generator will write. The generated
-part shares your imports, so the annotated file must import `genui`,
-`genui_gen` and `json_schema_builder`.
+part shares your imports, so the annotated file must import `genui` and
+`genui_gen`, which re-exports the schema names the part needs.
 
 ### 3. Generate
 
@@ -285,7 +287,6 @@ that class or a `List` of it.
 
 ```dart
 import 'package:genui_gen/genui_gen.dart';
-import 'package:json_schema_builder/json_schema_builder.dart';
 
 import 'trend.dart';    // enum Trend { up, down, flat }
 

@@ -1,5 +1,4 @@
 import 'package:genui_gen/genui_gen.dart';
-import 'package:json_schema_builder/json_schema_builder.dart';
 
 import 'trend.dart';
 

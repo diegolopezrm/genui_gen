@@ -14,6 +14,12 @@
 /// the generated code and are exported here so that generated parts only need
 /// to import this library.
 ///
+/// `S`, [Schema] and [ObjectSchema] are re-exported from
+/// `package:json_schema_builder`, because the generated part builds its schema
+/// with them and shares this library's imports. If `S` collides with another
+/// one-letter name in your file (a generated localization class, say), import
+/// this library with `hide S`.
+///
 /// The same goes for the coercion helpers ([genUiAsString], [genUiAsNum],
 /// [genUiAsBool], [genUiAsStringList], [genUiAsNumList], [genUiAsObject],
 /// [genUiAsObjectList])
@@ -22,6 +28,17 @@
 /// model that sends a number where a string was declared degrades exactly the
 /// way genui's `Bound*` widgets do rather than throwing inside `build`.
 library;
+
+// Generated parts are `part of` the annotated library, so they build their
+// schemas through that library's imports. Re-exporting the three symbols they
+// name means an annotated file needs one import rather than two, and
+// `json_schema_builder` stops being a direct dependency of every consumer.
+//
+// Deliberately `show`n rather than a blanket export: a blanket one would put
+// StringSchema, ListSchema, ValidationError and the rest into the namespace of
+// every file that imports this package.
+export 'package:json_schema_builder/json_schema_builder.dart'
+    show ObjectSchema, S, Schema;
 
 export 'src/actions.dart';
 export 'src/annotations.dart';

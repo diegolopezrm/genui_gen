@@ -6,7 +6,6 @@
 //   dependencies:
 //     genui: ^0.10.0
 //     genui_gen: ^0.3.0
-//     json_schema_builder: ^0.1.3
 //
 //   dev_dependencies:
 //     build_runner: ^2.15.0
@@ -23,7 +22,6 @@
 import 'package:flutter/material.dart';
 import 'package:genui/genui.dart';
 import 'package:genui_gen/genui_gen.dart';
-import 'package:json_schema_builder/json_schema_builder.dart';
 
 part 'main.genui.dart';
 
