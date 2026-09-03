@@ -6,5 +6,6 @@ environment:
 
 workspace:
   - packages/genui_gen
+  - packages/genui_gen/example
   - packages/genui_gen_builder
   - example

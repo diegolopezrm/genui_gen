@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  # genui is pre-1.0 and its APIs move between minor versions. A weekly run
+  # means a genui release breaks this workflow before it breaks a user.
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  analyze_and_test:
+    name: ${{ matrix.channel }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The analyzer constraint is deliberately wide (>=10.0.0 <15.0.0), so
+        # the channel is the axis worth covering.
+        channel: [stable, beta]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ matrix.channel }}
+          cache: true
+
+      - name: Print versions
+        run: flutter --version
+
+      # One resolve for the whole workspace: genui_gen, genui_gen_builder, example.
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Check formatting
+        run: dart format --output=none --set-exit-if-changed .
+
+      - name: Analyze
+        run: flutter analyze --fatal-infos
+
+      - name: Test genui_gen
+        working-directory: packages/genui_gen
+        run: flutter test
+
+      - name: Test genui_gen_builder
+        working-directory: packages/genui_gen_builder
+        run: dart test
+
+  generated_output_is_current:
+    name: generated output is current
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # The committed .genui.dart files are the generator's own output. If a
+      # change moves them and they were not regenerated, the diff is the bug
+      # report: every claim this package makes about the catalog not drifting
+      # from the widget rests on these files being current.
+      - name: Regenerate the full example app
+        working-directory: example
+        run: dart run build_runner build
+
+      # The file pub.dev renders on the Example tab is generated too.
+      - name: Regenerate the pub.dev example
+        working-directory: packages/genui_gen/example
+        run: dart run build_runner build
+
+      - name: Fail if regeneration changed anything
+        run: |
+          if ! git diff --quiet -- '*.genui.dart'; then
+            echo "::error::Generated files are stale. Run 'dart run build_runner build' in example/ and in packages/genui_gen/example/, then commit the result."
+            git diff --stat -- '*.genui.dart'
+            git diff -- '*.genui.dart'
+            exit 1
+          fi
+          echo "Generated files match a fresh generation."
