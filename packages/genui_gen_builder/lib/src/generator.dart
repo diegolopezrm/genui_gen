@@ -602,7 +602,8 @@ PropSpec? _analyseParameter(
 
   String? enumTypeName;
   var enumValues = const <String>[];
-  if (mapping.kind == PropKind.enumeration) {
+  if (mapping.kind == PropKind.enumeration ||
+      mapping.kind == PropKind.enumerationList) {
     final enumElement = mapping.enumElement!;
     enumTypeName = _visibleTypeName(
       cls.library,
@@ -651,6 +652,10 @@ bool _allowedInDataClass(PropKind kind) => switch (kind) {
   PropKind.boolean ||
   PropKind.enumeration ||
   PropKind.stringList ||
+  PropKind.integerList ||
+  PropKind.decimalList ||
+  PropKind.numberList ||
+  PropKind.enumerationList ||
   PropKind.data ||
   PropKind.dataList => true,
   PropKind.widget || PropKind.widgetList || PropKind.action => false,

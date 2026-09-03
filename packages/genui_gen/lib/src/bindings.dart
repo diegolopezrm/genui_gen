@@ -31,6 +31,10 @@ sealed class GenUiBinding {
   /// non-null element is converted with `toString()`).
   const factory GenUiBinding.stringList(Object? raw) = _StringListBinding;
 
+  /// Binds a `List<num>` value (resolved with genui's `BoundList`; entries
+  /// that are not numbers are dropped, and numeric strings are parsed).
+  const factory GenUiBinding.numberList(Object? raw) = _NumberListBinding;
+
   /// Binds a single JSON object (resolved with genui's `BoundObject`).
   ///
   /// The resolved value is exposed as a `Map<String, Object?>` through
@@ -61,6 +65,10 @@ final class _BoolBinding extends GenUiBinding {
 
 final class _StringListBinding extends GenUiBinding {
   const _StringListBinding(super.raw) : super._();
+}
+
+final class _NumberListBinding extends GenUiBinding {
+  const _NumberListBinding(super.raw) : super._();
 }
 
 final class _ObjectBinding extends GenUiBinding {
@@ -96,6 +104,18 @@ class GenUiValues {
 
   /// The resolved `List<String>` for [key], if any.
   List<String>? stringList(String key) => _values[key] as List<String>?;
+
+  /// The resolved `List<num>` for [key], if any.
+  ///
+  /// Returns `null` when the key was not bound or when the resolved value is
+  /// not a list. Entries that are not numbers are dropped rather than
+  /// reported, the way [objectList] drops entries of the wrong shape.
+  List<num>? numberList(String key) {
+    final Object? value = _values[key];
+    if (value is List<num>) return value;
+    if (value is List) return GenUiBindings.toNums(value);
+    return null;
+  }
 
   /// The resolved JSON object for [key], if any.
   ///
@@ -236,6 +256,12 @@ class GenUiBindings extends StatelessWidget {
         value: raw,
         builder: (innerContext, list) => next(innerContext, _toStrings(list)),
       ),
+      _NumberListBinding(:final raw) => BoundList(
+        key: key,
+        dataContext: dataContext,
+        value: raw,
+        builder: (innerContext, list) => next(innerContext, toNums(list)),
+      ),
       _ObjectBinding(:final raw) => BoundObject(
         key: key,
         dataContext: dataContext,
@@ -250,6 +276,22 @@ class GenUiBindings extends StatelessWidget {
             next(innerContext, list == null ? null : _asObjectList(list)),
       ),
     };
+  }
+
+  /// Views [list] as a `List<num>`, dropping entries that are not numbers.
+  ///
+  /// A numeric string is parsed: a model that emits `["1", "2"]` for a
+  /// `List<int>` is producing the values the schema asked for in the wrong
+  /// JSON type, and the core catalog's number binding parses those too.
+  static List<num>? toNums(List<Object?>? list) {
+    if (list == null) return null;
+    return <num>[
+      for (final Object? element in list)
+        if (element is num)
+          element
+        else if (element is String && num.tryParse(element) != null)
+          num.parse(element),
+    ];
   }
 
   static List<String>? _toStrings(List<Object?>? list) {

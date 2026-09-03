@@ -67,6 +67,21 @@ List<String>? genUiAsStringList(Object? value) {
   ]);
 }
 
+/// [value] as a `List<num>`, or `null` when it is not a list.
+///
+/// Matches the `numberList` binding: entries that are not numbers are dropped,
+/// and a numeric string is parsed.
+List<num>? genUiAsNumList(Object? value) {
+  if (value is! List) return null;
+  return List<num>.unmodifiable(<num>[
+    for (final Object? element in value)
+      if (element is num)
+        element
+      else if (element is String && num.tryParse(element) != null)
+        num.parse(element),
+  ]);
+}
+
 /// [value] as a JSON object, or `null` when it is not a map.
 ///
 /// A `Map` with any key type is rebuilt as a `Map<String, Object?>`, so a

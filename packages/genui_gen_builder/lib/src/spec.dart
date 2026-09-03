@@ -30,6 +30,20 @@ enum PropKind {
   /// `List<String>` (+nullable) → `A2uiSchemas.stringArrayReference`.
   stringList,
 
+  /// `List<int>` (+nullable) → `A2uiSchemas.listOrReference(items:
+  /// S.number())`, each entry resolved with `toInt()`.
+  integerList,
+
+  /// `List<double>` (+nullable) → same schema, resolved with `toDouble()`.
+  decimalList,
+
+  /// `List<num>` (+nullable) → same schema, resolved as-is.
+  numberList,
+
+  /// `List<E>` where `E` is a Dart `enum` (+nullable) →
+  /// `A2uiSchemas.listOrReference(items: S.string(enumValues: ...))`.
+  enumerationList,
+
   /// A class annotated with `@GenUiData` (+nullable) → the generated
   /// `ObjectSchema` for that class.
   data,
@@ -59,6 +73,10 @@ extension PropKindX on PropKind {
     PropKind.boolean ||
     PropKind.enumeration ||
     PropKind.stringList ||
+    PropKind.integerList ||
+    PropKind.decimalList ||
+    PropKind.numberList ||
+    PropKind.enumerationList ||
     PropKind.data ||
     PropKind.dataList => true,
     PropKind.widget || PropKind.widgetList || PropKind.action => false,

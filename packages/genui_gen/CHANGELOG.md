@@ -1,3 +1,19 @@
+## 0.3.0
+
+- Added lists of scalars: a `@GenUiWidget` parameter or `@GenUiData` field may
+  now be a `List<int>`, `List<double>`, `List<num>`, or a `List<E>` for an
+  enum `E`. Each was a build error in 0.2.
+- Added `GenUiBinding.numberList` and `GenUiValues.numberList`, resolved
+  through genui's `BoundList`. Entries that are not numbers are dropped, and a
+  numeric string is parsed, the way the core catalog's number binding does.
+- Added the coercion helper `genUiAsNumList`, used by generated decoders for
+  numeric list fields of a `@GenUiData` class.
+- A list of enums is carried as strings and mapped back by name. A name the
+  enum does not declare is dropped rather than defaulted: the list is the
+  model's, and one bad entry should not silently become a value the author
+  never wrote.
+- Additive release: widgets that only use 0.2 types generate identical code.
+
 ## 0.2.0
 
 - Added `@GenUiData`, marking a plain Dart class as a data shape an annotated

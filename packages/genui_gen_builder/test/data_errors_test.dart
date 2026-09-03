@@ -66,7 +66,7 @@ class Row {
         failsWith([
           'Unsupported parameter type `Object` for `Row.value`',
           'Supported types: String, int, double, num, bool, enums, '
-              'List<String>, a @GenUiData class and a List of one',
+              'a List of any of those, a @GenUiData class and a List of one',
         ]),
       );
       // The data summary never offers Widget or a callback.
@@ -409,13 +409,29 @@ class Table extends StatelessWidget {
         generate('''
 @GenUiWidget(description: 'A view.')
 class View extends StatelessWidget {
+  const View({super.key, required this.spans});
+  final List<Duration> spans;
+}
+'''),
+        failsWith([
+          'Unsupported parameter type `List<Duration>` for `View.spans`',
+          'Supported types:',
+        ]),
+      );
+    });
+
+    test('a nullable scalar element gets the targeted message', () async {
+      await expectLater(
+        generate('''
+@GenUiWidget(description: 'A view.')
+class View extends StatelessWidget {
   const View({super.key, required this.counts});
   final List<int?> counts;
 }
 '''),
         failsWith([
-          'Unsupported parameter type `List<int?>` for `View.counts`',
-          'Supported types:',
+          '`View.counts` has type `List<int?>`, whose elements are nullable',
+          'Use `List<int>`',
         ]),
       );
     });

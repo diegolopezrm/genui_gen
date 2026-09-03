@@ -35,12 +35,12 @@ widget.
 ```yaml
 dependencies:
   genui: ^0.10.0
-  genui_gen: ^0.2.0
+  genui_gen: ^0.3.0
   json_schema_builder: ^0.1.3
 
 dev_dependencies:
   build_runner: ^2.15.0
-  genui_gen_builder: ^0.2.0
+  genui_gen_builder: ^0.3.0
 ```
 
 `json_schema_builder` is a direct dependency because the generated code is a
@@ -199,6 +199,8 @@ because `GenUiBindings` composes genui's `BoundString`, `BoundNumber`,
 | `bool`, `bool?` | boolean reference | the resolved `bool` |
 | `enum E`, `E?` | string reference with `enumValues` set to the enum's `name`s | `E.values.asNameMap()[value]`, falling back to the first constant when the property is required |
 | `List<String>`, `List<String>?` | string array reference | `List<String>` |
+| `List<int>`, `List<double>`, `List<num>` and nullable variants | `A2uiSchemas.listOrReference(items: S.number())` | entries converted with `toInt()` / `toDouble()` as needed |
+| `List<E>`, `List<E>?` where `E` is an enum | `listOrReference` whose items carry the enum's `name`s | one `E` per entry; a name the enum does not declare is dropped |
 | a class annotated with `@GenUiData`, and its nullable variant | a `oneOf` of the inlined object schema, a data binding and a function call | the decoded instance |
 | `List<T>`, `List<T>?` where `T` is `@GenUiData` | `A2uiSchemas.listOrReference(items: <that object schema>)` | one decoded `T` per element |
 | `Widget`, `Widget?` | component reference | `ctx.buildChild(id)` |
@@ -417,7 +419,8 @@ so the model composes one component with real objects in it:
 ### Rules for a data class
 
 - Field types are the 0.1 scalar set (`String`, `int`, `double`, `num`, `bool`,
-  enums, `List<String>`) plus nested `@GenUiData` classes and lists of them.
+  enums, and a `List` of any of those) plus nested `@GenUiData` classes and
+  lists of them.
   A `Widget` or a callback inside a data class is a build error naming the
   field: a data class is data the model emits, not a component reference.
 - Inside the object the schema uses plain `S.string` / `S.integer` /
@@ -462,12 +465,11 @@ A runnable version of all of this is in
 [`example/lib/models/metric_row.dart`](example/lib/models/metric_row.dart) and
 [`example/lib/widgets/metrics_table.dart`](example/lib/widgets/metrics_table.dart).
 
-## Limitations (0.2)
+## Limitations (0.3)
 
 Not supported yet; each produces a build error that names the parameter:
 
 - Maps with arbitrary keys (`Map<String, Object?>`, `Map<String, double>`).
-- Lists of scalars other than `List<String>` (`List<int>`, `List<E>`).
 - Records.
 - Callbacks with arguments (`ValueChanged<T>`, `void Function(String)`).
 - Widgets or callbacks used as fields of a `@GenUiData` class, and data
@@ -485,12 +487,14 @@ Two ways around it in the meantime:
 
 - 0.2 (done): `@GenUiData` — a widget parameter may be an annotated data class
   or a `List` of one, with the object schema inlined and a generated decoder.
-- 0.3 (proposed): an aggregating builder that emits a single
+- 0.3 (done): lists of scalars — `List<int>`, `List<double>`, `List<num>` and
+  `List<E>` for an enum `E`, as widget parameters and as `@GenUiData` fields.
+- 0.4 (proposed): an aggregating builder that emits a single
   `genui_catalog.g.dart` with every generated item in the package, so
-  registering a catalog stops being a hand-maintained import list; lists of
-  scalars (`List<int>`, `List<double>`, `List<E>`); and smarter example
-  generation, where descriptions and enum context feed the sample values
-  instead of the fixed `42` / `Sample <name>` placeholders.
+  registering a catalog stops being a hand-maintained import list; and smarter
+  example generation, where the author's own default values and the property
+  description feed the sample instead of the fixed `42` / `Sample <name>`
+  placeholders.
 
 ## Compatibility
 

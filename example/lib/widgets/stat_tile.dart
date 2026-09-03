@@ -21,6 +21,7 @@ class StatTile extends StatelessWidget {
     required this.label,
     required this.value,
     required this.trend,
+    this.history = const <double>[],
   });
 
   /// A short caption naming the metric, e.g. "Monthly revenue".
@@ -31,6 +32,10 @@ class StatTile extends StatelessWidget {
 
   /// Whether the metric went up, down or stayed flat.
   final Trend trend;
+
+  /// Recent values of the metric, oldest first, drawn as a sparkline under
+  /// the number. Leave it out for a tile with no history.
+  final List<double> history;
 
   @override
   Widget build(BuildContext context) {
@@ -68,6 +73,10 @@ class StatTile extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
+                  if (history.length > 1) ...[
+                    const SizedBox(height: 8),
+                    _Sparkline(values: history, color: color),
+                  ],
                 ],
               ),
             ),
@@ -84,5 +93,48 @@ class StatTile extends StatelessWidget {
       return value.toInt().toString();
     }
     return value.toStringAsFixed(2);
+  }
+}
+
+/// A minimal bar sparkline: one bar per value, scaled to the largest.
+class _Sparkline extends StatelessWidget {
+  const _Sparkline({required this.values, required this.color});
+
+  final List<double> values;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final double peak = values.reduce((a, b) => a > b ? a : b);
+    final double floor = values.reduce((a, b) => a < b ? a : b);
+    final double span = peak - floor;
+
+    return SizedBox(
+      height: 24,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          for (final double value in values)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(right: 2),
+                child: FractionallySizedBox(
+                  // A flat series still draws: every bar takes full height
+                  // rather than collapsing to nothing.
+                  heightFactor: span == 0
+                      ? 1
+                      : ((value - floor) / span).clamp(0.08, 1.0),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(1),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }

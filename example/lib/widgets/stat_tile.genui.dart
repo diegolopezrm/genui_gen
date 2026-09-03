@@ -31,6 +31,13 @@ final CatalogItem statTileCatalogItem = CatalogItem(
         description: 'Whether the metric went up, down or stayed flat.',
         enumValues: ['up', 'down', 'flat'],
       ),
+      'history': A2uiSchemas.listOrReference(
+        description:
+            'Recent values of the metric, oldest first, drawn as a '
+            'sparkline under the number. Leave it out for a tile with no '
+            'history.',
+        items: S.number(),
+      ),
     },
     required: ['label', 'value', 'trend'],
   ),
@@ -59,6 +66,7 @@ final CatalogItem statTileCatalogItem = CatalogItem(
         'label': GenUiBinding.string(data['label']),
         'value': GenUiBinding.number(data['value']),
         'trend': GenUiBinding.string(data['trend']),
+        'history': GenUiBinding.numberList(data['history']),
       },
       builder: (context, v) => StatTile(
         label: v.string('label') ?? missing<String>('label', ''),
@@ -66,6 +74,9 @@ final CatalogItem statTileCatalogItem = CatalogItem(
         trend:
             Trend.values.asNameMap()[v.string('trend')] ??
             missing<Trend>('trend', Trend.values.first),
+        history:
+            v.numberList('history')?.map((n) => n.toDouble()).toList() ??
+            const <double>[],
       ),
     );
   },

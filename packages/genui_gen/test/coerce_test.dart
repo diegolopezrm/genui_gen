@@ -102,4 +102,22 @@ void main() {
       expect(genUiNestedField(null, 'badge'), isNull);
     });
   });
+  group('genUiAsNumList', () {
+    test('keeps numbers and parses numeric strings', () {
+      expect(genUiAsNumList([1, 2.5, '3']), [1, 2.5, 3]);
+    });
+
+    test('drops entries that are not numbers', () {
+      expect(genUiAsNumList([1, 'x', null, true, 2]), [1, 2]);
+    });
+
+    test('is null for a value that is not a list', () {
+      expect(genUiAsNumList('nope'), isNull);
+      expect(genUiAsNumList(null), isNull);
+    });
+
+    test('returns an unmodifiable list', () {
+      expect(() => genUiAsNumList([1])!.add(2), throwsUnsupportedError);
+    });
+  });
 }

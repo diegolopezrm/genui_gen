@@ -124,6 +124,27 @@ String _propertySchema(PropSpec prop, Set<String> symbols) {
       return 'A2uiSchemas.stringReference($args)';
     case PropKind.stringList:
       return 'A2uiSchemas.stringArrayReference($description)';
+    case PropKind.integerList:
+    case PropKind.decimalList:
+    case PropKind.numberList:
+      // `A2uiSchemas` has no numeric array reference, so the list is built
+      // from `listOrReference`, the same helper `dataList` uses: it allows a
+      // literal list, a `{"path": ...}` and a `{"call": ...}`, which is what
+      // `BoundList` resolves.
+      symbols.add('S');
+      final numberItems = [
+        if (description.isNotEmpty) description,
+        'items: S.number()',
+      ].join(', ');
+      return 'A2uiSchemas.listOrReference($numberItems)';
+    case PropKind.enumerationList:
+      symbols.add('S');
+      final enumItemValues = prop.enumValues.map(dartString).join(', ');
+      final enumItems = [
+        if (description.isNotEmpty) description,
+        'items: S.string(enumValues: [$enumItemValues])',
+      ].join(', ');
+      return 'A2uiSchemas.listOrReference($enumItems)';
     case PropKind.data:
       // Folded through `BoundObject`, which resolves `{"path": ...}` and
       // `{"call": ...}` as well as a literal, so the schema has to allow all
@@ -249,7 +270,10 @@ String _bindingFactory(PropSpec prop) => switch (prop.kind) {
   PropKind.string || PropKind.enumeration => 'string',
   PropKind.integer || PropKind.decimal || PropKind.number => 'number',
   PropKind.boolean => 'bool',
-  PropKind.stringList => 'stringList',
+  PropKind.stringList || PropKind.enumerationList => 'stringList',
+  PropKind.integerList ||
+  PropKind.decimalList ||
+  PropKind.numberList => 'numberList',
   PropKind.data => 'object',
   PropKind.dataList => 'objectList',
   PropKind.widget ||
@@ -318,6 +342,31 @@ String _argument(PropSpec prop, Set<String> symbols) {
         'v.stringList($key)',
         'List<String>',
         'const <String>[]',
+      );
+    case PropKind.integerList:
+      return withFallback(
+        'v.numberList($key)?.map((n) => n.toInt()).toList()',
+        'List<int>',
+        'const <int>[]',
+      );
+    case PropKind.decimalList:
+      return withFallback(
+        'v.numberList($key)?.map((n) => n.toDouble()).toList()',
+        'List<double>',
+        'const <double>[]',
+      );
+    case PropKind.numberList:
+      return withFallback('v.numberList($key)', 'List<num>', 'const <num>[]');
+    case PropKind.enumerationList:
+      // A name the enum does not declare is dropped rather than defaulted:
+      // the list is the model's, and one bad entry should not silently become
+      // a valid value the author never wrote.
+      final listEnumType = prop.enumTypeName!;
+      return withFallback(
+        'v.stringList($key)?.map((name) => '
+            '$listEnumType.values.asNameMap()[name]).nonNulls.toList()',
+        'List<$listEnumType>',
+        'const <$listEnumType>[]',
       );
     case PropKind.data:
       final decoder = prop.data!.decoderName;
@@ -487,6 +536,28 @@ String _fieldSchema(PropSpec field, Set<String> symbols) {
         'items: S.string()',
       ].join(', ');
       return 'S.list($args)';
+    case PropKind.integerList:
+      // As with a scalar field, a data class field is a literal the model
+      // emits, so the item schema can say "integer" and be validated.
+      final intArgs = [
+        if (description.isNotEmpty) description,
+        'items: S.integer()',
+      ].join(', ');
+      return 'S.list($intArgs)';
+    case PropKind.decimalList:
+    case PropKind.numberList:
+      final numArgs = [
+        if (description.isNotEmpty) description,
+        'items: S.number()',
+      ].join(', ');
+      return 'S.list($numArgs)';
+    case PropKind.enumerationList:
+      final enumFieldValues = field.enumValues.map(dartString).join(', ');
+      final enumArgs = [
+        if (description.isNotEmpty) description,
+        'items: S.string(enumValues: [$enumFieldValues])',
+      ].join(', ');
+      return 'S.list($enumArgs)';
     case PropKind.data:
       return _objectSchema(field.data!, field.description, symbols);
     case PropKind.dataList:
@@ -589,6 +660,32 @@ String _decodeArgument(PropSpec field, Set<String> symbols) {
         'genUiAsStringList($raw)',
         'List<String>',
         'const <String>[]',
+      );
+    case PropKind.integerList:
+      symbols.add('genUiAsNumList');
+      return withFallback(
+        'genUiAsNumList($raw)?.map((n) => n.toInt()).toList()',
+        'List<int>',
+        'const <int>[]',
+      );
+    case PropKind.decimalList:
+      symbols.add('genUiAsNumList');
+      return withFallback(
+        'genUiAsNumList($raw)?.map((n) => n.toDouble()).toList()',
+        'List<double>',
+        'const <double>[]',
+      );
+    case PropKind.numberList:
+      symbols.add('genUiAsNumList');
+      return withFallback('genUiAsNumList($raw)', 'List<num>', 'const <num>[]');
+    case PropKind.enumerationList:
+      symbols.add('genUiAsStringList');
+      final listEnumType = field.enumTypeName!;
+      return withFallback(
+        'genUiAsStringList($raw)?.map((name) => '
+            '$listEnumType.values.asNameMap()[name]).nonNulls.toList()',
+        'List<$listEnumType>',
+        'const <$listEnumType>[]',
       );
     case PropKind.data:
       symbols.addAll(['genUiAsObject', 'genUiNestedField']);

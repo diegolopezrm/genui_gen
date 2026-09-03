@@ -26,10 +26,12 @@ class Bad extends StatelessWidget {
 @GenUiWidget(description: 'Bad.')
 class Bad extends StatelessWidget {
   const Bad({super.key, required this.values});
-  final List<int> values;
+  final List<Duration> values;
 }
 '''),
-      failsWith(['Unsupported parameter type `List<int>` for `Bad.values`']),
+      failsWith([
+        'Unsupported parameter type `List<Duration>` for `Bad.values`',
+      ]),
     );
   });
 

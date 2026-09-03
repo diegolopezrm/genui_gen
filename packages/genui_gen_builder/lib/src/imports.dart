@@ -32,6 +32,7 @@ const importForSymbol = <String, String>{
   'genUiAsNum': _genuiGen,
   'genUiAsBool': _genuiGen,
   'genUiAsStringList': _genuiGen,
+  'genUiAsNumList': _genuiGen,
   'genUiAsObject': _genuiGen,
   'genUiAsObjectList': _genuiGen,
   'genUiMissingField': _genuiGen,

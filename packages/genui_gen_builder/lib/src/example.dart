@@ -63,6 +63,16 @@ Object? _sampleFor(
       return prop.enumValues[index % prop.enumValues.length];
     case PropKind.stringList:
       return required ? ['Alpha', 'Beta'] : null;
+    case PropKind.integerList:
+    case PropKind.numberList:
+      return required ? [1 + index, 2 + index] : null;
+    case PropKind.decimalList:
+      return required ? [1.5 + index, 2.5 + index] : null;
+    case PropKind.enumerationList:
+      if (prop.enumValues.isEmpty) return null;
+      // Two values where the enum has two to give, so the example shows a
+      // list rather than a single-entry one that reads like a scalar.
+      return required ? prop.enumValues.take(2).toList(growable: false) : null;
     case PropKind.widget:
       final id = 'child_${prop.schemaName}';
       extra.add(_text(id, 'Sample ${humanize(prop.schemaName)}'));

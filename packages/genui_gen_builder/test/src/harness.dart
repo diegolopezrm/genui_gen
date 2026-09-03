@@ -209,6 +209,7 @@ String? genUiAsString(Object? value) => null;
 num? genUiAsNum(Object? value) => null;
 bool? genUiAsBool(Object? value) => null;
 List<String>? genUiAsStringList(Object? value) => null;
+List<num>? genUiAsNumList(Object? value) => null;
 Map<String, Object?>? genUiAsObject(Object? value) => null;
 List<Map<String, Object?>>? genUiAsObjectList(Object? value) => null;
 

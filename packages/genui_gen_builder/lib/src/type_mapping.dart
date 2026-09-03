@@ -78,6 +78,15 @@ TypeMapping? mapType(DartType type) {
     if (item.nullabilitySuffix == NullabilitySuffix.question) return null;
     if (item.isDartCoreString) {
       kind = PropKind.stringList;
+    } else if (item.isDartCoreInt) {
+      kind = PropKind.integerList;
+    } else if (item.isDartCoreDouble) {
+      kind = PropKind.decimalList;
+    } else if (item.isDartCoreNum) {
+      kind = PropKind.numberList;
+    } else if (item.element is EnumElement) {
+      kind = PropKind.enumerationList;
+      enumElement = item.element as EnumElement;
     } else if (widgetChecker.isExactlyType(item)) {
       kind = PropKind.widgetList;
     } else {
@@ -116,6 +125,10 @@ String? nullableListElement(DartType type) {
   if (item.nullabilitySuffix != NullabilitySuffix.question) return null;
   final supported =
       item.isDartCoreString ||
+      item.isDartCoreInt ||
+      item.isDartCoreDouble ||
+      item.isDartCoreNum ||
+      item.element is EnumElement ||
       widgetChecker.isExactlyType(item) ||
       dataClassOf(item) != null;
   if (!supported) return null;
@@ -169,11 +182,11 @@ String? annotatableClassName(DartType type) {
 
 /// Human readable list of supported types, used in error messages.
 const supportedTypesSummary =
-    'String, int, double, num, bool, enums, List<String>, Widget, '
+    'String, int, double, num, bool, enums, a List of any of those, Widget, '
     'List<Widget>, VoidCallback / void Function(), a @GenUiData class and a '
     'List of one (each optionally nullable)';
 
 /// Human readable list of the types allowed inside a `@GenUiData` class.
 const supportedDataTypesSummary =
-    'String, int, double, num, bool, enums, List<String>, a @GenUiData class '
-    'and a List of one (each optionally nullable)';
+    'String, int, double, num, bool, enums, a List of any of those, a '
+    '@GenUiData class and a List of one (each optionally nullable)';

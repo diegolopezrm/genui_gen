@@ -15,7 +15,8 @@
 /// to import this library.
 ///
 /// The same goes for the coercion helpers ([genUiAsString], [genUiAsNum],
-/// [genUiAsBool], [genUiAsStringList], [genUiAsObject], [genUiAsObjectList])
+/// [genUiAsBool], [genUiAsStringList], [genUiAsNumList], [genUiAsObject],
+/// [genUiAsObjectList])
 /// and the field reporters ([GenUiMissingFieldReporter], [genUiMissingField],
 /// [genUiNestedField]): generated decoders call them instead of casting, so a
 /// model that sends a number where a string was declared degrades exactly the
