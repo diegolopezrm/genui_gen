@@ -32,6 +32,30 @@ const genUiActionChecker = TypeChecker.typeNamedLiterally(
 /// The extension the builder appends to the annotated file name.
 const generatedPartExtension = '.genui.dart';
 
+/// Component names genui's own basic catalog already uses.
+///
+/// From `BasicCatalogItems` in genui 0.10; `Text` is handled separately
+/// because generated examples compose it for child components.
+const _basicCatalogNames = {
+  'AudioPlayer',
+  'Button',
+  'Card',
+  'CheckBox',
+  'ChoicePicker',
+  'Column',
+  'DateTimeInput',
+  'Divider',
+  'Icon',
+  'Image',
+  'List',
+  'Modal',
+  'Row',
+  'Slider',
+  'Tabs',
+  'TextField',
+  'Video',
+};
+
 /// Generates a `CatalogItem` for every class annotated with `@GenUiWidget`.
 ///
 /// The annotation type is matched by name and package (see
@@ -193,6 +217,19 @@ WidgetSpec buildWidgetSpec(ClassElement cls, ConstantReader annotation) {
       'item that the generated examples use for child components. Pick '
       'another name with @GenUiWidget(name: ...).',
       element: cls,
+    );
+  }
+  if (_basicCatalogNames.contains(catalogName)) {
+    // Not an error: a catalog is free to leave the basic items out, and then
+    // the name is available. It is worth saying out loud, though, because
+    // `Catalog.copyWith(newItems: ...)` next to `BasicCatalogItems` gives the
+    // model two components with one name and no indication which it composed.
+    log.warning(
+      'Component name `$catalogName` on `$className` is also a genui basic '
+      'catalog item. Registering both in one catalog leaves the model with '
+      'two components under that name. Rename it with '
+      '@GenUiWidget(name: ...) if the catalog includes '
+      'BasicCatalogItems.asCatalog().',
     );
   }
   if (catalogName.startsWith('_')) {

@@ -274,10 +274,27 @@ String normalize(String code) => code
     .replaceAll(', {', ',{');
 
 /// Like [generate] but returns the file exactly as written by the builder.
+/// Runs the builder and returns the warnings it logged.
+Future<List<String>> generateWarnings(
+  String body, {
+  String? imports,
+  Map<String, String> extraAssets = const {},
+}) async {
+  final warnings = <String>[];
+  await generateRaw(
+    body,
+    imports: imports,
+    extraAssets: extraAssets,
+    warnings: warnings,
+  );
+  return warnings;
+}
+
 Future<String> generateRaw(
   String body, {
   String? imports,
   Map<String, String> extraAssets = const {},
+  List<String>? warnings,
 }) async {
   final source =
       '${imports ?? defaultImports}\n'
@@ -291,6 +308,8 @@ Future<String> generateRaw(
     onLog: (record) {
       if (record.level.value >= 1000) {
         errors.add('${record.message}${_errorOf(record.error)}');
+      } else if (record.level.value >= 900) {
+        warnings?.add(record.message);
       }
     },
   );

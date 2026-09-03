@@ -398,4 +398,32 @@ import 'package:json_schema_builder/json_schema_builder.dart';
       expect(out, contains('cardCatalogItem'));
     });
   });
+  test('a name from the basic catalog warns but still generates', () async {
+    final warnings = await generateWarnings('''
+@GenUiWidget(description: 'A card of my own.')
+class Card extends StatelessWidget {
+  const Card({super.key, required this.title});
+  final String title;
+}
+''');
+    expect(
+      warnings.single,
+      allOf([
+        contains('Component name `Card`'),
+        contains('genui basic catalog item'),
+        contains('@GenUiWidget(name: ...)'),
+      ]),
+    );
+  });
+
+  test('a name of its own warns about nothing', () async {
+    final warnings = await generateWarnings('''
+@GenUiWidget(description: 'A card of my own.')
+class ProductCard extends StatelessWidget {
+  const ProductCard({super.key, required this.title});
+  final String title;
+}
+''');
+    expect(warnings, isEmpty);
+  });
 }
