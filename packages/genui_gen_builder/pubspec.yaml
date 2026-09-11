@@ -1,6 +1,6 @@
 name: genui_gen_builder
 description: build_runner generator for genui_gen. Turns @GenUiWidget widgets and @GenUiData classes into genui CatalogItems whose schema, builder and examples come from the constructor.
-version: 0.4.0
+version: 0.5.0
 repository: https://github.com/diegolopezrm/genui_gen
 issue_tracker: https://github.com/diegolopezrm/genui_gen/issues
 topics:
@@ -18,6 +18,7 @@ resolution: workspace
 dependencies:
   analyzer: ">=10.0.0 <15.0.0"
   build: ">=4.0.0 <5.0.0"
+  glob: ">=2.1.0 <3.0.0"
   source_gen: ">=4.1.0 <5.0.0"
 
 dev_dependencies:

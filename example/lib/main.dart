@@ -1,29 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:genui/genui.dart';
 
-import 'widgets/metrics_table.dart';
-import 'widgets/panel.dart';
-import 'widgets/preference_row.dart';
-import 'widgets/product_card.dart';
-import 'widgets/stat_tile.dart';
-import 'widgets/tag_row.dart';
+import 'genui_catalog.g.dart';
 
 void main() {
   runApp(const GenUiGenExampleApp());
 }
 
-/// The catalog handed to genui: the six generated items from this app plus
-/// genui's basic catalog, so the generated examples can reference core
-/// components such as `Text`.
+/// The catalog handed to genui: every generated item in this app, plus genui's
+/// basic catalog so the generated examples can reference core components such
+/// as `Text`.
+///
+/// `genUiCatalogItems` comes from `genui_catalog.g.dart`, which the builder
+/// rewrites whenever a `@GenUiWidget` is added or removed. Adding a widget is
+/// one file; nothing here has to be touched.
 ///
 /// `DebugCatalogView` requires a non-null [Catalog.catalogId].
 final Catalog exampleCatalog = Catalog([
-  productCardCatalogItem,
-  statTileCatalogItem,
-  tagRowCatalogItem,
-  panelCatalogItem,
-  metricsTableCatalogItem,
-  preferenceRowCatalogItem,
+  ...genUiCatalogItems,
   ...BasicCatalogItems.asCatalog().items,
 ], catalogId: 'dev.dlsoft.genui_gen.example');
 

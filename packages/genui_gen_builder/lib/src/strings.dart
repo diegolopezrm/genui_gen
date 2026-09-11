@@ -82,3 +82,10 @@ String humanize(String identifier) {
   );
   return spaced.replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
 }
+
+/// Header written at the top of every file this package generates.
+const generatedFileHeader = '''
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint
+// coverage:ignore-file
+''';

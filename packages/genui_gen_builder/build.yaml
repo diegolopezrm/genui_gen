@@ -5,3 +5,11 @@ builders:
     build_extensions: {".dart": [".genui.dart"]}
     auto_apply: dependents
     build_to: source
+  genui_catalog:
+    import: "package:genui_gen_builder/builder.dart"
+    builder_factories: ["genUiCatalogBuilder"]
+    build_extensions: {"$lib$": ["genui_catalog.g.dart"]}
+    # Runs after `genui_gen`, whose output it reads.
+    required_inputs: [".genui.dart"]
+    auto_apply: dependents
+    build_to: source

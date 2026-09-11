@@ -1,3 +1,36 @@
+## 0.5.0
+
+- Added an aggregating builder. Every `CatalogItem` generated in the package is
+  collected into one `lib/genui_catalog.g.dart`, which declares
+  `genUiCatalogItems` and imports the libraries that hold them. Registering a
+  catalog was otherwise a hand-maintained import list plus a hand-maintained
+  list of variable names — the same drift this package exists to remove, one
+  level up, since adding a `@GenUiWidget` left the catalog silently as it was.
+
+  ```dart
+  import 'genui_catalog.g.dart';
+
+  final catalog = Catalog([
+    ...genUiCatalogItems,
+    ...BasicCatalogItems.asCatalog().items,
+  ], catalogId: 'com.example.app');
+  ```
+
+- The list is sorted by variable name, so the file does not reorder itself
+  between builds, and a package with nothing annotated gets no file rather than
+  an empty one.
+- Two libraries whose generated items would arrive under the same name are now
+  a build error naming both files. The per-library generator already rejected a
+  collision inside one library; across libraries the two only meet in the
+  aggregate, which names each unprefixed.
+- A `@GenUiWidget(name: '...')` on a private class generates a private
+  variable, which no other library can name. It is left out of the aggregate
+  with a warning that says why, rather than emitting a file that does not
+  compile.
+- `genui_gen` stays at 0.4.0. This release changes the builder only: the
+  generated file imports `package:genui/genui.dart` and nothing from the
+  annotations package.
+
 ## 0.4.0
 
 - Recognises `@GenUiWrites('<property>')` on a `void Function(T)` parameter and

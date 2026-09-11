@@ -7,16 +7,13 @@ library;
 import 'package:build/build.dart';
 import 'package:source_gen/source_gen.dart';
 
+import 'src/catalog_aggregator.dart';
 import 'src/generator.dart';
+import 'src/strings.dart';
 
+export 'src/catalog_aggregator.dart' show CatalogAggregatingBuilder;
 export 'src/generator.dart' show GenUiDataGenerator, GenUiGenerator;
-
-/// Header written at the top of every generated `.genui.dart` file.
-const generatedFileHeader = '''
-// GENERATED CODE - DO NOT MODIFY BY HAND
-// ignore_for_file: type=lint
-// coverage:ignore-file
-''';
+export 'src/strings.dart' show generatedFileHeader;
 
 /// Creates the builder that turns `@GenUiWidget` and `@GenUiData` classes
 /// into `<file>.genui.dart` part files.
@@ -26,3 +23,8 @@ Builder genUiGenBuilder(BuilderOptions options) => PartBuilder(
   header: generatedFileHeader,
   options: options,
 );
+
+/// Creates the builder that collects every generated `CatalogItem` in the
+/// package into a single `lib/genui_catalog.g.dart`.
+Builder genUiCatalogBuilder(BuilderOptions options) =>
+    const CatalogAggregatingBuilder();

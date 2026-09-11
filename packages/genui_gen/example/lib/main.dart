@@ -11,9 +11,13 @@
 //     build_runner: ^2.15.0
 //     genui_gen_builder: ^0.4.0
 //
-// Then `dart run build_runner build` writes `main.genui.dart` next to this
-// file, declaring `productCardCatalogItem`. That file is generated output and
-// is committed here so this example compiles as you see it.
+// Then `dart run build_runner build` writes two files next to this one, both
+// generated output and both committed here so the example compiles as you see
+// it: `main.genui.dart`, declaring `productCardCatalogItem`, and
+// `genui_catalog.g.dart`, which lists every generated item in the package as
+// `genUiCatalogItems`. With a single widget the item is named directly in
+// `buildCatalog()` below; in an app with several, spreading
+// `...genUiCatalogItems` is what keeps the catalog from falling behind.
 //
 // A full app, with six annotated widgets rendered through genui's
 // DebugCatalogView, is in the repository's top-level `example/` directory:

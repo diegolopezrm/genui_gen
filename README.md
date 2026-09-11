@@ -120,6 +120,10 @@ final catalog = BasicCatalogItems.asCatalog().copyWith(
 final controller = SurfaceController(catalogs: [catalog]);
 ```
 
+Naming each item is fine for one widget. Once there are several, use the
+generated `genui_catalog.g.dart` instead and let the list maintain itself —
+see [Registering every item at once](#registering-every-item-at-once).
+
 ### What gets generated
 
 `product_card.genui.dart` (trimmed):
@@ -282,6 +286,55 @@ for `this.x` parameters, on the field.
 
 `@GenUiWrites` is only valid on a callback that takes the new value, such as
 `ValueChanged<bool>` or `void Function(String)`. See the next section.
+
+## Registering every item at once
+
+A catalog built by naming each item is a hand-maintained import list plus a
+hand-maintained list of variable names. Add a `@GenUiWidget` and the catalog
+stays as it was, silently — the same drift this package removes between a
+widget and its schema, one level up.
+
+The builder emits `lib/genui_catalog.g.dart` alongside the part files, holding
+every generated item in the package:
+
+```dart
+// GENERATED CODE - DO NOT MODIFY BY HAND
+import 'package:genui/genui.dart';
+
+import 'widgets/product_card.dart';
+import 'widgets/stat_tile.dart';
+
+final List<CatalogItem> genUiCatalogItems = <CatalogItem>[
+  productCardCatalogItem,
+  statTileCatalogItem,
+];
+```
+
+Which makes registering them one line, whatever the app grows into:
+
+```dart
+import 'genui_catalog.g.dart';
+
+final catalog = Catalog([
+  ...genUiCatalogItems,
+  ...BasicCatalogItems.asCatalog().items,
+], catalogId: 'com.example.app');
+```
+
+Worth knowing:
+
+- The list is sorted by variable name, so the file does not reorder itself
+  between builds and a diff only shows what actually changed.
+- A package with nothing annotated gets no file, rather than an empty one that
+  looks like a mistake.
+- Only this package's items are collected. Items from a package you depend on
+  are that package's to export.
+- Two libraries whose items would arrive under the same name are a build error
+  naming both files. Inside one library the generator already caught that; the
+  two only meet here, where the aggregate names each unprefixed.
+- `@GenUiWidget(name: '...')` on a private class generates a private variable,
+  which no other library can name. It is left out with a warning saying so,
+  rather than emitting a file that does not compile.
 
 ## Controls the user operates (`@GenUiWrites`)
 
@@ -591,12 +644,12 @@ Two ways around it in the meantime:
 - 0.4 (done): two-way binding — a `void Function(T)` marked `@GenUiWrites`
   writes the user's value into the surface's data model, so a switch, a slider
   or a text field can be annotated and the agent can read the answer back.
-- 0.5 (proposed): an aggregating builder that emits a single
-  `genui_catalog.g.dart` with every generated item in the package, so
-  registering a catalog stops being a hand-maintained import list; and smarter
-  example generation, where the author's own default values and the property
-  description feed the sample instead of the fixed `42` / `Sample <name>`
-  placeholders.
+- 0.5 (done, `genui_gen_builder` only): an aggregating builder that emits a
+  single `genui_catalog.g.dart` with every generated item in the package, so
+  registering a catalog stops being a hand-maintained import list.
+- Proposed next: smarter example generation, where the author's own default
+  values and the property description feed the sample instead of the fixed
+  `42` / `Sample <name>` placeholders.
 
 ## Compatibility
 
@@ -615,7 +668,7 @@ breaks. If you are on a newer genui than the constraint allows, open an issue.
 | Package | Put it in | What it holds |
 |---|---|---|
 | [`genui_gen`](packages/genui_gen) | `dependencies` | `@GenUiWidget`, `@GenUiData`, `@GenUiProp`, `@GenUiAction`, `@GenUiWrites` and the runtime helpers the generated code calls |
-| [`genui_gen_builder`](packages/genui_gen_builder) | `dev_dependencies` | the `build_runner` generator |
+| [`genui_gen_builder`](packages/genui_gen_builder) | `dev_dependencies` | the `build_runner` generator, and the aggregating builder that emits `genui_catalog.g.dart` |
 | [`example`](example) | - | six annotated widgets — one driven by a `@GenUiData` class, one a switch that writes back — rendered offline through genui's `DebugCatalogView` |
 
 ## Contributing
