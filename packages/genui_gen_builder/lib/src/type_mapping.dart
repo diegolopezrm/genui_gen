@@ -30,10 +30,14 @@ final class TypeMapping {
     required this.isNullable,
     this.enumElement,
     this.dataElement,
+    this.writerValueKind,
   });
 
   final PropKind kind;
   final bool isNullable;
+
+  /// Set for [PropKind.valueWriter]: the kind the callback's argument maps to.
+  final PropKind? writerValueKind;
 
   /// Set for [PropKind.enumeration].
   final EnumElement? enumElement;
@@ -42,15 +46,45 @@ final class TypeMapping {
   final ClassElement? dataElement;
 }
 
+/// The kinds a `void Function(T)` may write back to the data model.
+///
+/// Scalars only: a list or an object would have to be written wholesale, and
+/// the property it came from may be a `{"call": ...}` with no path to write
+/// to. Widgets and callbacks are not values at all.
+const writableKinds = {
+  PropKind.string,
+  PropKind.integer,
+  PropKind.decimal,
+  PropKind.number,
+  PropKind.boolean,
+  PropKind.enumeration,
+};
+
 /// Maps [type] to a [TypeMapping], or returns `null` when unsupported.
 TypeMapping? mapType(DartType type) {
   final isNullable = type.nullabilitySuffix == NullabilitySuffix.question;
 
   if (type is FunctionType) {
-    if (type.returnType is VoidType && type.formalParameters.isEmpty) {
+    if (type.returnType is! VoidType) return null;
+    if (type.formalParameters.isEmpty) {
       return TypeMapping(kind: PropKind.action, isNullable: isNullable);
     }
-    return null;
+    if (type.formalParameters.length != 1) return null;
+    final argument = type.formalParameters.single;
+    // A named argument has no position for the generated callback to fill, and
+    // nothing in the data model names it.
+    if (argument.isNamed) return null;
+    if (argument.type.nullabilitySuffix == NullabilitySuffix.question) {
+      return null;
+    }
+    final value = mapType(argument.type);
+    if (value == null || !writableKinds.contains(value.kind)) return null;
+    return TypeMapping(
+      kind: PropKind.valueWriter,
+      isNullable: isNullable,
+      enumElement: value.enumElement,
+      writerValueKind: value.kind,
+    );
   }
 
   if (type is! InterfaceType) return null;
@@ -135,6 +169,27 @@ String? nullableListElement(DartType type) {
   return item.getDisplayString();
 }
 
+/// The display name of the argument of a `void Function(T?)` whose
+/// `void Function(T)` form *is* writable, or `null` otherwise.
+///
+/// Reported on its own rather than as "unsupported type", because the fix is
+/// to drop one `?`. A2UI has no agreed meaning for writing `null` to a path —
+/// some implementations read it as "clear this", others as "store null" — so
+/// the generator refuses to pick one silently.
+String? nullableWriterArgument(DartType type) {
+  if (type is! FunctionType) return null;
+  if (type.returnType is! VoidType) return null;
+  if (type.formalParameters.length != 1) return null;
+  final argument = type.formalParameters.single;
+  if (argument.isNamed) return null;
+  if (argument.type.nullabilitySuffix != NullabilitySuffix.question) {
+    return null;
+  }
+  final value = mapType(argument.type);
+  if (value == null || !writableKinds.contains(value.kind)) return null;
+  return argument.type.getDisplayString();
+}
+
 /// Whether [type] (or the element type of a `List`) failed to resolve.
 ///
 /// The analyzer models an unresolvable type as `InvalidType`, which carries no
@@ -183,8 +238,9 @@ String? annotatableClassName(DartType type) {
 /// Human readable list of supported types, used in error messages.
 const supportedTypesSummary =
     'String, int, double, num, bool, enums, a List of any of those, Widget, '
-    'List<Widget>, VoidCallback / void Function(), a @GenUiData class and a '
-    'List of one (each optionally nullable)';
+    'List<Widget>, VoidCallback / void Function(), void Function(T) marked '
+    '@GenUiWrites, a @GenUiData class and a List of one (each optionally '
+    'nullable)';
 
 /// Human readable list of the types allowed inside a `@GenUiData` class.
 const supportedDataTypesSummary =

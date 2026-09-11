@@ -29,6 +29,12 @@ const genUiActionChecker = TypeChecker.typeNamedLiterally(
   inPackage: 'genui_gen',
 );
 
+/// Matches `@GenUiWrites` from `package:genui_gen`.
+const genUiWritesChecker = TypeChecker.typeNamedLiterally(
+  'GenUiWrites',
+  inPackage: 'genui_gen',
+);
+
 /// The extension the builder appends to the annotated file name.
 const generatedPartExtension = '.genui.dart';
 
@@ -441,6 +447,7 @@ List<PropSpec> _analyseParameters(
   required List<ClassElement> stack,
 }) {
   final props = <PropSpec>[];
+  final elements = <PropSpec, FormalParameterElement>{};
   FormalParameterElement? skippedPositional;
   for (final param in constructor.formalParameters) {
     final prop = _analyseParameter(
@@ -474,9 +481,109 @@ List<PropSpec> _analyseParameters(
       );
     }
     props.add(prop);
+    elements[prop] = param;
   }
+  if (!inData) _checkValueWriters(className, props, elements);
   return props;
 }
+
+/// Checks every `@GenUiWrites` against the property it names.
+///
+/// Runs once the whole constructor is analysed, because the property a
+/// callback writes to may be declared after it.
+void _checkValueWriters(
+  String className,
+  List<PropSpec> props,
+  Map<PropSpec, FormalParameterElement> elements,
+) {
+  final targets = {
+    for (final prop in props)
+      if (prop.kind != PropKind.valueWriter) prop.schemaName: prop,
+  };
+  for (final writer in props) {
+    if (writer.kind != PropKind.valueWriter) continue;
+    final element = elements[writer];
+    final qualified = '$className.${writer.dartName}';
+    final wanted = writer.writesProperty!;
+    final target = targets[wanted];
+
+    if (target == null) {
+      final writable =
+          targets.values
+              .where((p) => writableKinds.contains(p.kind))
+              .map((p) => '`${p.schemaName}`')
+              .toList()
+            ..sort();
+      final suggestion = writable.isEmpty
+          ? '`$className` has no property a callback could write to; a '
+                'writable property is a String, a number, a bool or an enum.'
+          : 'Writable properties of `$className`: ${writable.join(', ')}.';
+      throw InvalidGenerationSourceError(
+        "@GenUiWrites('$wanted') on `$qualified` names a property "
+        '`$className` does not have. $suggestion',
+        element: element,
+      );
+    }
+
+    if (!writableKinds.contains(target.kind)) {
+      throw InvalidGenerationSourceError(
+        "@GenUiWrites('$wanted') on `$qualified` writes to "
+        '`$className.${target.dartName}`, which is a ${_kindLabel(target.kind)}. '
+        'Only a String, a number, a bool or an enum can be written back: the '
+        'value has to survive the round trip through the data model as a '
+        'single JSON value.',
+        element: element,
+      );
+    }
+
+    if (!_writerMatches(writer, target)) {
+      throw InvalidGenerationSourceError(
+        "@GenUiWrites('$wanted') on `$qualified` takes "
+        '`${writer.writerTypeName}`, but `$className.${target.dartName}` is a '
+        '${_kindLabel(target.kind)}'
+        '${target.enumTypeName == null ? '' : ' (`${target.enumTypeName}`)'}. '
+        'The callback has to take the same type the property carries, or the '
+        'value the user picks could not be read back into it.',
+        element: element,
+      );
+    }
+  }
+}
+
+/// Whether [writer]'s argument type can be written into [target].
+///
+/// The numeric kinds are interchangeable: the generated reader already coerces
+/// with `toInt()` / `toDouble()`, so a callback that hands back a `double` for
+/// an `int` property round-trips the same way a model-supplied literal does.
+/// Enums have to be the same enum.
+bool _writerMatches(PropSpec writer, PropSpec target) {
+  const numeric = {PropKind.integer, PropKind.decimal, PropKind.number};
+  final from = writer.writerValueKind!;
+  if (numeric.contains(from) && numeric.contains(target.kind)) return true;
+  if (from != target.kind) return false;
+  if (from != PropKind.enumeration) return true;
+  return writer.writerTypeName == target.enumTypeName;
+}
+
+String _kindLabel(PropKind kind) => switch (kind) {
+  PropKind.string => 'String',
+  PropKind.integer => 'int',
+  PropKind.decimal => 'double',
+  PropKind.number => 'num',
+  PropKind.boolean => 'bool',
+  PropKind.enumeration => 'enum',
+  PropKind.stringList ||
+  PropKind.integerList ||
+  PropKind.decimalList ||
+  PropKind.numberList ||
+  PropKind.enumerationList => 'list',
+  PropKind.data => '@GenUiData object',
+  PropKind.dataList => 'list of @GenUiData objects',
+  PropKind.widget => 'child component',
+  PropKind.widgetList => 'list of child components',
+  PropKind.action => 'action',
+  PropKind.valueWriter => 'value writer',
+};
 
 PropSpec? _analyseParameter(
   ClassElement cls,
@@ -511,6 +618,9 @@ PropSpec? _analyseParameter(
   final actionAnnotation =
       _annotation(genUiActionChecker, param) ??
       (field == null ? null : _annotation(genUiActionChecker, field));
+  final writesAnnotation =
+      _annotation(genUiWritesChecker, param) ??
+      (field == null ? null : _annotation(genUiWritesChecker, field));
 
   if (propAnnotation != null && _readBool(propAnnotation, 'ignore')) {
     if (param.isRequired) {
@@ -550,6 +660,19 @@ PropSpec? _analyseParameter(
         element: param,
       );
     }
+    final nullableArgument = nullableWriterArgument(param.type);
+    if (nullableArgument != null) {
+      final bare = nullableArgument.substring(0, nullableArgument.length - 1);
+      throw InvalidGenerationSourceError(
+        '`$qualified` is a callback whose value is `$nullableArgument`, and '
+        'a value written back to the data model may not be nullable. A2UI has no '
+        'agreed meaning for writing `null` to a path — some implementations '
+        'clear it, others store null — so the generator will not pick one for '
+        'you. Take `$bare` instead, or leave the parameter out with '
+        '@GenUiProp(ignore: true).',
+        element: param,
+      );
+    }
     final annotatable = annotatableClassName(param.type);
     final hint = annotatable == null
         ? ''
@@ -572,6 +695,27 @@ PropSpec? _analyseParameter(
       'allowed inside a @GenUiData class: a data class is data the model '
       'emits, not a component reference or a callback. Move it to the '
       'widget constructor, or mark it @GenUiProp(ignore: true).',
+      element: param,
+    );
+  }
+
+  if (writesAnnotation != null && mapping.kind != PropKind.valueWriter) {
+    throw InvalidGenerationSourceError(
+      '@GenUiWrites on `$qualified` requires a callback that takes the new '
+      'value, such as `ValueChanged<bool>` or `void Function(String)`, but '
+      'its type is `${param.type.getDisplayString()}`.',
+      element: param,
+    );
+  }
+
+  if (mapping.kind == PropKind.valueWriter && writesAnnotation == null) {
+    throw InvalidGenerationSourceError(
+      '`$qualified` takes `${param.type.getDisplayString()}`, and the '
+      'generator cannot tell where the value should go. Add '
+      "@GenUiWrites('<property>') naming the property this callback writes "
+      'back to, so the user\'s answer lands where the model can read it. '
+      'Leave the parameter out with @GenUiProp(ignore: true) if the widget '
+      'handles it itself.',
       element: param,
     );
   }
@@ -602,8 +746,7 @@ PropSpec? _analyseParameter(
 
   String? enumTypeName;
   var enumValues = const <String>[];
-  if (mapping.kind == PropKind.enumeration ||
-      mapping.kind == PropKind.enumerationList) {
+  if (mapping.enumElement != null) {
     final enumElement = mapping.enumElement!;
     enumTypeName = _visibleTypeName(
       cls.library,
@@ -614,6 +757,29 @@ PropSpec? _analyseParameter(
       'reference `${enumElement.name}.values`',
     );
     enumValues = [for (final c in enumElement.constants) c.name!];
+  }
+
+  String? writesProperty;
+  String? writerTypeName;
+  if (mapping.kind == PropKind.valueWriter) {
+    writesProperty = _readString(writesAnnotation, 'property')?.trim();
+    if (writesProperty == null || writesProperty.isEmpty) {
+      throw InvalidGenerationSourceError(
+        '@GenUiWrites on `$qualified` needs the name of the property the '
+        'callback writes to, for example '
+        "@GenUiWrites('value').",
+        element: param,
+      );
+    }
+    writerTypeName = switch (mapping.writerValueKind!) {
+      PropKind.string => 'String',
+      PropKind.integer => 'int',
+      PropKind.decimal => 'double',
+      PropKind.number => 'num',
+      PropKind.boolean => 'bool',
+      PropKind.enumeration => enumTypeName!,
+      _ => throw StateError('${mapping.writerValueKind} is not writable'),
+    };
   }
 
   DataSpec? data;
@@ -640,6 +806,9 @@ PropSpec? _analyseParameter(
     enumValues: enumValues,
     eventName: _readString(actionAnnotation, 'eventName') ?? name,
     data: data,
+    writesProperty: writesProperty,
+    writerTypeName: writerTypeName,
+    writerValueKind: mapping.writerValueKind,
   );
 }
 
@@ -658,7 +827,10 @@ bool _allowedInDataClass(PropKind kind) => switch (kind) {
   PropKind.enumerationList ||
   PropKind.data ||
   PropKind.dataList => true,
-  PropKind.widget || PropKind.widgetList || PropKind.action => false,
+  PropKind.widget ||
+  PropKind.widgetList ||
+  PropKind.action ||
+  PropKind.valueWriter => false,
 };
 
 /// Analyses the data class [dataElement] referenced from [cls], after

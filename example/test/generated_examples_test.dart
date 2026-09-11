@@ -29,6 +29,7 @@ void main() {
           'TagRow',
           'Panel',
           'MetricsTable',
+          'PreferenceRow',
         ]),
       );
     });

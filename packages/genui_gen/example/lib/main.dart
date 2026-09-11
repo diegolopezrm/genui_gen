@@ -5,17 +5,17 @@
 //
 //   dependencies:
 //     genui: ^0.10.0
-//     genui_gen: ^0.3.0
+//     genui_gen: ^0.4.0
 //
 //   dev_dependencies:
 //     build_runner: ^2.15.0
-//     genui_gen_builder: ^0.3.0
+//     genui_gen_builder: ^0.4.0
 //
 // Then `dart run build_runner build` writes `main.genui.dart` next to this
 // file, declaring `productCardCatalogItem`. That file is generated output and
 // is committed here so this example compiles as you see it.
 //
-// A full app, with five annotated widgets rendered through genui's
+// A full app, with six annotated widgets rendered through genui's
 // DebugCatalogView, is in the repository's top-level `example/` directory:
 // https://github.com/diegolopezrm/genui_gen/tree/main/example
 
@@ -32,7 +32,9 @@ class ProductCard extends StatelessWidget {
     required this.title,
     required this.price,
     this.imageUrl,
+    this.favourite = false,
     this.onTap,
+    @GenUiWrites('favourite') this.onFavouriteChanged,
   });
 
   /// Product name.
@@ -44,8 +46,15 @@ class ProductCard extends StatelessWidget {
   /// Optional image URL.
   final String? imageUrl;
 
+  /// Whether the user has marked the product as a favourite. Bind it to a data
+  /// path to read the answer back.
+  final bool favourite;
+
   /// Fired when the card is tapped.
   final VoidCallback? onTap;
+
+  /// Called with the new state when the user taps the heart.
+  final ValueChanged<bool>? onFavouriteChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -58,6 +67,15 @@ class ProductCard extends StatelessWidget {
             if (imageUrl != null) Image.network(imageUrl!),
             Text(title),
             Text('\$$price'),
+            IconButton(
+              icon: Icon(favourite ? Icons.favorite : Icons.favorite_border),
+              // The generated builder hands this a callback that writes the
+              // new state into the data model, at the path `favourite` is
+              // bound to.
+              onPressed: onFavouriteChanged == null
+                  ? null
+                  : () => onFavouriteChanged!(!favourite),
+            ),
           ],
         ),
       ),

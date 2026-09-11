@@ -27,6 +27,8 @@ const importForSymbol = <String, String>{
   'GenUiBinding': _genuiGen,
   'GenUiMissingFieldReporter': _genuiGen,
   'genUiActionHandler': _genuiGen,
+  'genUiValueWriter': _genuiGen,
+  'genUiWriteReference': _genuiGen,
   'genUiReportMissing': _genuiGen,
   'genUiAsString': _genuiGen,
   'genUiAsNum': _genuiGen,

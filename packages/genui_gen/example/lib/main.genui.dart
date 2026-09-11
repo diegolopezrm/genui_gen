@@ -21,6 +21,13 @@ final CatalogItem productCardCatalogItem = CatalogItem(
       'imageUrl': A2uiSchemas.stringReference(
         description: 'Optional image URL.',
       ),
+      'favourite': A2uiSchemas.booleanReference(
+        description:
+            'Whether the user has marked the product as a favourite. Bind '
+            'it to a data path to read the answer back. The component '
+            'writes the value the user chooses back to this property, so '
+            'bind it to a data path if you need to read the result.',
+      ),
       'onTap': A2uiSchemas.action(
         description: 'Fired when the card is tapped.',
       ),
@@ -57,12 +64,22 @@ final CatalogItem productCardCatalogItem = CatalogItem(
         'title': GenUiBinding.string(data['title']),
         'price': GenUiBinding.number(data['price']),
         'imageUrl': GenUiBinding.string(data['imageUrl']),
+        'favourite': GenUiBinding.bool(
+          genUiWriteReference(ctx, data['favourite'], 'favourite'),
+        ),
       },
       builder: (context, v) => ProductCard(
         title: v.string('title') ?? missing<String>('title', ''),
         price: (v.number('price') ?? missing<num>('price', 0)).toDouble(),
         imageUrl: v.string('imageUrl'),
+        favourite:
+            (v.boolean('favourite') ?? genUiAsBool(data['favourite'])) ?? false,
         onTap: genUiActionHandler(ctx, data['onTap']),
+        onFavouriteChanged: genUiValueWriter<bool>(
+          ctx,
+          data['favourite'],
+          'favourite',
+        ),
       ),
     );
   },

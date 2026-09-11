@@ -1,3 +1,26 @@
+## 0.4.0
+
+- Recognises `@GenUiWrites('<property>')` on a `void Function(T)` parameter and
+  emits a callback that writes the user's value into the data model. The
+  callback is left out of the schema and out of `required`, since the model
+  never supplies it; what the model supplies is the binding on the property it
+  writes to.
+- A property some callback writes to is read back through the path it is
+  written to (`genUiWriteReference`), with the literal the model sent as the
+  fallback until that path holds something. Enums are written as their name,
+  matching how they are read back.
+- Appends a sentence to the written property's schema description, so the model
+  knows that binding it to a path is how the answer is read.
+- New build errors, each naming both sides: a `void Function(T)` with no
+  `@GenUiWrites`, `@GenUiWrites` on something that is not such a callback, a
+  property the widget does not have (listing the ones it could write to), a
+  property that cannot be written back, a callback whose argument does not
+  match the property, and a nullable argument.
+- A callback with more than one argument, or one whose argument is not a
+  `String`, a number, a `bool` or an enum, stays unsupported and keeps the
+  general message.
+- Additive release: a widget that uses only 0.3 types generates identical code.
+
 ## 0.3.0
 
 - Added lists of scalars: a `@GenUiWidget` parameter or `@GenUiData` field may

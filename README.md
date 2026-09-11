@@ -208,6 +208,7 @@ because `GenUiBindings` composes genui's `BoundString`, `BoundNumber`,
 | `Widget`, `Widget?` | component reference | `ctx.buildChild(id)` |
 | `List<Widget>`, `List<Widget>?` | list of component references | one `ctx.buildChild` per id |
 | `VoidCallback`, `void Function()` and nullable variants | action | a callback that dispatches a `UserActionEvent` |
+| `void Function(T)` marked `@GenUiWrites`, where `T` is a `String`, a number, a `bool` or an enum | nothing; the callback is not a property | a callback that writes the user's value into the data model |
 | `Key? key` / `super.key` | skipped | not passed |
 | anything else | build error naming the widget, parameter and type | see Limitations |
 
@@ -274,6 +275,101 @@ for `this.x` parameters, on the field.
 ```
 
 `@GenUiAction` is only valid on `VoidCallback` / `void Function()` parameters.
+
+```dart
+@GenUiWrites('value')           // the property this callback writes back to
+```
+
+`@GenUiWrites` is only valid on a callback that takes the new value, such as
+`ValueChanged<bool>` or `void Function(String)`. See the next section.
+
+## Controls the user operates (`@GenUiWrites`)
+
+A property on its own is read-only: the model puts a value there and the widget
+displays it. A control the user operates has to report the new value back, and
+genui's own basic catalog does that by writing it into the surface's data
+model — that is what `TextField`, `Slider`, `CheckBox`, `ChoicePicker`,
+`DateTimeInput` and `Tabs` all do.
+
+`@GenUiWrites` gives an annotated widget the same ability:
+
+```dart
+@GenUiWidget(
+  description:
+      'One preference the user can turn on or off. Bind `enabled` to a data '
+      'path and the switch writes the new state there.',
+)
+class PreferenceRow extends StatelessWidget {
+  const PreferenceRow({
+    super.key,
+    required this.label,
+    required this.enabled,
+    @GenUiWrites('enabled') this.onChanged,
+  });
+
+  /// A short caption naming the preference.
+  final String label;
+
+  /// Whether the preference is currently on.
+  final bool enabled;
+
+  /// Called with the new state when the user flips the switch.
+  final ValueChanged<bool>? onChanged;
+
+  @override
+  Widget build(BuildContext context) => SwitchListTile(
+    value: enabled,
+    onChanged: onChanged,
+    title: Text(label),
+  );
+}
+```
+
+The model sends a binding, and reads the answer back from the path it chose:
+
+```json
+{
+  "id": "notify",
+  "component": "PreferenceRow",
+  "label": "Weekly summary",
+  "enabled": {"path": "/settings/notify"}
+}
+```
+
+### What the generator does with it
+
+- The callback is **not** a schema property. The model never supplies it, so it
+  is left out of `properties` and out of `required`.
+- The description of the property it writes to gains a sentence saying the
+  component writes back to it, so the model knows that binding it to a path is
+  how the answer is read.
+- The property is read back through the same path it is written to, so the
+  control reflects what the user just did.
+- A literal still works. When the model sends `"enabled": true` rather than a
+  binding, there is no path it named, so the value is written to
+  `<componentId>.enabled` — the fallback genui's own `TextField` uses — and the
+  literal is what the control starts from until that path holds something. The
+  widget stays interactive either way.
+- A write the data model refuses (an index out of bounds, a non-numeric segment
+  on a list) is reported through `ctx.reportError` rather than thrown out of a
+  gesture handler, the same way a failed action is.
+
+### Rules
+
+- The named property has to exist on the same widget, and it is the *wire*
+  name: the one from `@GenUiProp(name: ...)` when the property was renamed.
+- The callback's argument has to match the property's type. The numeric kinds
+  are interchangeable (`int`, `double`, `num`), because the generated reader
+  already coerces; an enum has to be the same enum.
+- Only a `String`, a number, a `bool` or an enum can be written back. A list or
+  an object would have to be written wholesale, and the property may have
+  arrived as a `{"call": ...}` with no path behind it.
+- The argument may not be nullable. A2UI has no agreed meaning for writing
+  `null` to a path — some implementations clear it, others store null — so
+  `ValueChanged<String?>` is a build error rather than a silent choice.
+- Two callbacks may write the same property, which is what a slider with both
+  `onChanged` and `onChangeEnd` needs.
+- Every one of these is a build error that names both sides.
 
 ## Structured data (`@GenUiData`)
 
@@ -466,13 +562,15 @@ A runnable version of all of this is in
 [`example/lib/models/metric_row.dart`](example/lib/models/metric_row.dart) and
 [`example/lib/widgets/metrics_table.dart`](example/lib/widgets/metrics_table.dart).
 
-## Limitations (0.3)
+## Limitations (0.4)
 
 Not supported yet; each produces a build error that names the parameter:
 
 - Maps with arbitrary keys (`Map<String, Object?>`, `Map<String, double>`).
 - Records.
-- Callbacks with arguments (`ValueChanged<T>`, `void Function(String)`).
+- Callbacks with more than one argument, and one-argument callbacks whose value
+  is not a `String`, a number, a `bool` or an enum. A single scalar argument is
+  supported through [`@GenUiWrites`](#controls-the-user-operates-genuiwrites).
 - Widgets or callbacks used as fields of a `@GenUiData` class, and data
   classes that reference themselves.
 
@@ -490,7 +588,10 @@ Two ways around it in the meantime:
   or a `List` of one, with the object schema inlined and a generated decoder.
 - 0.3 (done): lists of scalars — `List<int>`, `List<double>`, `List<num>` and
   `List<E>` for an enum `E`, as widget parameters and as `@GenUiData` fields.
-- 0.4 (proposed): an aggregating builder that emits a single
+- 0.4 (done): two-way binding — a `void Function(T)` marked `@GenUiWrites`
+  writes the user's value into the surface's data model, so a switch, a slider
+  or a text field can be annotated and the agent can read the answer back.
+- 0.5 (proposed): an aggregating builder that emits a single
   `genui_catalog.g.dart` with every generated item in the package, so
   registering a catalog stops being a hand-maintained import list; and smarter
   example generation, where the author's own default values and the property
@@ -513,9 +614,9 @@ breaks. If you are on a newer genui than the constraint allows, open an issue.
 
 | Package | Put it in | What it holds |
 |---|---|---|
-| [`genui_gen`](packages/genui_gen) | `dependencies` | `@GenUiWidget`, `@GenUiData`, `@GenUiProp`, `@GenUiAction` and the runtime helpers the generated code calls |
+| [`genui_gen`](packages/genui_gen) | `dependencies` | `@GenUiWidget`, `@GenUiData`, `@GenUiProp`, `@GenUiAction`, `@GenUiWrites` and the runtime helpers the generated code calls |
 | [`genui_gen_builder`](packages/genui_gen_builder) | `dev_dependencies` | the `build_runner` generator |
-| [`example`](example) | - | five annotated widgets, one of them driven by a `@GenUiData` class, rendered offline through genui's `DebugCatalogView` |
+| [`example`](example) | - | six annotated widgets — one driven by a `@GenUiData` class, one a switch that writes back — rendered offline through genui's `DebugCatalogView` |
 
 ## Contributing
 

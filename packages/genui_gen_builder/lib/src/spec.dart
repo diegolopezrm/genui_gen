@@ -60,6 +60,13 @@ enum PropKind {
 
   /// `VoidCallback` / `void Function()` (+nullable) → `A2uiSchemas.action`.
   action,
+
+  /// `void Function(T)` marked `@GenUiWrites('<property>')`.
+  ///
+  /// Not a schema property at all: the model never supplies it. The generated
+  /// builder passes a callback that writes the user's value into the data
+  /// model, at the path `<property>` is bound to.
+  valueWriter,
 }
 
 extension PropKindX on PropKind {
@@ -79,7 +86,10 @@ extension PropKindX on PropKind {
     PropKind.enumerationList ||
     PropKind.data ||
     PropKind.dataList => true,
-    PropKind.widget || PropKind.widgetList || PropKind.action => false,
+    PropKind.widget ||
+    PropKind.widgetList ||
+    PropKind.action ||
+    PropKind.valueWriter => false,
   };
 
   /// Whether the value is a `@GenUiData` object or a list of them.
@@ -105,6 +115,9 @@ final class PropSpec {
     this.enumValues = const [],
     this.eventName,
     this.data,
+    this.writesProperty,
+    this.writerTypeName,
+    this.writerValueKind,
   });
 
   /// The constructor parameter name.
@@ -147,6 +160,19 @@ final class PropSpec {
   /// For [PropKind.data] and [PropKind.dataList]: the analysed data class.
   final DataSpec? data;
 
+  /// For [PropKind.valueWriter]: the schema name of the property this callback
+  /// writes to.
+  final String? writesProperty;
+
+  /// For [PropKind.valueWriter]: the Dart type of the callback's argument, as
+  /// visible from the annotated library. Used as the type argument of the
+  /// generated `genUiValueWriter<T>` call.
+  final String? writerTypeName;
+
+  /// For [PropKind.valueWriter]: the kind the callback's argument maps to,
+  /// checked against the kind of [writesProperty].
+  final PropKind? writerValueKind;
+
   /// Whether the property is listed under `required` in the schema.
   ///
   /// A property is required iff the parameter is required in the constructor,
@@ -154,7 +180,10 @@ final class PropSpec {
   /// at runtime the generated builder substitutes a fallback and reports the
   /// problem through `ctx.reportError`.
   bool get isSchemaRequired =>
-      isRequiredInConstructor && defaultValueCode == null && !isNullable;
+      kind != PropKind.valueWriter &&
+      isRequiredInConstructor &&
+      defaultValueCode == null &&
+      !isNullable;
 }
 
 /// A fully analysed `@GenUiData` class.
@@ -237,6 +266,21 @@ final class WidgetSpec {
   /// The Dart expression used to invoke the chosen constructor.
   String get constructorReference =>
       constructorName.isEmpty ? className : '$className.$constructorName';
+
+  /// The properties the model fills in.
+  ///
+  /// Everything but the value writers, which are derived from the property
+  /// they write to and never appear in the schema.
+  Iterable<PropSpec> get schemaProps =>
+      props.where((p) => p.kind != PropKind.valueWriter);
+
+  Iterable<PropSpec> get writerProps =>
+      props.where((p) => p.kind == PropKind.valueWriter);
+
+  /// Schema names of the properties a callback writes back to.
+  Set<String> get writtenProperties => {
+    for (final p in writerProps) p.writesProperty!,
+  };
 
   Iterable<PropSpec> get boundProps => props.where((p) => p.kind.isBound);
 

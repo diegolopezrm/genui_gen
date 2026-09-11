@@ -58,13 +58,18 @@ String _exampleLiteral(String json) {
 String _schema(WidgetSpec spec, Set<String> symbols) {
   final out = StringBuffer('S.object(');
   out.write('description: ${dartWrappedString(spec.description)},');
-  if (spec.props.isNotEmpty) {
+  final properties = spec.schemaProps.toList();
+  final written = spec.writtenProperties;
+  if (properties.isNotEmpty) {
     symbols.add('A2uiSchemas');
     out.write('properties: {');
-    for (final prop in spec.props) {
-      out.write(
-        '${dartString(prop.schemaName)}: ${_propertySchema(prop, symbols)},',
+    for (final prop in properties) {
+      final schema = _propertySchema(
+        prop,
+        symbols,
+        isWritten: written.contains(prop.schemaName),
       );
+      out.write('${dartString(prop.schemaName)}: $schema,');
     }
     out.write('},');
     final required = spec.requiredProps.toList();
@@ -102,10 +107,27 @@ String _objectSchema(DataSpec data, String? description, Set<String> symbols) {
       "'description': ${dartWrappedString(description)}})";
 }
 
-String _propertySchema(PropSpec prop, Set<String> symbols) {
-  final description = prop.description == null
+/// Appended to the description of a property some callback writes back to.
+///
+/// Without it the model has no way to know that binding the property to a path
+/// is what makes the user's answer readable: the callback itself is not in the
+/// schema, because the model does not supply it.
+const _writeBackNote =
+    'The component writes the value the user chooses back to this property, so '
+    'bind it to a data path if you need to read the result.';
+
+String _propertySchema(
+  PropSpec prop,
+  Set<String> symbols, {
+  bool isWritten = false,
+}) {
+  final text = [
+    if (prop.description != null) prop.description!,
+    if (isWritten) _writeBackNote,
+  ].join(' ');
+  final description = text.isEmpty
       ? ''
-      : 'description: ${dartWrappedString(prop.description!)}';
+      : 'description: ${dartWrappedString(text)}';
   switch (prop.kind) {
     case PropKind.string:
       return 'A2uiSchemas.stringReference($description)';
@@ -173,6 +195,8 @@ String _propertySchema(PropSpec prop, Set<String> symbols) {
       return 'S.list($args)';
     case PropKind.action:
       return 'A2uiSchemas.action($description)';
+    case PropKind.valueWriter:
+      throw StateError('${prop.kind} is not a schema property');
   }
 }
 
@@ -209,12 +233,23 @@ String _widgetBuilder(WidgetSpec spec, Set<String> symbols) {
     out.writeln('return $construction;');
   } else {
     symbols.addAll(['GenUiBindings', 'GenUiBinding']);
+    if (spec.writtenProperties.isNotEmpty) {
+      symbols.add('genUiWriteReference');
+    }
     out.writeln('return GenUiBindings(');
     out.writeln('dataContext: ctx.dataContext,');
     out.writeln('bindings: {');
+    final written = spec.writtenProperties;
     for (final prop in bound) {
       final key = dartString(prop.schemaName);
-      out.writeln('$key: GenUiBinding.${_bindingFactory(prop)}(data[$key]),');
+      // A property a callback writes to is read back through the same path it
+      // is written to, so the control reflects what the user just did. The
+      // literal the model sent is still honoured until that path holds
+      // something (see `_argument`).
+      final raw = written.contains(prop.schemaName)
+          ? 'genUiWriteReference(ctx, data[$key], $key)'
+          : 'data[$key]';
+      out.writeln('$key: GenUiBinding.${_bindingFactory(prop)}($raw),');
     }
     out.writeln('},');
     out.writeln('builder: (context, v) => $construction,');
@@ -278,16 +313,22 @@ String _bindingFactory(PropSpec prop) => switch (prop.kind) {
   PropKind.dataList => 'objectList',
   PropKind.widget ||
   PropKind.widgetList ||
-  PropKind.action => throw StateError('${prop.kind} is not a bound property'),
+  PropKind.action ||
+  PropKind.valueWriter => throw StateError(
+    '${prop.kind} is not a bound property',
+  ),
 };
 
 String _arguments(WidgetSpec spec, Set<String> symbols) {
   final out = StringBuffer();
+  final written = spec.writtenProperties;
+  String argument(PropSpec prop) =>
+      _argument(prop, symbols, isWritten: written.contains(prop.schemaName));
   for (final prop in spec.props.where((p) => !p.isNamed)) {
-    out.write('${_argument(prop, symbols)}, ');
+    out.write('${argument(prop)}, ');
   }
   for (final prop in spec.props.where((p) => p.isNamed)) {
-    out.write('${prop.dartName}: ${_argument(prop, symbols)}, ');
+    out.write('${prop.dartName}: ${argument(prop)}, ');
   }
   return out.toString();
 }
@@ -300,8 +341,21 @@ String _arguments(WidgetSpec spec, Set<String> symbols) {
 ///
 /// `missing` always gets an explicit type argument: inside parentheses the
 /// `??` operand would otherwise be inferred from the nullable left-hand side.
-String _argument(PropSpec prop, Set<String> symbols) {
+String _argument(PropSpec prop, Set<String> symbols, {bool isWritten = false}) {
   final key = dartString(prop.schemaName);
+
+  /// Falls back to the literal the model sent, for a property that is read
+  /// through the path it is written to.
+  ///
+  /// Until the user touches the control, that path holds nothing and the
+  /// binding resolves to `null`; the literal is what the model meant as the
+  /// starting value. Parenthesised so `?.` and `??` after it still apply to
+  /// the whole expression.
+  String orLiteral(String value, String coercion) {
+    if (!isWritten) return value;
+    symbols.add(coercion);
+    return '($value ?? $coercion(data[$key]))';
+  }
 
   String withFallback(String value, String type, String fallback) {
     if (prop.isSchemaRequired) {
@@ -315,25 +369,40 @@ String _argument(PropSpec prop, Set<String> symbols) {
 
   switch (prop.kind) {
     case PropKind.string:
-      return withFallback("v.string($key)", 'String', "''");
+      return withFallback(
+        orLiteral('v.string($key)', 'genUiAsString'),
+        'String',
+        "''",
+      );
     case PropKind.integer:
+      final intValue = orLiteral('v.number($key)', 'genUiAsNum');
       if (prop.isSchemaRequired) {
-        return '(v.number($key) ?? missing<num>($key, 0)).toInt()';
+        return '($intValue ?? missing<num>($key, 0)).toInt()';
       }
-      return withFallback('v.number($key)?.toInt()', 'int', '0');
+      return withFallback('$intValue?.toInt()', 'int', '0');
     case PropKind.decimal:
+      final doubleValue = orLiteral('v.number($key)', 'genUiAsNum');
       if (prop.isSchemaRequired) {
-        return '(v.number($key) ?? missing<num>($key, 0)).toDouble()';
+        return '($doubleValue ?? missing<num>($key, 0)).toDouble()';
       }
-      return withFallback('v.number($key)?.toDouble()', 'double', '0');
+      return withFallback('$doubleValue?.toDouble()', 'double', '0');
     case PropKind.number:
-      return withFallback('v.number($key)', 'num', '0');
+      return withFallback(
+        orLiteral('v.number($key)', 'genUiAsNum'),
+        'num',
+        '0',
+      );
     case PropKind.boolean:
-      return withFallback('v.boolean($key)', 'bool', 'false');
+      return withFallback(
+        orLiteral('v.boolean($key)', 'genUiAsBool'),
+        'bool',
+        'false',
+      );
     case PropKind.enumeration:
       final enumType = prop.enumTypeName!;
+      final name = orLiteral('v.string($key)', 'genUiAsString');
       return withFallback(
-        '$enumType.values.asNameMap()[v.string($key)]',
+        '$enumType.values.asNameMap()[$name]',
         enumType,
         '$enumType.values.first',
       );
@@ -424,6 +493,18 @@ String _argument(PropSpec prop, Set<String> symbols) {
       return '$local is List '
           '? $local.whereType<String>().map((id) => ctx.buildChild(id)).toList() '
           ': $fallback';
+    case PropKind.valueWriter:
+      // Not a schema property: the callback is derived from the one it writes
+      // to, so the raw value of *that* property is what carries the path.
+      symbols.add('genUiValueWriter');
+      final target = dartString(prop.writesProperty!);
+      final encode = prop.writerValueKind == PropKind.enumeration
+          // Enums travel as their name, the same way the reader maps them back
+          // through `values.asNameMap()`.
+          ? ', encode: (value) => value.name'
+          : '';
+      return 'genUiValueWriter<${prop.writerTypeName}>'
+          '(ctx, data[$target], $target$encode)';
     case PropKind.action:
       symbols.add('genUiActionHandler');
       return withFallback(
@@ -570,6 +651,7 @@ String _fieldSchema(PropSpec field, Set<String> symbols) {
     case PropKind.widget:
     case PropKind.widgetList:
     case PropKind.action:
+    case PropKind.valueWriter:
       throw StateError('${field.kind} is not valid inside a data class');
   }
 }
@@ -711,6 +793,7 @@ String _decodeArgument(PropSpec field, Set<String> symbols) {
     case PropKind.widget:
     case PropKind.widgetList:
     case PropKind.action:
+    case PropKind.valueWriter:
       throw StateError('${field.kind} is not valid inside a data class');
   }
 }

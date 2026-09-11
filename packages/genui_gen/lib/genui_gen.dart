@@ -10,7 +10,8 @@
 /// take it, or a list of it, as a property.
 ///
 /// The runtime helpers ([GenUiBindings], [GenUiBinding], [GenUiValues],
-/// [GenUiDecoder], [genUiActionHandler] and [genUiReportMissing]) are used by
+/// [GenUiDecoder], [genUiActionHandler], [genUiValueWriter] and
+/// [genUiReportMissing]) are used by
 /// the generated code and are exported here so that generated parts only need
 /// to import this library.
 ///
@@ -45,3 +46,4 @@ export 'src/annotations.dart';
 export 'src/bindings.dart';
 export 'src/coerce.dart';
 export 'src/missing.dart';
+export 'src/writers.dart';

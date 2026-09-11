@@ -200,3 +200,65 @@ class GenUiData {
   /// When `null` the unnamed constructor is used.
   final String? constructor;
 }
+
+/// Marks a `void Function(T)` parameter as writing the user's value back to
+/// the data model.
+///
+/// A `@GenUiWidget` property is read-only on its own: the model puts a value
+/// there and the widget displays it. A control the user operates — a switch, a
+/// slider, a text field — also has to report the new value back, and genui's
+/// own basic catalog does that by writing it into the surface's data model. A
+/// parameter annotated with [GenUiWrites] does the same: the generated builder
+/// passes a callback that writes to the property named by [property].
+///
+/// ```dart
+/// @GenUiWidget(description: 'A labelled on/off switch.')
+/// class LabeledSwitch extends StatelessWidget {
+///   const LabeledSwitch({
+///     super.key,
+///     required this.label,
+///     required this.value,
+///     @GenUiWrites('value') this.onChanged,
+///   });
+///
+///   /// Text shown next to the switch.
+///   final String label;
+///
+///   /// Whether the switch is on.
+///   final bool value;
+///
+///   /// Called with the new state when the user flips it.
+///   final ValueChanged<bool>? onChanged;
+///   // ...
+/// }
+/// ```
+///
+/// The callback itself is not a schema property — the model never supplies it.
+/// What the model supplies is the binding on [property], and the value is
+/// written back to that same path, so `{"value": {"path": "/form/notify"}}`
+/// makes `/form/notify` hold whatever the user chose. When the model sends a
+/// literal instead of a binding there is nowhere it named to write to, so the
+/// value goes to `<componentId>.<property>`, which is what genui's own
+/// `TextField` does. The widget stays interactive either way.
+///
+/// [property] must name another property of the same widget, and the
+/// callback's argument type must match it: `ValueChanged<bool>` writes to a
+/// `bool` property, `ValueChanged<Trend>` to a `Trend` one. Anything else is a
+/// build error that names both sides.
+///
+/// The argument type may not be nullable. A2UI has no agreed meaning for
+/// writing `null` to a path — it is read as "clear this" by some
+/// implementations and "store null" by others — so `ValueChanged<String?>` is
+/// rejected rather than given one of the two meanings silently.
+@Target({TargetKind.parameter, TargetKind.field})
+class GenUiWrites {
+  /// Creates a [GenUiWrites] annotation.
+  const GenUiWrites(this.property);
+
+  /// The name of the property this callback writes to.
+  ///
+  /// This is the *schema* name, so it is the one given by
+  /// `@GenUiProp(name: ...)` when the property was renamed, not the Dart
+  /// parameter name.
+  final String property;
+}

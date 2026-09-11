@@ -1,3 +1,34 @@
+## 0.4.0
+
+- Added `@GenUiWrites`, which makes a control the user operates annotatable. A
+  `void Function(T)` parameter marked `@GenUiWrites('<property>')` receives a
+  callback that writes the user's value into the surface's data model, at the
+  path the model bound `<property>` to. It is what genui's own `TextField`,
+  `Slider`, `CheckBox`, `ChoicePicker`, `DateTimeInput` and `Tabs` already do,
+  and until now an annotated widget had no way to express it: a property was
+  read-only, so a switch or a text field could not be annotated at all. `T` may
+  be a `String`, an `int`, a `double`, a `num`, a `bool` or an enum.
+- A property some callback writes to is now read back through the same path it
+  is written to, so the control reflects what the user just did. A literal the
+  model sent is still honoured until that path holds something, the way
+  `TextField` seeds itself from its initial value. When the model sends a
+  literal rather than a binding there is no path it named, so the value is
+  written to `<componentId>.<property>` — the fallback the core catalog uses —
+  and the control stays interactive.
+- The description of a written property gains a sentence saying so. The
+  callback itself is not in the schema, because the model never supplies it, so
+  the model would otherwise have no way to know that binding the property to a
+  path is how it reads the answer.
+- Added the runtime helpers `genUiValueWriter`, `genUiWritePath` and
+  `genUiWriteReference`, called by generated code. A write the data model
+  refuses — a non-numeric segment on a list, an index out of bounds — is
+  reported through `ctx.reportError` rather than thrown out of a gesture
+  handler, exactly as a failed action is.
+- The callback's argument may not be nullable. A2UI has no agreed meaning for
+  writing `null` to a path, so `ValueChanged<String?>` is a build error rather
+  than a silent choice between "clear it" and "store null".
+- Additive release: a widget that uses only 0.3 types generates identical code.
+
 ## 0.3.0
 
 - Added lists of scalars: a `@GenUiWidget` parameter or `@GenUiData` field may

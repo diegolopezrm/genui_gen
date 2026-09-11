@@ -3,6 +3,7 @@ import 'package:genui/genui.dart';
 
 import 'widgets/metrics_table.dart';
 import 'widgets/panel.dart';
+import 'widgets/preference_row.dart';
 import 'widgets/product_card.dart';
 import 'widgets/stat_tile.dart';
 import 'widgets/tag_row.dart';
@@ -11,7 +12,7 @@ void main() {
   runApp(const GenUiGenExampleApp());
 }
 
-/// The catalog handed to genui: the five generated items from this app plus
+/// The catalog handed to genui: the six generated items from this app plus
 /// genui's basic catalog, so the generated examples can reference core
 /// components such as `Text`.
 ///
@@ -22,6 +23,7 @@ final Catalog exampleCatalog = Catalog([
   tagRowCatalogItem,
   panelCatalogItem,
   metricsTableCatalogItem,
+  preferenceRowCatalogItem,
   ...BasicCatalogItems.asCatalog().items,
 ], catalogId: 'dev.dlsoft.genui_gen.example');
 

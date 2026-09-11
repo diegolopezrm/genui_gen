@@ -36,6 +36,8 @@ class SizedBox extends Widget {
 class BuildContext {}
 
 typedef VoidCallback = void Function();
+
+typedef ValueChanged<T> = void Function(T value);
 ''',
   'json_schema_builder|lib/json_schema_builder.dart': '''
 library;
@@ -163,6 +165,11 @@ class GenUiAction {
   final String? description;
 }
 
+class GenUiWrites {
+  const GenUiWrites(this.property);
+  final String property;
+}
+
 class GenUiBindings {
   const GenUiBindings({
     required this.dataContext,
@@ -202,6 +209,19 @@ typedef GenUiDecoder<T> = T Function(Map<String, Object?> json);
 typedef GenUiMissingFieldReporter = void Function(String field);
 
 void Function()? genUiActionHandler(Object ctx, Object? actionData) => null;
+
+Map<String, Object?> genUiWriteReference(
+  Object ctx,
+  Object? raw,
+  String property,
+) => const {};
+
+void Function(T) genUiValueWriter<T>(
+  Object ctx,
+  Object? reference,
+  String property, {
+  Object? Function(T value)? encode,
+}) => (T value) {};
 
 void genUiReportMissing(Object ctx, String component, String property) {}
 
@@ -273,6 +293,13 @@ String normalize(String code) => code
     .replaceAll('": ', '":')
     .replaceAll(', "', ',"')
     .replaceAll(', {', ',{');
+
+/// Joins the adjacent string literals `dart format` leaves behind when it
+/// wraps a long description.
+///
+/// Opt-in rather than part of [normalize], because whether a description is
+/// split at all is itself something `widget_test.dart` checks.
+String joinLiterals(String code) => code.replaceAll("' '", '');
 
 /// Like [generate] but returns the file exactly as written by the builder.
 /// Runs the builder and returns the warnings it logged.
