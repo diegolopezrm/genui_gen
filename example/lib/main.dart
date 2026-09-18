@@ -11,15 +11,13 @@ void main() {
 /// basic catalog so the generated examples can reference core components such
 /// as `Text`.
 ///
-/// `genUiCatalogItems` comes from `genui_catalog.g.dart`, which the builder
-/// rewrites whenever a `@GenUiWidget` is added or removed. Adding a widget is
-/// one file; nothing here has to be touched.
-///
-/// `DebugCatalogView` requires a non-null [Catalog.catalogId].
-final Catalog exampleCatalog = Catalog([
-  ...genUiCatalogItems,
-  ...BasicCatalogItems.asCatalog().items,
-], catalogId: 'dev.dlsoft.genui_gen.example');
+/// `genUiCatalog` comes from `genui_catalog.g.dart`, which the builder
+/// rewrites whenever a `@GenUiWidget` is added or removed, and carries the
+/// `catalog_id` set in `build.yaml`. Adding a widget is one file; nothing here
+/// has to be touched.
+final Catalog exampleCatalog = genUiCatalog.copyWith(
+  newItems: BasicCatalogItems.asCatalog().items.toList(),
+);
 
 /// Renders every catalog item's generated example offline, with no LLM.
 class GenUiGenExampleApp extends StatelessWidget {

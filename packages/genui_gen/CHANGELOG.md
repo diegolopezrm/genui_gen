@@ -1,3 +1,31 @@
+## 0.5.0
+
+- Added `genUiCatalogJson` and `genUiCatalogJsonString`, which turn a `Catalog`
+  into the A2UI `catalog.json` document that describes it. Inside the app genui
+  puts the catalog in the prompt for you; everything outside this Flutter
+  process needs it as a document — an agent written in Python, a second client
+  rendering the same surfaces in SwiftUI, a review that has to answer what the
+  model was allowed to ask for last Tuesday. The result is the shape A2UI
+  publishes for its own basic catalog: `catalogId`, `components`, `functions`
+  when the catalog has any, and the `$defs` a renderer resolves a component
+  against.
+
+  ```dart
+  final json = genUiCatalogJsonString(genUiCatalog, title: 'Acme catalog');
+  ```
+
+- The export takes a `title` and a `description` of its own. genui fills in
+  `A2UI Catalog` and `Custom catalog of A2UI components and functions.` for
+  every catalog ever generated, and an agent handed three of them has nothing
+  else to tell them apart by.
+- A catalog with no `catalogId` is rejected rather than exported. A surface
+  names the catalog it was built against, so a document without an id
+  describes components that nothing can ask for.
+- `example/catalog.json` is generated from a test, and the README shows the
+  pattern: write the file under `--update-goldens` and compare against it
+  otherwise, so the document in the repository cannot fall behind the widgets
+  and a reviewer sees what a new `@GenUiWidget` exposed to the model.
+
 ## 0.4.0
 
 - Added `@GenUiWrites`, which makes a control the user operates annotatable. A

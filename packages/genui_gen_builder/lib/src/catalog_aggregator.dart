@@ -25,6 +25,21 @@ const aggregateFileName = 'genui_catalog.g.dart';
 /// The variable the emitted file declares.
 const aggregateVariableName = 'genUiCatalogItems';
 
+/// The assembled [Catalog] the emitted file declares alongside the list.
+const aggregateCatalogVariableName = 'genUiCatalog';
+
+/// The `build.yaml` option that names the emitted catalog.
+const catalogIdOption = 'catalog_id';
+
+/// What a catalog id is allowed to contain.
+///
+/// Reverse-domain notation (`com.example.app`) is what A2UI recommends and a
+/// URL is what its own basic catalog uses, so both have to pass. Everything
+/// here lands inside a single-quoted Dart string as-is, so the characters that
+/// would end that string or interpolate into it — quotes, `$`, backslashes,
+/// newlines — are rejected rather than escaped.
+final _catalogIdPattern = RegExp(r'^[A-Za-z0-9_.:/#?=&@%+~-]+$');
+
 /// One generated catalog item, and where it came from.
 final class _Item {
   _Item(this.variableName, this.libraryImport, this.assetPath);
@@ -41,7 +56,15 @@ final class _Item {
 
 /// Collects the generated catalog items of a package into a single library.
 class CatalogAggregatingBuilder implements Builder {
-  const CatalogAggregatingBuilder();
+  const CatalogAggregatingBuilder({this.catalogId});
+
+  /// The id the emitted [Catalog] carries, from the `catalog_id` build option.
+  ///
+  /// A2UI names a catalog in `createSurface`, and genui's own
+  /// `DebugCatalogView` refuses a catalog without an id, so an app that talks
+  /// to an agent needs one. It cannot be derived here: the id identifies the
+  /// catalog to everything outside this build, which only the author knows.
+  final String? catalogId;
 
   @override
   Map<String, List<String>> get buildExtensions => const {
@@ -137,7 +160,59 @@ class CatalogAggregatingBuilder implements Builder {
       out.writeln('  ${item.variableName},');
     }
     out.writeln('];');
+    _writeCatalog(out);
     return out.toString();
+  }
+
+  /// Appends the assembled [Catalog], so that the app has something to hand to
+  /// genui rather than a list it still has to wrap by hand.
+  void _writeCatalog(StringBuffer out) {
+    final id = catalogId;
+    if (id != null && !_catalogIdPattern.hasMatch(id)) {
+      throw InvalidGenerationSourceError(
+        'The `$catalogIdOption` build option is `$id`, which is not a usable '
+        'catalog id. Use reverse-domain notation such as '
+        '`com.example.my_catalog`, or the URL the catalog is published at.',
+      );
+    }
+    out
+      ..writeln()
+      ..writeln('/// Every generated [CatalogItem] of this package, as a')
+      ..writeln('/// [Catalog] ready to hand to genui.')
+      ..writeln('///')
+      ..writeln('/// Compose it with any other catalog through')
+      ..writeln('/// [Catalog.copyWith], for instance to add genui\'s own')
+      ..writeln('/// basic components:')
+      ..writeln('///')
+      ..writeln('/// ```dart')
+      ..writeln('/// final catalog = $aggregateCatalogVariableName.copyWith(')
+      ..writeln('///   newItems: BasicCatalogItems.asCatalog().items.toList(),')
+      ..writeln('/// );')
+      ..writeln('/// ```');
+    if (id == null) {
+      out
+        ..writeln('///')
+        ..writeln('/// This catalog has no id, because no `$catalogIdOption`')
+        ..writeln('/// build option was set. A surface names the catalog it')
+        ..writeln('/// was built against, so set one in `build.yaml` before')
+        ..writeln('/// talking to an agent:')
+        ..writeln('///')
+        ..writeln('/// ```yaml')
+        ..writeln('/// targets:')
+        ..writeln(r'///   $default:')
+        ..writeln('///     builders:')
+        ..writeln('///       genui_gen_builder:genui_catalog:')
+        ..writeln('///         options:')
+        ..writeln('///           $catalogIdOption: com.example.my_catalog')
+        ..writeln('/// ```');
+    }
+    out
+      ..writeln(
+        'final Catalog $aggregateCatalogVariableName = Catalog(',
+      )
+      ..writeln('  $aggregateVariableName,');
+    if (id != null) out.writeln("  catalogId: '$id',");
+    out.writeln(');');
   }
 }
 

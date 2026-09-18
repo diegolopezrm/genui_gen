@@ -27,12 +27,12 @@ a new release of this package unless it removes API the generator uses.
 ```yaml
 dependencies:
   genui: ^0.10.0
-  genui_gen: ^0.2.0
+  genui_gen: ^0.5.0
   json_schema_builder: ^0.1.3 # provides `S` and `ObjectSchema`
 
 dev_dependencies:
   build_runner: ^2.15.0
-  genui_gen_builder: ^0.2.0
+  genui_gen_builder: ^0.6.0
 ```
 
 `genui_gen_builder` 0.2.x generates code that calls runtime helpers added in
@@ -94,6 +94,42 @@ The annotated file must:
   `package:json_schema_builder/json_schema_builder.dart` (plus Flutter). The
   generated code is a `part of` your library and reuses its imports; when one
   is missing the build fails with the exact import lines to add.
+
+## The package's catalog
+
+A second builder collects every generated item of the package into
+`lib/genui_catalog.g.dart`, which declares both the list and the assembled
+`Catalog`:
+
+```dart
+final List<CatalogItem> genUiCatalogItems = <CatalogItem>[
+  productCardCatalogItem,
+  statTileCatalogItem,
+];
+
+final Catalog genUiCatalog = Catalog(
+  genUiCatalogItems,
+  catalogId: 'com.example.app',
+);
+```
+
+The id comes from `build.yaml`, because it names the catalog to the agent that
+composes against it and to the clients that render it — not something a
+generator can invent:
+
+```yaml
+targets:
+  $default:
+    builders:
+      genui_gen_builder:genui_catalog:
+        options:
+          catalog_id: com.example.app
+```
+
+Without it the catalog is still assembled, just without an id, and the
+generated file says how to set one. An id that is not a string, or that could
+not survive being written into the generated file, is a build error naming the
+option.
 
 ## Type mapping
 

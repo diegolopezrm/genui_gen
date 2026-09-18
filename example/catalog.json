@@ -1,0 +1,441 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a2ui.org/specification/v0_9/catalog.json",
+  "title": "genui_gen example catalog",
+  "description": "The widgets this example app renders for an agent.",
+  "catalogId": "dev.dlsoft.genui_gen.example",
+  "components": {
+    "MetricsTable": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "component": {
+              "type": "string",
+              "enum": [
+                "MetricsTable"
+              ]
+            },
+            "title": {
+              "description": "The heading shown above the table, e.g. \"Q3 performance\".",
+              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString"
+            },
+            "rows": {
+              "description": "The rows of the table, in display order.",
+              "oneOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "One row of a metrics table: a labelled metric with its current value, the direction it is moving in and an optional short note explaining the number.",
+                    "properties": {
+                      "label": {
+                        "type": "string",
+                        "description": "A short caption naming the metric, e.g. \"Monthly revenue\"."
+                      },
+                      "value": {
+                        "type": "number",
+                        "description": "The current numeric value of the metric."
+                      },
+                      "trend": {
+                        "type": "string",
+                        "description": "Whether the metric went up, down or stayed flat.",
+                        "enum": [
+                          "up",
+                          "down",
+                          "flat"
+                        ]
+                      },
+                      "note": {
+                        "type": "string",
+                        "description": "An optional one-line comment about this row, e.g. \"vs. last quarter\"."
+                      }
+                    },
+                    "required": [
+                      "label",
+                      "value",
+                      "trend"
+                    ]
+                  }
+                },
+                {
+                  "type": "object",
+                  "description": "A path to a list.",
+                  "properties": {
+                    "path": {
+                      "type": "string",
+                      "description": "A relative or absolute path in the data model."
+                    }
+                  },
+                  "required": [
+                    "path"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "call": {
+                      "type": "string",
+                      "description": "The name of the function to call."
+                    },
+                    "args": {
+                      "type": "object",
+                      "description": "Arguments to pass to the function.",
+                      "additionalProperties": true
+                    }
+                  },
+                  "required": [
+                    "call"
+                  ]
+                }
+              ]
+            }
+          },
+          "required": [
+            "component",
+            "title",
+            "rows"
+          ]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "Panel": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "component": {
+              "type": "string",
+              "enum": [
+                "Panel"
+              ]
+            },
+            "title": {
+              "description": "The heading shown at the top of the panel.",
+              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString"
+            },
+            "child": {
+              "type": "string",
+              "description": "The component rendered as the body of the panel."
+            },
+            "actions": {
+              "type": "array",
+              "description": "Components laid out along the bottom edge, usually buttons.",
+              "items": {
+                "type": "string",
+                "description": "The ID of a component."
+              }
+            },
+            "onClose": {
+              "description": "Fired when the user presses the close button in the header.",
+              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/Action"
+            }
+          },
+          "required": [
+            "component",
+            "title",
+            "child"
+          ]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "PreferenceRow": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "component": {
+              "type": "string",
+              "enum": [
+                "PreferenceRow"
+              ]
+            },
+            "label": {
+              "description": "A short caption naming the preference, e.g. \"Weekly summary\".",
+              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString"
+            },
+            "enabled": {
+              "description": "Whether the preference is currently on. The component writes the value the user chooses back to this property, so bind it to a data path if you need to read the result.",
+              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicBoolean"
+            },
+            "detail": {
+              "description": "One line of explanation shown under the label.",
+              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString"
+            }
+          },
+          "required": [
+            "component",
+            "label",
+            "enabled"
+          ]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "ProductCard": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "component": {
+              "type": "string",
+              "enum": [
+                "ProductCard"
+              ]
+            },
+            "title": {
+              "description": "The product name shown as the card headline.",
+              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString"
+            },
+            "price": {
+              "description": "The product price in USD.",
+              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicNumber"
+            },
+            "imageUrl": {
+              "description": "An optional URL of an image shown above the title.",
+              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString"
+            },
+            "onTap": {
+              "description": "Fired when the user taps the card.",
+              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/Action"
+            }
+          },
+          "required": [
+            "component",
+            "title",
+            "price"
+          ]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "StatTile": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "component": {
+              "type": "string",
+              "enum": [
+                "StatTile"
+              ]
+            },
+            "label": {
+              "description": "A short caption naming the metric, e.g. \"Monthly revenue\".",
+              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString"
+            },
+            "value": {
+              "description": "The current numeric value of the metric.",
+              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicNumber"
+            },
+            "trend": {
+              "description": "Whether the metric went up, down or stayed flat.",
+              "allOf": [
+                {
+                  "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString"
+                },
+                {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "up",
+                        "down",
+                        "flat"
+                      ]
+                    },
+                    {
+                      "type": "object"
+                    }
+                  ]
+                }
+              ]
+            },
+            "history": {
+              "description": "Recent values of the metric, oldest first, drawn as a sparkline under the number. Leave it out for a tile with no history.",
+              "oneOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  }
+                },
+                {
+                  "type": "object",
+                  "description": "A path to a list.",
+                  "properties": {
+                    "path": {
+                      "type": "string",
+                      "description": "A relative or absolute path in the data model."
+                    }
+                  },
+                  "required": [
+                    "path"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "call": {
+                      "type": "string",
+                      "description": "The name of the function to call."
+                    },
+                    "args": {
+                      "type": "object",
+                      "description": "Arguments to pass to the function.",
+                      "additionalProperties": true
+                    }
+                  },
+                  "required": [
+                    "call"
+                  ]
+                }
+              ]
+            }
+          },
+          "required": [
+            "component",
+            "label",
+            "value",
+            "trend"
+          ]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "TagRow": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "component": {
+              "type": "string",
+              "enum": [
+                "TagRow"
+              ]
+            },
+            "tags": {
+              "description": "The tags to display, one chip each, in order.",
+              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicStringList"
+            },
+            "selectedIndex": {
+              "description": "The zero-based index of the highlighted tag. Defaults to the first one.",
+              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicNumber"
+            }
+          },
+          "required": [
+            "component",
+            "tags"
+          ]
+        }
+      ],
+      "unevaluatedProperties": false
+    }
+  },
+  "$defs": {
+    "CatalogComponentCommon": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "A unique identifier for this component instance within the surface. This ID is used to refer to the component in layout children arrays or event handlers."
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "theme": {
+      "type": "object",
+      "properties": {
+        "primaryColor": {
+          "type": "string",
+          "description": "The primary brand color used for highlights (e.g., primary buttons, active borders). Renderers may generate variants of this color for different contexts. Format: Hexadecimal code (e.g., '#00BFFF').",
+          "pattern": "^#[0-9a-fA-F]{6}$"
+        },
+        "iconUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "A URL for an image that identifies the agent or tool associated with the surface."
+        },
+        "agentDisplayName": {
+          "type": "string",
+          "description": "Text to be displayed next to the surface to identify the agent or tool that created it."
+        }
+      },
+      "additionalProperties": true
+    },
+    "anyComponent": {
+      "oneOf": [
+        {
+          "$ref": "#/components/MetricsTable"
+        },
+        {
+          "$ref": "#/components/Panel"
+        },
+        {
+          "$ref": "#/components/PreferenceRow"
+        },
+        {
+          "$ref": "#/components/ProductCard"
+        },
+        {
+          "$ref": "#/components/StatTile"
+        },
+        {
+          "$ref": "#/components/TagRow"
+        }
+      ],
+      "discriminator": {
+        "propertyName": "component"
+      }
+    },
+    "anyFunction": {
+      "not": {}
+    }
+  }
+}

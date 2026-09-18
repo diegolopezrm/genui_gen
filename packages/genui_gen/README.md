@@ -17,12 +17,12 @@ and a few small helpers used by the generated code. The generator lives in
 ```yaml
 dependencies:
   genui: ^0.10.0
-  genui_gen: ^0.2.0
+  genui_gen: ^0.5.0
   json_schema_builder: ^0.1.3
 
 dev_dependencies:
   build_runner: ^2.15.0
-  genui_gen_builder: ^0.2.0
+  genui_gen_builder: ^0.6.0
 ```
 
 `json_schema_builder` is a direct dependency because the generated part shares
@@ -209,6 +209,39 @@ Generated code uses these; you normally do not call them yourself.
   the same reporting down into a data object: the generated widget builder
   hands the decoder a reporter, so a required field the model left out of a row
   reaches the model as `rows.label` instead of being silently replaced.
+
+## The catalog as a document
+
+Inside the app genui puts the catalog in the prompt for you. Everything outside
+this Flutter process needs it as a document: an agent written in Python, a
+second client rendering the same surfaces in SwiftUI, a review that has to
+answer what the model was allowed to ask for last Tuesday.
+
+- `genUiCatalogJson(catalog, {title, description})` returns the A2UI
+  `catalog.json` document describing a `Catalog` — the shape A2UI publishes for
+  its own basic catalog, with `catalogId`, `components`, `functions` when the
+  catalog has any, and the `$defs` a renderer resolves a component against.
+  Throws when the catalog has no `catalogId`, since a surface names the catalog
+  it was built against.
+- `genUiCatalogJsonString(...)` is the same document, encoded and indented, for
+  writing next to the widgets it describes.
+
+Generate it from a test, so the checked-in file cannot fall behind:
+
+```dart
+test('catalog.json describes the generated catalog', () {
+  final file = File('catalog.json');
+  final json = '${genUiCatalogJsonString(genUiCatalog)}\n';
+
+  if (autoUpdateGoldenFiles) file.writeAsStringSync(json);
+
+  expect(file.readAsStringSync(), json);
+});
+```
+
+```sh
+flutter test test/catalog_json_test.dart --update-goldens
+```
 
 ## License
 

@@ -1,3 +1,34 @@
+## 0.6.0
+
+- `lib/genui_catalog.g.dart` now declares the assembled `Catalog` as well as
+  the list of items, so an app hands genui the catalog directly instead of
+  wrapping the list by hand:
+
+  ```dart
+  final catalog = genUiCatalog.copyWith(
+    newItems: BasicCatalogItems.asCatalog().items.toList(),
+  );
+  ```
+
+- Added the `catalog_id` build option, which becomes that catalog's id:
+
+  ```yaml
+  targets:
+    $default:
+      builders:
+        genui_gen_builder:genui_catalog:
+          options:
+            catalog_id: com.example.app
+  ```
+
+  It cannot be derived here — the id names the catalog to the agent that
+  composes against it and the clients that render it, which is not something a
+  generator can invent. Without it the catalog is still assembled, just without
+  an id, and the generated file says how to set one.
+- A `catalog_id` that is not a string, or that could not survive being written
+  into the generated file, is a build error naming the option rather than
+  broken Dart or an id nobody chose.
+
 ## 0.5.0
 
 - Added an aggregating builder. Every `CatalogItem` generated in the package is

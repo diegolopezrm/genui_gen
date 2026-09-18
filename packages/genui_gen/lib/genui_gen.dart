@@ -15,6 +15,11 @@
 /// the generated code and are exported here so that generated parts only need
 /// to import this library.
 ///
+/// [genUiCatalogJson] and [genUiCatalogJsonString] go the other way: they turn
+/// the catalog the generator assembled into the A2UI `catalog.json` document,
+/// which is what an agent — or a client written in another language — reads to
+/// learn which components it may ask for.
+///
 /// `S`, [Schema] and [ObjectSchema] are re-exported from
 /// `package:json_schema_builder`, because the generated part builds its schema
 /// with them and shares this library's imports. If `S` collides with another
@@ -44,6 +49,7 @@ export 'package:json_schema_builder/json_schema_builder.dart'
 export 'src/actions.dart';
 export 'src/annotations.dart';
 export 'src/bindings.dart';
+export 'src/catalog_json.dart';
 export 'src/coerce.dart';
 export 'src/missing.dart';
 export 'src/writers.dart';

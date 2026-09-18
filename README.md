@@ -35,11 +35,11 @@ widget.
 ```yaml
 dependencies:
   genui: ^0.10.0
-  genui_gen: ^0.3.0
+  genui_gen: ^0.5.0
 
 dev_dependencies:
   build_runner: ^2.15.0
-  genui_gen_builder: ^0.3.0
+  genui_gen_builder: ^0.6.0
 ```
 
 The generated code is a `part` of your file and builds its schema with
@@ -308,6 +308,11 @@ final List<CatalogItem> genUiCatalogItems = <CatalogItem>[
   productCardCatalogItem,
   statTileCatalogItem,
 ];
+
+final Catalog genUiCatalog = Catalog(
+  genUiCatalogItems,
+  catalogId: 'com.example.app',
+);
 ```
 
 Which makes registering them one line, whatever the app grows into:
@@ -315,10 +320,22 @@ Which makes registering them one line, whatever the app grows into:
 ```dart
 import 'genui_catalog.g.dart';
 
-final catalog = Catalog([
-  ...genUiCatalogItems,
-  ...BasicCatalogItems.asCatalog().items,
-], catalogId: 'com.example.app');
+final catalog = genUiCatalog.copyWith(
+  newItems: BasicCatalogItems.asCatalog().items.toList(),
+);
+```
+
+The id comes from `build.yaml`, because it identifies the catalog to everything
+outside the build — the agent that composes against it, the client that renders
+it — which is not something a generator can invent:
+
+```yaml
+targets:
+  $default:
+    builders:
+      genui_gen_builder:genui_catalog:
+        options:
+          catalog_id: com.example.app
 ```
 
 Worth knowing:
@@ -335,6 +352,58 @@ Worth knowing:
 - `@GenUiWidget(name: '...')` on a private class generates a private variable,
   which no other library can name. It is left out with a warning saying so,
   rather than emitting a file that does not compile.
+- Without `catalog_id`, `genUiCatalog` is still assembled, just without an id.
+  A surface names the catalog it was built against, so set one before talking
+  to an agent.
+
+## Handing the catalog to an agent (`catalog.json`)
+
+Inside the app, genui puts the catalog in the prompt for you. Everything
+outside this Flutter process needs it as a document: an agent written in
+Python, a second client rendering the same surfaces in SwiftUI, a review that
+has to answer what the model was allowed to ask for last Tuesday.
+
+`genUiCatalogJson` turns the assembled catalog into that document — the shape
+[A2UI publishes for its own basic
+catalog](https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json), with
+`catalogId`, `components`, `functions` and the `$defs` a renderer resolves a
+component against:
+
+```dart
+final json = genUiCatalogJsonString(genUiCatalog, title: 'Acme catalog');
+```
+
+Generate it from a test, so the file in the repository cannot fall behind the
+widgets and a reviewer sees what a new `@GenUiWidget` exposed to the model:
+
+```dart
+void main() {
+  test('catalog.json describes the generated catalog', () {
+    final file = File('catalog.json');
+    final json = '${genUiCatalogJsonString(genUiCatalog)}\n';
+
+    if (autoUpdateGoldenFiles) file.writeAsStringSync(json);
+
+    expect(file.readAsStringSync(), json);
+  });
+}
+```
+
+```sh
+flutter test test/catalog_json_test.dart --update-goldens
+```
+
+`example/catalog.json` is generated exactly that way. Worth knowing:
+
+- The catalog needs an id. Without one the surface has no way to name it, so
+  the export throws rather than writing a document nothing can reference.
+- The `$ref`s point at the shared A2UI types for v0.9, the protocol version
+  genui emits, so whatever resolves them needs network access or a local copy
+  of `common_types.json`.
+- `title` and `description` are worth passing. genui fills in `A2UI Catalog`
+  and `Custom catalog of A2UI components and functions.` for every catalog ever
+  generated, and an agent handed three of them has nothing else to tell them
+  apart by.
 
 ## Controls the user operates (`@GenUiWrites`)
 
@@ -615,7 +684,7 @@ A runnable version of all of this is in
 [`example/lib/models/metric_row.dart`](example/lib/models/metric_row.dart) and
 [`example/lib/widgets/metrics_table.dart`](example/lib/widgets/metrics_table.dart).
 
-## Limitations (0.4)
+## Limitations (0.5)
 
 Not supported yet; each produces a build error that names the parameter:
 
@@ -647,6 +716,13 @@ Two ways around it in the meantime:
 - 0.5 (done, `genui_gen_builder` only): an aggregating builder that emits a
   single `genui_catalog.g.dart` with every generated item in the package, so
   registering a catalog stops being a hand-maintained import list.
+- 0.5: the aggregate assembles the `Catalog` itself, with the id from
+  `build.yaml`, and `genUiCatalogJson` exports it as the A2UI `catalog.json`
+  an agent or a non-Flutter client reads.
+- Proposed next: accessibility — `ComponentCommon` declares `label` and
+  `description` on every A2UI component and the conformance suite tests them,
+  but nothing renders them today. A generator is the one place to wire that in
+  once for every annotated widget.
 - Proposed next: smarter example generation, where the author's own default
   values and the property description feed the sample instead of the fixed
   `42` / `Sample <name>` placeholders.

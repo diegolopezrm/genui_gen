@@ -78,6 +78,18 @@ dart run build_runner watch
 
 Never edit the generated files by hand; the next build overwrites them.
 
+## The catalog as a document
+
+`catalog.json` is the A2UI document describing this app's catalog: what an
+agent running elsewhere reads to learn which components it may ask for. It is
+generated from `test/catalog_json_test.dart`, which fails when it falls behind
+the annotated widgets. After adding or changing a widget:
+
+```sh
+cd example
+flutter test test/catalog_json_test.dart --update-goldens
+```
+
 ## Check
 
 ```sh

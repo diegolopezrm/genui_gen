@@ -24,3 +24,20 @@ final List<CatalogItem> genUiCatalogItems = <CatalogItem>[
   statTileCatalogItem,
   tagRowCatalogItem,
 ];
+
+/// Every generated [CatalogItem] of this package, as a
+/// [Catalog] ready to hand to genui.
+///
+/// Compose it with any other catalog through
+/// [Catalog.copyWith], for instance to add genui's own
+/// basic components:
+///
+/// ```dart
+/// final catalog = genUiCatalog.copyWith(
+///   newItems: BasicCatalogItems.asCatalog().items.toList(),
+/// );
+/// ```
+final Catalog genUiCatalog = Catalog(
+  genUiCatalogItems,
+  catalogId: 'dev.dlsoft.genui_gen.example',
+);

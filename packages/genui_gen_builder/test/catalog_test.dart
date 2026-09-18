@@ -11,11 +11,12 @@ import 'src/harness.dart';
 /// so the test provides that output directly.
 Future<String?> aggregate(
   Map<String, String> parts, {
+  Map<String, dynamic> options = const {},
   List<String>? warnings,
   List<String>? errors,
 }) async {
   final result = await testBuilder(
-    genUiCatalogBuilder(const BuilderOptions({})),
+    genUiCatalogBuilder(BuilderOptions(options)),
     {...parts},
     rootPackage: 'a',
     onLog: (record) {
@@ -138,5 +139,71 @@ void main() {
         contains('cardCatalogItem'),
       ),
     );
+  });
+
+  group('the assembled catalog', () {
+    test('carries the configured id', () async {
+      final out = await aggregate({
+        'a|lib/card.genui.dart': part(['cardCatalogItem']),
+      }, options: {'catalog_id': 'com.example.my_catalog'});
+
+      expect(
+        normalize(out!),
+        contains(
+          'final Catalog genUiCatalog = Catalog(genUiCatalogItems, '
+          "catalogId: 'com.example.my_catalog')",
+        ),
+      );
+    });
+
+    test('a URL is a usable id', () async {
+      final out = await aggregate({
+        'a|lib/card.genui.dart': part(['cardCatalogItem']),
+      }, options: {'catalog_id': 'https://example.com/a2ui/catalog.json'});
+
+      expect(
+        normalize(out!),
+        contains("catalogId: 'https://example.com/a2ui/catalog.json'"),
+      );
+    });
+
+    test('is still assembled when no id is configured', () async {
+      final out = await aggregate({
+        'a|lib/card.genui.dart': part(['cardCatalogItem']),
+      });
+
+      expect(
+        normalize(out!),
+        contains('final Catalog genUiCatalog = Catalog(genUiCatalogItems)'),
+      );
+      // The generated file is where someone reads about the option, so it has
+      // to say how to set it.
+      expect(out, contains('catalog_id: com.example.my_catalog'));
+    });
+
+    test('an id that would not survive being written is rejected', () async {
+      final errors = <String>[];
+      await aggregate({
+        'a|lib/card.genui.dart': part(['cardCatalogItem']),
+      }, options: {'catalog_id': r"com.example'); $evil ('"}, errors: errors);
+
+      expect(
+        errors.join('\n'),
+        allOf(contains('catalog_id'), contains('reverse-domain')),
+      );
+    });
+
+    test('an id that is not a string is rejected', () {
+      expect(
+        () => genUiCatalogBuilder(const BuilderOptions({'catalog_id': 2.0})),
+        throwsA(
+          isA<ArgumentError>().having(
+            (error) => error.message,
+            'message',
+            contains('must be a string'),
+          ),
+        ),
+      );
+    });
   });
 }
