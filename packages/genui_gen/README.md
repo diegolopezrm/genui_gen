@@ -17,7 +17,7 @@ and a few small helpers used by the generated code. The generator lives in
 ```yaml
 dependencies:
   genui: ^0.10.0
-  genui_gen: ^0.5.0
+  genui_gen: ^0.6.0
   json_schema_builder: ^0.1.3
 
 dev_dependencies:
@@ -242,6 +242,24 @@ test('catalog.json describes the generated catalog', () {
 ```sh
 flutter test test/catalog_json_test.dart --update-goldens
 ```
+
+## What the component exposes
+
+`package:genui_gen/testing.dart` records what each generated component gives
+assistive technology — role, name, value, state and actions, in traversal
+order — and fails when that changes:
+
+```dart
+recorded[item.name] = genUiRenderedSemantics();
+...
+expect(genUiSemanticsGolden(recorded, File('test/genui_semantics.json')), isNull);
+```
+
+`GenUiExampleSurface` renders an item's generated example through a real
+`SurfaceController`, so the recording covers schema, bindings and actions
+together. Re-record a deliberate change with `GENUI_UPDATE_GOLDENS=1`. The file
+uses the same shape as A2UI's rendering cases, so it also describes what a
+renderer of the same catalog on another platform would have to reproduce.
 
 ## License
 

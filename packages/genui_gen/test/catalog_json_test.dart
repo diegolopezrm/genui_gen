@@ -59,7 +59,8 @@ void main() {
     });
 
     test('lets a component be resolved by name', () {
-      final defs = genUiCatalogJson(_catalog())[r'$defs']! as Map<String, Object?>;
+      final defs =
+          genUiCatalogJson(_catalog())[r'$defs']! as Map<String, Object?>;
       final anyComponent = defs['anyComponent']! as Map<String, Object?>;
       expect(anyComponent['discriminator'], {'propertyName': 'component'});
       expect(anyComponent['oneOf'], [
@@ -101,7 +102,10 @@ void main() {
       genUiCatalogJson(catalog, title: 'Edited')['components'] = 'gone';
 
       expect(catalog.fullSchema.value['title'], 'A2UI Catalog');
-      expect(catalog.fullSchema.value['components'], isA<Map<String, Object?>>());
+      expect(
+        catalog.fullSchema.value['components'],
+        isA<Map<String, Object?>>(),
+      );
     });
   });
 

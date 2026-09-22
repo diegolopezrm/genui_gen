@@ -90,6 +90,21 @@ cd example
 flutter test test/catalog_json_test.dart --update-goldens
 ```
 
+## What the catalog exposes
+
+`test/genui_semantics.json` records what every component gives assistive
+technology: role, name, value, state and actions, in traversal order. The test
+that keeps it honest fails when a component stops exposing what it used to.
+
+```sh
+cd example
+GENUI_UPDATE_GOLDENS=1 flutter test test/genui_semantics_test.dart
+```
+
+Reading the file is the point. `Icon` and `Image` record nothing at all, and
+`Panel`'s close button records a button with no name — both are genui's to fix,
+and neither is visible from the Dart.
+
 ## Check
 
 ```sh

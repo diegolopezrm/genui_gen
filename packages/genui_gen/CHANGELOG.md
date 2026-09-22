@@ -1,3 +1,33 @@
+## 0.6.0
+
+- Added `package:genui_gen/testing.dart`, which checks the half of a catalog
+  the schema cannot: what a generated component actually exposes to the person
+  using it. `genUiSemantics` reads the role, name, value, state and actions of
+  a rendered surface, in traversal order; `genUiSemanticsGolden` records that
+  into a JSON file and fails when it changes; `GenUiExampleSurface` renders one
+  item's generated example through a real `SurfaceController`, so the test
+  covers the whole path — schema, bindings and actions — rather than the widget
+  alone.
+
+  ```dart
+  expect(
+    genUiSemanticsGolden(recorded, File('test/genui_semantics.json')),
+    isNull,
+  );
+  ```
+
+- The recorded file is checked in and read in review. It is the answer to
+  "what can the model make this app announce, press or report", which is the
+  part of a change that a Dart diff does not show. Re-record a deliberate
+  change with `GENUI_UPDATE_GOLDENS=1`.
+- The file is written in the shape A2UI's rendering cases use — role, name,
+  value, state, actions — so the same recording describes the catalog to a
+  renderer on another platform.
+- `example/test/genui_semantics.json` records the example app's catalog, and
+  `example/test/genui_semantics_test.dart` is the test to copy.
+- `a2ui_core` is now a dependency: `GenUiExampleSurface` builds the surface
+  from the same message types genui takes.
+
 ## 0.5.0
 
 - Added `genUiCatalogJson` and `genUiCatalogJsonString`, which turn a `Catalog`

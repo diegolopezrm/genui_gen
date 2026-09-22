@@ -35,7 +35,7 @@ widget.
 ```yaml
 dependencies:
   genui: ^0.10.0
-  genui_gen: ^0.5.0
+  genui_gen: ^0.6.0
 
 dev_dependencies:
   build_runner: ^2.15.0
@@ -405,6 +405,80 @@ flutter test test/catalog_json_test.dart --update-goldens
   generated, and an agent handed three of them has nothing else to tell them
   apart by.
 
+## What the component exposes (`package:genui_gen/testing.dart`)
+
+The schema half of a catalog is checked when it is generated. The other half —
+what the rendered component says to the person using it — has nothing checking
+it, and it is the half a Dart diff does not show. Adding a widget changes what
+the model can make your app announce, press or report, and nobody sees that in
+review.
+
+`testing.dart` records it:
+
+```dart
+// test/genui_semantics_test.dart
+testWidgets('the catalog exposes what it exposed before', (tester) async {
+  final recorded = <String, List<GenUiSemanticNode>>{};
+
+  for (final item in genUiCatalog.items) {
+    final handle = tester.ensureSemantics();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: GenUiExampleSurface(catalog: genUiCatalog, item: item),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    recorded[item.name] = genUiRenderedSemantics();
+    handle.dispose();
+  }
+
+  expect(
+    genUiSemanticsGolden(recorded, File('test/genui_semantics.json')),
+    isNull,
+  );
+});
+```
+
+```sh
+GENUI_UPDATE_GOLDENS=1 flutter test test/genui_semantics_test.dart
+```
+
+The file it writes reads like this, and is meant to be reviewed:
+
+```json
+{
+  "components": {
+    "PreferenceRow": [
+      {
+        "role": "switch",
+        "name": "Sample label",
+        "state": {"on": true, "disabled": false},
+        "actions": ["tap", "focus"]
+      }
+    ]
+  }
+}
+```
+
+Worth knowing:
+
+- `GenUiExampleSurface` renders the item's generated example through a real
+  `SurfaceController`, so the recording covers the whole path — schema,
+  bindings, actions — rather than the widget called directly.
+- A component that renders nothing a user can reach records an empty list. In
+  the example app that is what `Icon` and `Image` do: genui builds them without
+  a semantic label, so a screen reader is told nothing at all.
+- The shape — role, name, value, state, actions, in traversal order — is the
+  one [A2UI's rendering cases](https://github.com/a2ui-project/a2ui/issues/2738)
+  are written in, because it is the only description of a rendered surface that
+  Flutter, SwiftUI, Compose and the web can all be held to. The same recording
+  therefore says what another renderer of your catalog would have to reproduce.
+- Recording is not the default. A file that rewrites itself on every run cannot
+  fail, and the point is to fail.
+
 ## Controls the user operates (`@GenUiWrites`)
 
 A property on its own is read-only: the model puts a value there and the widget
@@ -684,7 +758,7 @@ A runnable version of all of this is in
 [`example/lib/models/metric_row.dart`](example/lib/models/metric_row.dart) and
 [`example/lib/widgets/metrics_table.dart`](example/lib/widgets/metrics_table.dart).
 
-## Limitations (0.5)
+## Limitations (0.6)
 
 Not supported yet; each produces a build error that names the parameter:
 
@@ -719,10 +793,15 @@ Two ways around it in the meantime:
 - 0.5: the aggregate assembles the `Catalog` itself, with the id from
   `build.yaml`, and `genUiCatalogJson` exports it as the A2UI `catalog.json`
   an agent or a non-Flutter client reads.
+- 0.6: `package:genui_gen/testing.dart` — record what each generated component
+  exposes to assistive technology and fail when it changes, in the shape A2UI's
+  rendering cases use.
 - Proposed next: accessibility — `ComponentCommon` declares `label` and
-  `description` on every A2UI component and the conformance suite tests them,
-  but nothing renders them today. A generator is the one place to wire that in
-  once for every annotated widget.
+  `description` on every A2UI component and the conformance suite tests them.
+  genui does not apply them yet
+  ([a2ui#2697](https://github.com/a2ui-project/a2ui/issues/2697),
+  [genui#1035](https://github.com/flutter/genui/pull/1035)); once it does, a
+  generator is the one place to wire them in for every annotated widget.
 - Proposed next: smarter example generation, where the author's own default
   values and the property description feed the sample instead of the fixed
   `42` / `Sample <name>` placeholders.

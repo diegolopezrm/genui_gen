@@ -1,0 +1,393 @@
+{
+  "components": {
+    "AudioPlayer": [
+      {
+        "role": "text",
+        "name": "Beethoven — Minuet in G (public domain)\n00:00\n00:00"
+      },
+      {
+        "role": "button",
+        "state": {
+          "disabled": false
+        },
+        "actions": [
+          "tap",
+          "focus"
+        ]
+      },
+      {
+        "role": "slider",
+        "value": "0%",
+        "state": {
+          "disabled": false
+        },
+        "actions": [
+          "increase",
+          "decrease",
+          "focus"
+        ]
+      },
+      {
+        "role": "slider",
+        "value": "50%",
+        "state": {
+          "disabled": false
+        },
+        "actions": [
+          "increase",
+          "decrease",
+          "focus"
+        ]
+      }
+    ],
+    "Button": [
+      {
+        "role": "button",
+        "name": "Hello World",
+        "state": {
+          "disabled": false
+        },
+        "actions": [
+          "tap",
+          "focus"
+        ]
+      }
+    ],
+    "Card": [
+      {
+        "role": "text",
+        "name": "This is a card."
+      }
+    ],
+    "CheckBox": [
+      {
+        "role": "checkbox",
+        "name": "Check me",
+        "state": {
+          "checked": false,
+          "selected": false,
+          "disabled": false
+        },
+        "actions": [
+          "tap",
+          "focus"
+        ]
+      }
+    ],
+    "ChoicePicker": [
+      {
+        "role": "text",
+        "name": "Mutually Exclusive"
+      },
+      {
+        "role": "text",
+        "name": "Choose one"
+      },
+      {
+        "role": "checkbox",
+        "name": "A",
+        "state": {
+          "checked": true,
+          "selected": false,
+          "disabled": false
+        },
+        "actions": [
+          "tap",
+          "focus"
+        ]
+      },
+      {
+        "role": "checkbox",
+        "name": "B",
+        "state": {
+          "checked": false,
+          "selected": false,
+          "disabled": false
+        },
+        "actions": [
+          "tap",
+          "focus"
+        ]
+      },
+      {
+        "role": "text",
+        "name": "Multiple Selection"
+      },
+      {
+        "role": "text",
+        "name": "Choose many"
+      },
+      {
+        "role": "checkbox",
+        "name": "X",
+        "state": {
+          "checked": false,
+          "selected": false,
+          "disabled": false
+        },
+        "actions": [
+          "tap",
+          "focus"
+        ]
+      },
+      {
+        "role": "checkbox",
+        "name": "Y",
+        "state": {
+          "checked": false,
+          "selected": false,
+          "disabled": false
+        },
+        "actions": [
+          "tap",
+          "focus"
+        ]
+      }
+    ],
+    "Column": [
+      {
+        "role": "text",
+        "name": "What kind of advice are you looking for?"
+      },
+      {
+        "role": "text",
+        "name": "Some advice options."
+      },
+      {
+        "role": "button",
+        "name": "Submit",
+        "state": {
+          "disabled": false
+        },
+        "actions": [
+          "tap",
+          "focus"
+        ]
+      }
+    ],
+    "DateTimeInput": [
+      {
+        "role": "text",
+        "name": "Friday, May 15, 2026 12:00 AM",
+        "actions": [
+          "tap",
+          "focus"
+        ]
+      }
+    ],
+    "Divider": [],
+    "Icon": [],
+    "Image": [],
+    "List": [
+      {
+        "role": "text",
+        "name": "First"
+      },
+      {
+        "role": "text",
+        "name": "Second"
+      }
+    ],
+    "MetricsTable": [
+      {
+        "role": "text",
+        "name": "Sample title"
+      },
+      {
+        "role": "text",
+        "name": "Metric"
+      },
+      {
+        "role": "text",
+        "name": "Value"
+      },
+      {
+        "role": "text",
+        "name": "Trend"
+      },
+      {
+        "role": "text",
+        "name": "Sample label 1"
+      },
+      {
+        "role": "text",
+        "name": "42.50"
+      },
+      {
+        "role": "text",
+        "name": "up"
+      },
+      {
+        "role": "text",
+        "name": "Sample label 2"
+      },
+      {
+        "role": "text",
+        "name": "43.50"
+      },
+      {
+        "role": "text",
+        "name": "down"
+      }
+    ],
+    "Modal": [
+      {
+        "role": "button",
+        "name": "Open Modal",
+        "state": {
+          "disabled": false
+        },
+        "actions": [
+          "tap",
+          "focus"
+        ]
+      }
+    ],
+    "Panel": [
+      {
+        "role": "text",
+        "name": "Sample title\nSample child\nSample actions 1\nSample actions 2"
+      },
+      {
+        "role": "button",
+        "state": {
+          "disabled": false
+        },
+        "actions": [
+          "tap",
+          "focus"
+        ]
+      }
+    ],
+    "PreferenceRow": [
+      {
+        "role": "switch",
+        "name": "Sample label",
+        "state": {
+          "on": true,
+          "selected": false,
+          "disabled": false
+        },
+        "actions": [
+          "tap",
+          "focus"
+        ]
+      }
+    ],
+    "ProductCard": [
+      {
+        "role": "text",
+        "name": "Sample title\n$42.50",
+        "actions": [
+          "tap",
+          "focus"
+        ]
+      }
+    ],
+    "Row": [
+      {
+        "role": "text",
+        "name": "First"
+      },
+      {
+        "role": "text",
+        "name": "Second"
+      }
+    ],
+    "Slider": [
+      {
+        "role": "slider",
+        "value": "0%",
+        "state": {
+          "disabled": false
+        },
+        "actions": [
+          "increase",
+          "decrease",
+          "focus"
+        ]
+      },
+      {
+        "role": "text",
+        "name": "0"
+      }
+    ],
+    "StatTile": [
+      {
+        "role": "text",
+        "name": "Sample label\n42.50"
+      }
+    ],
+    "Tabs": [
+      {
+        "role": "text",
+        "name": "Overview\nTab 1 of 2",
+        "state": {
+          "selected": true
+        },
+        "actions": [
+          "tap",
+          "focus"
+        ]
+      },
+      {
+        "role": "text",
+        "name": "Details\nTab 2 of 2",
+        "state": {
+          "selected": false
+        },
+        "actions": [
+          "tap",
+          "focus"
+        ]
+      },
+      {
+        "role": "text",
+        "name": "This is a short summary of the item."
+      }
+    ],
+    "TagRow": [
+      {
+        "role": "button",
+        "name": "Alpha",
+        "state": {
+          "selected": true,
+          "disabled": true
+        }
+      },
+      {
+        "role": "button",
+        "name": "Beta",
+        "state": {
+          "selected": false,
+          "disabled": true
+        }
+      }
+    ],
+    "Text": [
+      {
+        "role": "text",
+        "name": "Hello World"
+      }
+    ],
+    "TextField": [
+      {
+        "role": "text_field",
+        "name": "Enter your name here:",
+        "state": {
+          "disabled": false
+        },
+        "actions": [
+          "tap",
+          "focus"
+        ]
+      }
+    ],
+    "Video": [
+      {
+        "role": "text",
+        "name": "Failed to load video."
+      }
+    ]
+  }
+}
