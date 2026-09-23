@@ -45,6 +45,18 @@
 /// }
 /// ```
 ///
+/// [genUiSemanticsAudit] reads the same recording and reports what a person
+/// using a screen reader could not work with: a control with no name, a
+/// component that reaches assistive technology as nothing at all, two buttons
+/// that announce themselves identically. [genUiCatalogWeight] answers a
+/// different question with the same catalog: how much of every prompt each
+/// component takes up.
+///
+/// [genUiCatalogDiff] answers the other half of the question, about the
+/// contract rather than the rendering: what changed for the model between two
+/// versions of the catalog, and whether a message composed against the old one
+/// can still be wrong.
+///
 /// Record the file the first time, and after a deliberate change, by setting
 /// `GENUI_UPDATE_GOLDENS=1`:
 ///
@@ -58,6 +70,8 @@ import 'dart:io';
 
 import 'src/semantics.dart';
 
+export 'src/audit.dart';
+export 'src/catalog_diff.dart';
 export 'src/example_surface.dart';
 export 'src/semantics.dart';
 

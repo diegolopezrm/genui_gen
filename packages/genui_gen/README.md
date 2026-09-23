@@ -17,7 +17,7 @@ and a few small helpers used by the generated code. The generator lives in
 ```yaml
 dependencies:
   genui: ^0.10.0
-  genui_gen: ^0.6.0
+  genui_gen: ^0.7.0
   json_schema_builder: ^0.1.3
 
 dev_dependencies:
@@ -260,6 +260,22 @@ expect(genUiSemanticsGolden(recorded, File('test/genui_semantics.json')), isNull
 together. Re-record a deliberate change with `GENUI_UPDATE_GOLDENS=1`. The file
 uses the same shape as A2UI's rendering cases, so it also describes what a
 renderer of the same catalog on another platform would have to reproduce.
+
+## Recording a session
+
+`package:genui_gen/tracing.dart` records what an agent and a user did, and
+replays it without either. `GenUiTraceRecorder.attach` keeps the messages, the
+data model and the actions; `GenUiTracePlayer` and `GenUiTraceView` put the
+session back on screen at any step. `redact` names the paths a recording must
+not keep.
+
+## Checking the contract and the cost
+
+`genUiCatalogDiff` reports what changed for the model between two catalogs, and
+which of those changes make a message the agent still knows how to write wrong.
+`genUiSemanticsAudit` reads the semantics recording and reports what a screen
+reader user could not work with. `genUiCatalogWeight` says how much of every
+prompt each component takes up.
 
 ## License
 

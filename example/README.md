@@ -105,6 +105,13 @@ Reading the file is the point. `Icon` and `Image` record nothing at all, and
 `Panel`'s close button records a button with no name — both are genui's to fix,
 and neither is visible from the Dart.
 
+## Recording a session
+
+`test/trace_test.dart` records a session against this app's own widgets — the
+agent builds a surface, the user flips a switch — writes it, reads it back and
+replays it with no agent at all. That is the loop a bug report goes through
+when the screen that failed was composed by a model.
+
 ## Check
 
 ```sh

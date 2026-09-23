@@ -27,7 +27,7 @@ a new release of this package unless it removes API the generator uses.
 ```yaml
 dependencies:
   genui: ^0.10.0
-  genui_gen: ^0.6.0
+  genui_gen: ^0.7.0
   json_schema_builder: ^0.1.3 # provides `S` and `ObjectSchema`
 
 dev_dependencies:

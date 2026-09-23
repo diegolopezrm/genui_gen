@@ -250,6 +250,7 @@
       },
       {
         "role": "button",
+        "tooltip": "Close",
         "state": {
           "disabled": false
         },

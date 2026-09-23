@@ -35,7 +35,7 @@ widget.
 ```yaml
 dependencies:
   genui: ^0.10.0
-  genui_gen: ^0.6.0
+  genui_gen: ^0.7.0
 
 dev_dependencies:
   build_runner: ^2.15.0
@@ -479,6 +479,94 @@ Worth knowing:
 - Recording is not the default. A file that rewrites itself on every run cannot
   fail, and the point is to fail.
 
+## When the screen was not in your source (`package:genui_gen/tracing.dart`)
+
+Someone reports that the confirm button did nothing. You open the code and
+there is no confirm button: a model composed that screen, once, from a context
+that will not come back. There is nothing to open and nothing to inspect.
+
+A trace is that session, kept:
+
+```dart
+final recorder = GenUiTraceRecorder.attach(
+  controller,
+  catalogId: genUiCatalog.catalogId,
+  redact: const ['/user/email'],
+);
+
+transport.messages.listen(recorder.handleMessage);
+...
+await File('bug-4821.a2ui-trace').writeAsString(recorder.build().encode());
+```
+
+It keeps every message the agent sent, the contents of each surface's data
+model whenever they changed — including the writes a user made that never went
+back to the agent — and every action the app reported. Replay needs no model
+and no network, because A2UI describes interfaces as data:
+
+```dart
+final player = GenUiTracePlayer(trace, catalog: genUiCatalog)..seek(7);
+
+await tester.pumpWidget(MaterialApp(home: GenUiTraceView(player: player)));
+expect(find.text('Confirm'), findsOneWidget);
+```
+
+Worth knowing:
+
+- The replay renders against the catalog you hand it, which is usually the
+  current one. That is how a session from last week becomes a regression test:
+  a catalog change that breaks a real conversation fails here first.
+- `redact` names the data model paths that must not reach the file. A
+  recording keeps what the user typed, so the field holding an email belongs
+  in that list before the first recording, not after the first leak.
+- A component that reads a clock, a random number or a request renders from
+  that rather than from the trace, and replays differently. Keep those behind
+  a function the catalog declares and the trace covers them too.
+
+## What a change costs the agent (`genUiCatalogDiff`)
+
+A catalog is a contract with something that cannot be recompiled. Renaming a
+property does not break your app; it breaks the agent, whose prompt still
+describes yesterday's components, and it breaks quietly, one malformed message
+at a time.
+
+```dart
+final changes = genUiCatalogDiff(published, genUiCatalogJson(genUiCatalog));
+
+expect(changes.where((change) => change.isBreaking), isEmpty,
+    reason: changes.join('\n'));
+```
+
+Breaking: a component or property that disappears, a property that becomes
+required, a type that changes, an enum value that is gone. Not breaking, and
+still reported: a new optional property, a new enum value, a reworded
+description — which is not nothing, because the description is the
+instruction.
+
+## What the catalog gives a screen reader, and what it costs to send
+
+```dart
+final findings = genUiSemanticsAudit(recorded, allowEmpty: {'Divider'});
+expect(findings, isEmpty, reason: findings.join('\n'));
+```
+
+Run over the recording the golden test already keeps, so accessibility is
+checked by a file that exists rather than by a pass nobody remembers to run.
+It reports a control with nothing to announce, a component that reaches
+assistive technology as nothing at all, and two controls that announce
+themselves identically.
+
+`genUiCatalogWeight` answers the other question nothing makes visible: a
+catalog travels in every request, and this says how much of the prompt each
+component takes.
+
+```
+   14832 characters in total
+     3401  22.9%  MetricsTable
+     2180  14.7%  ProductCard
+     ...
+```
+
 ## Controls the user operates (`@GenUiWrites`)
 
 A property on its own is read-only: the model puts a value there and the widget
@@ -758,7 +846,7 @@ A runnable version of all of this is in
 [`example/lib/models/metric_row.dart`](example/lib/models/metric_row.dart) and
 [`example/lib/widgets/metrics_table.dart`](example/lib/widgets/metrics_table.dart).
 
-## Limitations (0.6)
+## Limitations (0.7)
 
 Not supported yet; each produces a build error that names the parameter:
 
@@ -796,6 +884,10 @@ Two ways around it in the meantime:
 - 0.6: `package:genui_gen/testing.dart` — record what each generated component
   exposes to assistive technology and fail when it changes, in the shape A2UI's
   rendering cases use.
+- 0.7: `package:genui_gen/tracing.dart` — record an agent session and replay it
+  without a model, plus `genUiCatalogDiff`, `genUiSemanticsAudit` and
+  `genUiCatalogWeight`: what a change costs the agent, what the catalog gives a
+  screen reader, and what it costs to send.
 - Proposed next: accessibility — `ComponentCommon` declares `label` and
   `description` on every A2UI component and the conformance suite tests them.
   genui does not apply them yet

@@ -18,6 +18,7 @@ class GenUiSemanticNode {
     required this.role,
     this.name = '',
     this.value = '',
+    this.tooltip = '',
     this.state = const <String, bool>{},
     this.actions = const <String>[],
   });
@@ -28,6 +29,7 @@ class GenUiSemanticNode {
         role: json['role'] as String? ?? 'group',
         name: json['name'] as String? ?? '',
         value: json['value'] as String? ?? '',
+        tooltip: json['tooltip'] as String? ?? '',
         state: <String, bool>{
           for (final entry
               in (json['state'] as Map<String, Object?>? ??
@@ -54,6 +56,14 @@ class GenUiSemanticNode {
   /// What it currently holds, for the components that hold something.
   final String value;
 
+  /// What the platform shows on hover or long press, and what some platforms
+  /// fall back to when a control has no name of its own.
+  ///
+  /// Kept apart from [name] because the two are not the same promise: a
+  /// tooltip is announced by Android and is easy to lose on other platforms,
+  /// so a control named only by its tooltip is worth seeing in the recording.
+  final String tooltip;
+
   /// `checked`, `selected` and `disabled`, when the node has them.
   final Map<String, bool> state;
 
@@ -67,6 +77,7 @@ class GenUiSemanticNode {
     'role': role,
     if (name.isNotEmpty) 'name': name,
     if (value.isNotEmpty) 'value': value,
+    if (tooltip.isNotEmpty) 'tooltip': tooltip,
     if (state.isNotEmpty) 'state': state,
     if (actions.isNotEmpty) 'actions': actions,
   };
@@ -80,6 +91,7 @@ class GenUiSemanticNode {
       other.role == role &&
       other.name == name &&
       other.value == value &&
+      other.tooltip == tooltip &&
       _sameState(other.state) &&
       _sameActions(other.actions);
 
@@ -88,6 +100,7 @@ class GenUiSemanticNode {
     role,
     name,
     value,
+    tooltip,
     Object.hashAllUnordered(
       state.entries.map((e) => Object.hash(e.key, e.value)),
     ),
@@ -125,6 +138,7 @@ List<GenUiSemanticNode> genUiSemantics(SemanticsNode root) {
     final bool carriesMeaning =
         data.label.isNotEmpty ||
         data.value.isNotEmpty ||
+        data.tooltip.isNotEmpty ||
         role != 'group' ||
         actions.isNotEmpty;
     if (carriesMeaning) {
@@ -133,6 +147,7 @@ List<GenUiSemanticNode> genUiSemantics(SemanticsNode root) {
           role: role,
           name: data.label,
           value: data.value,
+          tooltip: data.tooltip,
           state: _stateOf(data),
           actions: actions,
         ),

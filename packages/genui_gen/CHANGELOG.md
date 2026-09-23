@@ -1,3 +1,48 @@
+## 0.7.0
+
+- Added `package:genui_gen/tracing.dart`: record an agent session and replay
+  it. A generative interface has a problem an ordinary app does not — the
+  screen that failed is not in the source, because a model composed it once
+  from a context that will not come back — and a trace is that session, kept.
+  `GenUiTraceRecorder.attach` keeps every message the agent sent, the contents
+  of each surface's data model whenever they changed, and every action the app
+  sent back; `GenUiTracePlayer` replays it with no model and no network, and
+  `GenUiTraceView` shows it, at any step.
+
+  ```dart
+  final player = GenUiTracePlayer(trace, catalog: genUiCatalog)..seek(7);
+  await tester.pumpWidget(MaterialApp(home: GenUiTraceView(player: player)));
+  ```
+
+  Because the replay renders against the app's current catalog, an old session
+  is also a regression test: a catalog change that breaks a real conversation
+  fails before a user finds it.
+
+- `redact` names the data model paths a recording must not keep. A session
+  records what the user typed, so the field holding an email has to be named
+  before the first recording rather than after the first leak.
+- Added `genUiCatalogDiff`, which reports what changed between two catalog
+  documents from where it matters: the model. A removed component, a new
+  required property, a dropped enum value and a changed type are breaking,
+  because the agent's prompt still describes the old one. A new optional
+  property and a new enum value are not.
+- Added `genUiSemanticsAudit`, which reads the recording the golden test
+  already keeps and reports what a screen reader user could not work with: a
+  control with nothing to announce, a component that reaches assistive
+  technology as nothing at all, two controls that announce themselves
+  identically.
+- Added `genUiCatalogWeight`, which says how much of every prompt each
+  component takes up. A catalog is sent on every request and nothing makes its
+  cost visible.
+- `GenUiSemanticNode` now records `tooltip` alongside `name`. A control named
+  only by a tooltip is not unnamed, but it is not named the same way either,
+  and the recording shows which of the two it has.
+- The example app records a session with its own widgets, checks its catalog
+  against the published one, and lists what the basic catalog gives a screen
+  reader today: an audio player whose play button and two sliders announce
+  nothing, an image that exposes nothing at all, and a slider with a `label`
+  the catalog never passes on.
+
 ## 0.6.0
 
 - Added `package:genui_gen/testing.dart`, which checks the half of a catalog
