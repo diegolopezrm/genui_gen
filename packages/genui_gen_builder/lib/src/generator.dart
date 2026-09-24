@@ -793,6 +793,18 @@ PropSpec? _analyseParameter(
     );
   }
 
+  final bool isTemplate =
+      propAnnotation != null && _readBool(propAnnotation, 'template');
+  if (isTemplate && mapping.kind != PropKind.widgetList) {
+    throw InvalidGenerationSourceError(
+      '`$qualified` is marked @GenUiProp(template: true), which only means '
+      'something for a list of children: a template repeats one component '
+      'over the entries of a data model path. Take `List<Widget>`, or drop '
+      'the flag.',
+      element: param,
+    );
+  }
+
   return PropSpec(
     dartName: name,
     schemaName: schemaName,
@@ -809,6 +821,7 @@ PropSpec? _analyseParameter(
     writesProperty: writesProperty,
     writerTypeName: writerTypeName,
     writerValueKind: mapping.writerValueKind,
+    isTemplate: isTemplate,
   );
 }
 

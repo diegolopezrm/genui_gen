@@ -35,11 +35,11 @@ widget.
 ```yaml
 dependencies:
   genui: ^0.10.0
-  genui_gen: ^0.7.0
+  genui_gen: ^0.8.0
 
 dev_dependencies:
   build_runner: ^2.15.0
-  genui_gen_builder: ^0.6.0
+  genui_gen_builder: ^0.7.0
 ```
 
 The generated code is a `part` of your file and builds its schema with
@@ -655,6 +655,57 @@ The model sends a binding, and reads the answer back from the path it chose:
   `onChanged` and `onChangeEnd` needs.
 - Every one of these is a build error that names both sides.
 
+## Lists the data model fills (`@GenUiProp(template: true)`)
+
+A list of children is usually written out by the agent, one id at a time.
+That works until the list is the data: five tasks today, nine tomorrow, and
+the agent composing a new surface every time one is added.
+
+A2UI has the other shape, and a template property accepts it:
+
+```dart
+@GenUiWidget(description: 'A titled list of rows, one per item in the data.')
+class TaskList extends StatelessWidget {
+  const TaskList({
+    super.key,
+    required this.title,
+    @GenUiProp(template: true) required this.rows,
+  });
+
+  final String title;
+
+  /// One row per task.
+  final List<Widget> rows;
+```
+
+The agent then sends the row once:
+
+```json
+{
+  "id": "root", "component": "TaskList", "title": "Today",
+  "rows": {"componentId": "task_row", "path": "/tasks"}
+}
+```
+
+and one row is built per entry at `/tasks`. A new entry in the data model adds
+a row without the agent being asked for anything.
+
+Each child reads its own entry: the child of `/tasks` at index 2 binds `label`
+against `/tasks/2/label`, so a single component describes every row. Children
+are keyed by entry rather than by position, so a row removed from the middle
+takes its state with it instead of handing it to the row that moved up.
+
+Worth knowing:
+
+- The property still accepts a plain list of ids, so an agent that writes the
+  children out one by one keeps working.
+- It is off by default. The schema a template property publishes is not the one
+  a prompt tuned against the previous version was written for, so turning it on
+  is your call, not the generator's.
+- `template: true` on anything but a `List<Widget>` is a build error naming the
+  parameter: a template repeats a component over a path, which means nothing
+  for a string or a number.
+
 ## Structured data (`@GenUiData`)
 
 Scalars only get you so far. A table, a chart series or a list of items needs
@@ -846,7 +897,7 @@ A runnable version of all of this is in
 [`example/lib/models/metric_row.dart`](example/lib/models/metric_row.dart) and
 [`example/lib/widgets/metrics_table.dart`](example/lib/widgets/metrics_table.dart).
 
-## Limitations (0.7)
+## Limitations (0.8)
 
 Not supported yet; each produces a build error that names the parameter:
 
@@ -888,6 +939,8 @@ Two ways around it in the meantime:
   without a model, plus `genUiCatalogDiff`, `genUiSemanticsAudit` and
   `genUiCatalogWeight`: what a change costs the agent, what the catalog gives a
   screen reader, and what it costs to send.
+- 0.8: `@GenUiProp(template: true)` — a list of children may be a template the
+  data model repeats, so a list that grows does not need a new surface.
 - Proposed next: accessibility — `ComponentCommon` declares `label` and
   `description` on every A2UI component and the conformance suite tests them.
   genui does not apply them yet

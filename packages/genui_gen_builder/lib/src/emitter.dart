@@ -188,6 +188,11 @@ String _propertySchema(
     case PropKind.widget:
       return 'A2uiSchemas.componentReference($description)';
     case PropKind.widgetList:
+      if (prop.isTemplate) {
+        // Both shapes: the list of ids the agent writes out, and the template
+        // it repeats over a path.
+        return 'A2uiSchemas.componentArrayReference($description)';
+      }
       final args = [
         if (description.isNotEmpty) description,
         'items: A2uiSchemas.componentReference()',
@@ -246,6 +251,13 @@ String _widgetBuilder(WidgetSpec spec, Set<String> symbols) {
       // is written to, so the control reflects what the user just did. The
       // literal the model sent is still honoured until that path holds
       // something (see `_argument`).
+      if (prop.isTemplate) {
+        symbols.add('genUiTemplatePath');
+        out.writeln(
+          '$key: GenUiBinding.value(genUiTemplatePath(data[$key])),',
+        );
+        continue;
+      }
       final raw = written.contains(prop.schemaName)
           ? 'genUiWriteReference(ctx, data[$key], $key)'
           : 'data[$key]';
@@ -489,6 +501,14 @@ String _argument(PropSpec prop, Set<String> symbols, {bool isWritten = false}) {
         fallback = prop.defaultValueCode == null
             ? 'null'
             : _defaultExpression(prop);
+      }
+      if (prop.isTemplate) {
+        symbols.add('genUiTemplateChildren');
+        final children = 'genUiTemplateChildren(ctx, $local, v.raw($key))';
+        if (prop.isSchemaRequired) return children;
+        // An empty result means the model sent neither a list nor a template,
+        // so the property was not set and its default stands.
+        return '$local == null ? $fallback : $children';
       }
       return '$local is List '
           '? $local.whereType<String>().map((id) => ctx.buildChild(id)).toList() '

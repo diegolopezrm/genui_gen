@@ -1,3 +1,19 @@
+## 0.8.0
+
+- Added `genUiTemplateChildren` and `genUiTemplatePath`, the runtime half of
+  child templates. A2UI describes the children of a component in two ways: a
+  list of ids the agent wrote out, or `{"componentId": "row", "path": "/rows"}`
+  repeated once per entry of the data model. The second is what makes a list
+  that grows when the agent sends data rather than a new surface, and a
+  generated widget could not accept it.
+- Each template child reads its own entry: the child of `/rows` at index 2
+  binds `title` against `/rows/2/title`, so one component describes every row.
+  Children are keyed by entry rather than by position, so a row removed from
+  the middle takes its state with it instead of handing it to the row below.
+- Added `GenUiBinding.value` and `GenUiValues.raw`, which resolve a path and
+  hand back what it holds without coercing it. The typed bindings are right
+  for a widget property; a template needs the list or the map itself.
+
 ## 0.7.0
 
 - Added `package:genui_gen/tracing.dart`: record an agent session and replay

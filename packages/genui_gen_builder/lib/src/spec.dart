@@ -118,6 +118,7 @@ final class PropSpec {
     this.writesProperty,
     this.writerTypeName,
     this.writerValueKind,
+    this.isTemplate = false,
   });
 
   /// The constructor parameter name.
@@ -130,6 +131,9 @@ final class PropSpec {
 
   /// How the parameter is mapped.
   final PropKind kind;
+
+  /// Whether a list of children may also arrive as `{componentId, path}`.
+  final bool isTemplate;
 
   /// Whether the Dart type is nullable.
   final bool isNullable;
@@ -282,7 +286,13 @@ final class WidgetSpec {
     for (final p in writerProps) p.writesProperty!,
   };
 
-  Iterable<PropSpec> get boundProps => props.where((p) => p.kind.isBound);
+  /// The properties that resolve through `GenUiBindings`.
+  ///
+  /// A template list is bound as well, even though a list of children is not
+  /// a bound value in itself: what is bound is the path it repeats over, so
+  /// that new entries arriving in the data model rebuild the children.
+  Iterable<PropSpec> get boundProps =>
+      props.where((p) => p.kind.isBound || p.isTemplate);
 
   Iterable<PropSpec> get childProps => props.where((p) => p.kind.isChild);
 

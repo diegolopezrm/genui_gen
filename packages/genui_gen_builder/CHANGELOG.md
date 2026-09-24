@@ -1,3 +1,28 @@
+## 0.7.0
+
+- Added `@GenUiProp(template: true)`, which lets a `List<Widget>` property
+  accept a child template as well as a list of ids:
+
+  ```dart
+  @GenUiWidget(description: 'A titled list of rows.')
+  class TaskList extends StatelessWidget {
+    const TaskList({
+      super.key,
+      required this.title,
+      @GenUiProp(template: true) required this.rows,
+    });
+  ```
+
+  The property's schema becomes `A2uiSchemas.componentArrayReference()`, the
+  path the template repeats over is bound so new entries rebuild the children,
+  and the children are built with each entry as its own data context.
+
+- Off by default: the schema a template property publishes is not the one a
+  prompt tuned against the previous version was written for, so turning it on
+  is the author's call.
+- `@GenUiProp(template: true)` on anything but a `List<Widget>` is a build
+  error naming the parameter.
+
 ## 0.6.0
 
 - `lib/genui_catalog.g.dart` now declares the assembled `Catalog` as well as

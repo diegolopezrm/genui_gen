@@ -50,6 +50,7 @@ export 'src/actions.dart';
 export 'src/annotations.dart';
 export 'src/bindings.dart';
 export 'src/catalog_json.dart';
+export 'src/children.dart';
 export 'src/coerce.dart';
 export 'src/missing.dart';
 export 'src/writers.dart';

@@ -374,6 +374,71 @@
         }
       ],
       "unevaluatedProperties": false
+    },
+    "TaskList": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "component": {
+              "type": "string",
+              "enum": [
+                "TaskList"
+              ]
+            },
+            "title": {
+              "description": "The heading above the list.",
+              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString"
+            },
+            "rows": {
+              "description": "One row per task.",
+              "oneOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "description": "Component ID"
+                  }
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "componentId": {
+                      "type": "string",
+                      "description": "The ID of a component."
+                    },
+                    "path": {
+                      "type": "string",
+                      "description": "A relative or absolute path in the data model."
+                    }
+                  },
+                  "required": [
+                    "componentId",
+                    "path"
+                  ]
+                }
+              ]
+            },
+            "emptyLabel": {
+              "description": "Shown when there are no rows.",
+              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString"
+            }
+          },
+          "required": [
+            "component",
+            "title",
+            "rows"
+          ]
+        }
+      ],
+      "unevaluatedProperties": false
     }
   },
   "$defs": {
@@ -428,6 +493,9 @@
         },
         {
           "$ref": "#/components/TagRow"
+        },
+        {
+          "$ref": "#/components/TaskList"
         }
       ],
       "discriminator": {

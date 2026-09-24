@@ -17,12 +17,12 @@ and a few small helpers used by the generated code. The generator lives in
 ```yaml
 dependencies:
   genui: ^0.10.0
-  genui_gen: ^0.7.0
+  genui_gen: ^0.8.0
   json_schema_builder: ^0.1.3
 
 dev_dependencies:
   build_runner: ^2.15.0
-  genui_gen_builder: ^0.6.0
+  genui_gen_builder: ^0.7.0
 ```
 
 `json_schema_builder` is a direct dependency because the generated part shares

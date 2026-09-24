@@ -118,6 +118,8 @@ abstract final class A2uiSchemas {
   static Schema stringArrayReference({String? description}) =>
       const Schema();
   static Schema componentReference({String? description}) => const Schema();
+  static Schema componentArrayReference({String? description}) =>
+      const Schema();
   static Schema action({String? description}) => const Schema();
   static Schema dataBindingSchema({String? description}) => const Schema();
   static Schema functionCall() => const Schema();
@@ -153,10 +155,16 @@ class GenUiData {
 }
 
 class GenUiProp {
-  const GenUiProp({this.description, this.name, this.ignore = false});
+  const GenUiProp({
+    this.description,
+    this.name,
+    this.ignore = false,
+    this.template = false,
+  });
   final String? description;
   final String? name;
   final bool ignore;
+  final bool template;
 }
 
 class GenUiAction {
@@ -186,6 +194,7 @@ sealed class GenUiBinding {
   const factory GenUiBinding.number(Object? raw) = _Binding;
   const factory GenUiBinding.bool(Object? raw) = _Binding;
   const factory GenUiBinding.stringList(Object? raw) = _Binding;
+  const factory GenUiBinding.value(Object? raw) = _Binding;
   const factory GenUiBinding.object(Object? raw) = _Binding;
   const factory GenUiBinding.objectList(Object? raw) = _Binding;
 }
@@ -196,6 +205,7 @@ class _Binding implements GenUiBinding {
 }
 
 class GenUiValues {
+  Object? raw(String key) => null;
   String? string(String key) => null;
   num? number(String key) => null;
   bool? boolean(String key) => null;
@@ -224,6 +234,14 @@ void Function(T) genUiValueWriter<T>(
 }) => (T value) {};
 
 void genUiReportMissing(Object ctx, String component, String property) {}
+
+Object? genUiTemplatePath(Object? reference) => null;
+
+List<Widget> genUiTemplateChildren(
+  Object ctx,
+  Object? reference,
+  Object? resolved,
+) => const <Widget>[];
 
 String? genUiAsString(Object? value) => null;
 num? genUiAsNum(Object? value) => null;

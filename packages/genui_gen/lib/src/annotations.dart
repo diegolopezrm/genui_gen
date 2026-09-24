@@ -87,7 +87,12 @@ class GenUiWidget {
 @Target({TargetKind.parameter, TargetKind.field})
 class GenUiProp {
   /// Creates a [GenUiProp] annotation.
-  const GenUiProp({this.description, this.name, this.ignore = false});
+  const GenUiProp({
+    this.description,
+    this.name,
+    this.ignore = false,
+    this.template = false,
+  });
 
   /// The description of the schema property.
   ///
@@ -104,6 +109,23 @@ class GenUiProp {
   /// An ignored parameter must be optional or have a default value, because
   /// the generated builder never passes it.
   final bool ignore;
+
+  /// Whether this list of children may be written as a template.
+  ///
+  /// A2UI describes the children of a component in two ways: a list of ids
+  /// the agent wrote out one by one, or a template —
+  /// `{"componentId": "row", "path": "/rows"}` — repeated once per entry of
+  /// the data model. The second is what makes a list that grows when the
+  /// agent sends data rather than a new surface: a table of rows, a feed, a
+  /// list of results.
+  ///
+  /// Only valid on a `List<Widget>` parameter. The property then accepts both
+  /// shapes, and a template child reads its own properties from its entry: the
+  /// child of `/rows` at index 2 binds `title` against `/rows/2/title`.
+  ///
+  /// Off by default because it changes the schema the model composes against,
+  /// and a prompt tuned against the old one would see something else.
+  final bool template;
 }
 
 /// Marks a `void Function()` / `VoidCallback` parameter as a user action.

@@ -10,6 +10,7 @@ import 'widgets/preference_row.dart';
 import 'widgets/product_card.dart';
 import 'widgets/stat_tile.dart';
 import 'widgets/tag_row.dart';
+import 'widgets/task_list.dart';
 
 /// Every [CatalogItem] generated in this package, by name.
 ///
@@ -23,6 +24,7 @@ final List<CatalogItem> genUiCatalogItems = <CatalogItem>[
   productCardCatalogItem,
   statTileCatalogItem,
   tagRowCatalogItem,
+  taskListCatalogItem,
 ];
 
 /// Every generated [CatalogItem] of this package, as a

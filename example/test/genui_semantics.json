@@ -365,6 +365,12 @@
         }
       }
     ],
+    "TaskList": [
+      {
+        "role": "text",
+        "name": "Sample title\nSample rows 1\nSample rows 2"
+      }
+    ],
     "Text": [
       {
         "role": "text",

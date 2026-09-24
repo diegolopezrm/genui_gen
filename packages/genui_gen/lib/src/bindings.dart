@@ -35,6 +35,15 @@ sealed class GenUiBinding {
   /// that are not numbers are dropped, and numeric strings are parsed).
   const factory GenUiBinding.numberList(Object? raw) = _NumberListBinding;
 
+  /// Binds a value of any shape, resolved with genui's `BoundObject` and
+  /// handed on as it came.
+  ///
+  /// The typed bindings coerce, which is what a widget property wants. A
+  /// child template does not: what the path holds is a list or a map of
+  /// entries, and one child is built per entry, so the shape has to survive.
+  /// Read it back with [GenUiValues.raw].
+  const factory GenUiBinding.value(Object? raw) = _ValueBinding;
+
   /// Binds a single JSON object (resolved with genui's `BoundObject`).
   ///
   /// The resolved value is exposed as a `Map<String, Object?>` through
@@ -69,6 +78,10 @@ final class _StringListBinding extends GenUiBinding {
 
 final class _NumberListBinding extends GenUiBinding {
   const _NumberListBinding(super.raw) : super._();
+}
+
+final class _ValueBinding extends GenUiBinding {
+  const _ValueBinding(super.raw) : super._();
 }
 
 final class _ObjectBinding extends GenUiBinding {
@@ -122,6 +135,13 @@ class GenUiValues {
   /// Returns `null` when the key was not bound or when the resolved value is
   /// not a map, so a model that emits the wrong shape degrades instead of
   /// throwing inside `build`.
+  /// The resolved value for [key], whatever shape it turned out to have.
+  ///
+  /// The typed getters coerce, which is what a widget property wants. A child
+  /// template does not: it needs the list or the map the path actually holds,
+  /// so that one child is built per entry.
+  Object? raw(String key) => _values[key];
+
   Map<String, Object?>? object(String key) => _asObject(_values[key]);
 
   /// The resolved list of JSON objects for [key], if any.
@@ -261,6 +281,12 @@ class GenUiBindings extends StatelessWidget {
         dataContext: dataContext,
         value: raw,
         builder: (innerContext, list) => next(innerContext, toNums(list)),
+      ),
+      _ValueBinding(:final raw) => BoundObject(
+        key: key,
+        dataContext: dataContext,
+        value: raw,
+        builder: next,
       ),
       _ObjectBinding(:final raw) => BoundObject(
         key: key,

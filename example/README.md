@@ -112,6 +112,13 @@ agent builds a surface, the user flips a switch — writes it, reads it back and
 replays it with no agent at all. That is the loop a bug report goes through
 when the screen that failed was composed by a model.
 
+## A list the data fills
+
+`TaskList` is marked `@GenUiProp(template: true)`, so the agent can send one
+row component and a path instead of naming every row. `test/task_list_test.dart`
+shows both shapes, and that adding an entry to the data model adds a row with
+no new surface.
+
 ## Check
 
 ```sh
