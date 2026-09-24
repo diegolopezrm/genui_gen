@@ -3,6 +3,10 @@
 Annotate a Flutter widget, run `build_runner`, get a genui `CatalogItem` whose
 schema, builder and examples are derived from the widget's constructor.
 
+A page that shows it end to end — constructor to schema to the message an agent
+sends, a recorded session you can step through, and what the tooling found in
+the stock catalog: <https://diegolopezrm.github.io/genui_gen/>
+
 ## The problem
 
 A [genui](https://pub.dev/packages/genui) `Catalog` needs three things per
