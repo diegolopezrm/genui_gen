@@ -1,6 +1,12 @@
 # genui_gen_builder
 
-`build_runner` generator for [`genui_gen`](../genui_gen). It turns a Flutter
+[![pub package](https://img.shields.io/pub/v/genui_gen_builder.svg?label=genui_gen_builder&color=0175C2)](https://pub.dev/packages/genui_gen_builder)
+[![runtime](https://img.shields.io/pub/v/genui_gen.svg?label=genui_gen&color=0175C2)](https://pub.dev/packages/genui_gen)
+[![pub points](https://img.shields.io/pub/points/genui_gen_builder?label=pub%20points)](https://pub.dev/packages/genui_gen_builder/score)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/diegolopezrm/genui_gen/blob/main/LICENSE)
+
+`build_runner` generator for
+[`genui_gen`](https://pub.dev/packages/genui_gen). It turns a Flutter
 widget annotated with `@GenUiWidget` into a genui `CatalogItem` whose JSON
 schema, widget builder and few-shot example are all derived from the widget's
 constructor. Nothing is written by hand, so the catalog can never drift from
@@ -9,6 +15,8 @@ the widget.
 A widget parameter may also be a plain data class annotated with `@GenUiData`,
 or a `List` of one, so a table, a chart series or any list of value objects can
 be composed by the model.
+
+**[What the pair does, on one page →](https://diegolopezrm.github.io/genui_gen/)**
 
 ## Compatibility
 
@@ -28,21 +36,33 @@ a new release of this package unless it removes API the generator uses.
 dependencies:
   genui: ^0.10.0
   genui_gen: ^0.8.0
-  json_schema_builder: ^0.1.3 # provides `S` and `ObjectSchema`
 
 dev_dependencies:
   build_runner: ^2.15.0
   genui_gen_builder: ^0.7.0
 ```
 
-`genui_gen_builder` 0.2.x generates code that calls runtime helpers added in
-`genui_gen` 0.2.0, so the two must move together: **use `genui_gen >= 0.2.0`**.
-The builder does not depend on `genui_gen` itself — it matches the annotations
-by name so the Flutter-dependent runtime never loads into the build isolate —
-so nothing enforces this for you.
+The generated part builds its schema with `S.object(...)` and shares your
+file's imports, and `genui_gen` re-exports `S`, `Schema` and `ObjectSchema` for
+that, so `json_schema_builder` is not a dependency of yours.
 
-No `build.yaml` is needed in your app: the builder applies itself to every
-package that depends on it and writes `<file>.genui.dart` next to the source.
+**The two packages move together.** The builder emits calls to runtime helpers
+as they are added, so a new builder against an old runtime generates code that
+does not compile. Nothing enforces it for you: the builder deliberately does
+not depend on `genui_gen` — it matches the annotations by name, so the
+Flutter-dependent runtime never loads into the build isolate.
+
+| Builder | Needs at least | Because it emits |
+|---|---|---|
+| 0.7.x | `genui_gen >= 0.8.0` | `genUiTemplateChildren`, `GenUiBinding.value` |
+| 0.6.x | `genui_gen >= 0.5.0` | the assembled `Catalog` with its `catalogId` |
+| 0.5.x | `genui_gen >= 0.4.0` | `genUiValueWriter` |
+| 0.2.x–0.4.x | `genui_gen >= 0.2.0` | the `@GenUiData` decoders |
+
+No `build.yaml` is needed to generate the items: the builder applies itself to
+every package that depends on it and writes `<file>.genui.dart` next to the
+source. One is needed only to give the assembled catalog an id — see
+[The package's catalog](#the-packages-catalog).
 
 ## Use
 
@@ -51,7 +71,6 @@ package that depends on it and writes `<file>.genui.dart` next to the source.
 import 'package:flutter/material.dart';
 import 'package:genui/genui.dart';
 import 'package:genui_gen/genui_gen.dart';
-import 'package:json_schema_builder/json_schema_builder.dart';
 
 part 'product_card.genui.dart';
 
@@ -90,10 +109,11 @@ The annotated file must:
 
 - contain the `part '<file>.genui.dart';` directive (the builder warns and
   skips the file otherwise), and
-- import `package:genui/genui.dart`, `package:genui_gen/genui_gen.dart` and
-  `package:json_schema_builder/json_schema_builder.dart` (plus Flutter). The
-  generated code is a `part of` your library and reuses its imports; when one
-  is missing the build fails with the exact import lines to add.
+- import `package:genui/genui.dart` and `package:genui_gen/genui_gen.dart`
+  (plus Flutter). The generated code is a `part of` your library and reuses its
+  imports; when one is missing the build fails with the exact import lines to
+  add. `genui_gen` re-exports `S`, `Schema` and `ObjectSchema`, so the schema
+  names the generated part uses come with it.
 
 ## The package's catalog
 

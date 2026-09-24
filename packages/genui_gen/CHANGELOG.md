@@ -1,3 +1,15 @@
+## 0.8.1
+
+- Documentation only; no API change.
+- Corrected the install instructions. They still listed `json_schema_builder`
+  as a direct dependency and imported it in the annotated file, which stopped
+  being true in 0.3.0 when this package began re-exporting `S`, `Schema` and
+  `ObjectSchema` for exactly that reason.
+- The README now covers what 0.4 through 0.8 added: `@GenUiWrites`, child
+  templates, lists of scalars and enums, and the assembled `genUiCatalog` with
+  its `catalog_id`.
+- Added `homepage`, pointing at https://diegolopezrm.github.io/genui_gen/.
+
 ## 0.8.0
 
 - Added `genUiTemplateChildren` and `genUiTemplatePath`, the runtime half of

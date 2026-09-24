@@ -1,3 +1,16 @@
+## 0.7.1
+
+- Documentation only; no generator change.
+- Corrected the install instructions, which listed `json_schema_builder` as a
+  direct dependency and imported it in the annotated file. It has not been
+  needed since `genui_gen` 0.3.0.
+- Documented the runtime floor each builder needs. The generator emits calls to
+  runtime helpers as they are added, so a new builder against an old
+  `genui_gen` generates code that does not compile, and nothing enforces it:
+  the builder deliberately does not depend on the runtime. 0.7.x needs
+  `genui_gen >= 0.8.0`.
+- Added `homepage`, pointing at https://diegolopezrm.github.io/genui_gen/.
+
 ## 0.7.0
 
 - Added `@GenUiProp(template: true)`, which lets a `List<Widget>` property
