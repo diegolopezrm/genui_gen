@@ -118,10 +118,31 @@ void main() {
     expect(captured.last.trend, Trend.down);
   });
 
-  testWidgets('the gallery page renders', (tester) async {
+  testWidgets('the app opens on the catalog, with a tab per capability', (
+    tester,
+  ) async {
     await tester.pumpWidget(const GenUiGenExampleApp());
     await tester.pump();
+
     expect(find.byType(AppBar), findsOneWidget);
-    expect(find.text('genui_gen example'), findsOneWidget);
+    for (final String tab in <String>['Catalog', 'Session', 'Trace']) {
+      expect(find.text(tab), findsOneWidget, reason: tab);
+    }
+  });
+
+  testWidgets('a session composes a surface and records it', (tester) async {
+    await tester.pumpWidget(const GenUiGenExampleApp());
+    await tester.pump();
+
+    await tester.tap(find.text('Session'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('What is on my plate today?'));
+    await tester.pumpAndSettle();
+
+    // The agent answered with a surface built from this app's catalog, and
+    // the rows came from the data model rather than from the message.
+    expect(find.text('Call the dentist'), findsOneWidget);
+    expect(recordedTrace.value, isNotNull);
+    expect(recordedTrace.value!.steps, isNotEmpty);
   });
 }

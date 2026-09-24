@@ -5,6 +5,19 @@ are annotated with `@GenUiWidget`, `build_runner` derives a genui
 `CatalogItem` for each one, and the app renders every generated example with
 genui's `DebugCatalogView`. No LLM, API key or network connection is needed.
 
+## Three tabs, three things the package does
+
+| Tab | What it shows |
+|---|---|
+| **Catalog** | Every component the model may ask for, rendered from the example the generator derived from each widget's constructor. This is the catalog as the agent sees it. |
+| **Session** | The loop: you ask for something, an agent answers with a surface built from that catalog, and what you do with it goes back. The agent is scripted, so it runs with no key and no network; everything after it is real. |
+| **Trace** | The session that already happened, replayed with no agent at all. Drag the slider and the surface goes back to what it was at that step: at step 3 the list exists and the data has not arrived, at step 5 the rows are there. |
+
+```sh
+cd example
+flutter run          # or: flutter run -d chrome
+```
+
 ## The widgets
 
 | File | Demonstrates |
