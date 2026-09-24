@@ -1,0 +1,840 @@
+<meta charset="utf-8">
+<title>genui_gen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;500;700&display=swap">
+
+<style>
+  :root {
+    --ground:   #E9ECEA;
+    --panel:    #FCFDFC;
+    --panel-2:  #F1F4F2;
+    --code:     #F6F8F7;
+    --ink:      #14191A;
+    --ink-soft: #545C5E;
+    --ink-faint:#7E8789;
+    --rule:     #CCD3D0;
+    --rule-2:   #B2BAB7;
+    --accent:   #8A6510;
+    --accent-bg:#F1E6CB;
+    --agent:    #3B5885;
+    --app:      #3F6B33;
+    --breaking: #A33A24;
+
+    --sans: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --serif: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+    --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+    --read: 36rem;
+    --wide: 1060px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:   #111514;
+      --panel:    #191E1D;
+      --panel-2:  #151A19;
+      --code:     #121716;
+      --ink:      #E7EAE6;
+      --ink-soft: #99A3A1;
+      --ink-faint:#6D7776;
+      --rule:     #29302E;
+      --rule-2:   #3A4341;
+      --accent:   #E0B457;
+      --accent-bg:#2B2313;
+      --agent:    #8AA8D6;
+      --app:      #8DC07B;
+      --breaking: #E2836B;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:   #111514;
+    --panel:    #191E1D;
+    --panel-2:  #151A19;
+    --code:     #121716;
+    --ink:      #E7EAE6;
+    --ink-soft: #99A3A1;
+    --ink-faint:#6D7776;
+    --rule:     #29302E;
+    --rule-2:   #3A4341;
+    --accent:   #E0B457;
+    --accent-bg:#2B2313;
+    --agent:    #8AA8D6;
+    --app:      #8DC07B;
+    --breaking: #E2836B;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 17px;
+    line-height: 1.6;
+    padding-inline: 20px;
+    padding-block: 0 0;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: var(--wide); margin-inline: auto; }
+  .prose { max-width: var(--read); }
+  .prose p { margin: 0 0 0.9em; }
+  .prose p:last-child { margin-bottom: 0; }
+
+  a { color: var(--ink); text-decoration-color: var(--rule-2); text-underline-offset: 3px; }
+  a:hover { text-decoration-color: var(--accent); }
+  a:focus-visible, button:focus-visible, input:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px;
+  }
+
+  h1, h2, h3 { font-family: var(--sans); font-weight: 600; letter-spacing: -0.02em; text-wrap: balance; margin: 0; }
+  h1 { font-size: clamp(2.4rem, 8vw, 3.6rem); font-weight: 700; letter-spacing: -0.04em; line-height: 1; }
+  h2 { font-size: clamp(1.4rem, 4vw, 1.9rem); line-height: 1.15; }
+  h3 { font-size: 1.05rem; font-weight: 600; }
+
+  .eyebrow {
+    font-family: var(--mono); font-size: 11.5px; font-weight: 500;
+    letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-faint);
+    margin: 0;
+  }
+  .eyebrow.on { color: var(--accent); }
+
+  /* ---------- header ---------- */
+
+  header.top {
+    border-bottom: 1px solid var(--rule);
+    padding-block: clamp(3rem, 9vw, 5.5rem) clamp(2rem, 6vw, 3.5rem);
+    display: flex; flex-direction: column; gap: 1.4rem;
+  }
+  .deck {
+    max-width: 30rem; font-size: clamp(1.05rem, 2.4vw, 1.3rem);
+    line-height: 1.45; color: var(--ink-soft); margin: 0;
+  }
+  .deck b { color: var(--ink); font-weight: 600; }
+
+  .meta { display: flex; flex-wrap: wrap; gap: 0.5rem 0.55rem; align-items: center; }
+  .pill {
+    font-family: var(--mono); font-size: 12px; line-height: 1;
+    padding: 7px 10px; border: 1px solid var(--rule-2); border-radius: 999px;
+    color: var(--ink-soft); white-space: nowrap;
+  }
+  .pill b { color: var(--ink); font-weight: 500; }
+  .pill.link { text-decoration: none; border-color: var(--rule-2); color: var(--ink); }
+  .pill.link:hover { background: var(--accent-bg); border-color: var(--accent); }
+
+  /* ---------- sections ---------- */
+
+  section { padding-block: clamp(3rem, 8vw, 5rem); border-bottom: 1px solid var(--rule); }
+  section:last-of-type { border-bottom: 0; }
+  .head { display: flex; flex-direction: column; gap: 0.7rem; margin-bottom: 2rem; }
+  .head .prose { margin-top: 0.4rem; }
+
+  /* ---------- code ---------- */
+
+  pre {
+    font-family: var(--mono); font-size: 12.5px; line-height: 1.65;
+    background: var(--code); color: var(--ink);
+    margin: 0; padding: 14px 16px; overflow-x: auto;
+    border: 1px solid var(--rule); border-radius: 3px;
+    tab-size: 2;
+  }
+  code { font-family: var(--mono); font-size: 0.87em; }
+  .prose code, td code, li code {
+    background: var(--panel-2); border: 1px solid var(--rule);
+    padding: 1px 4px; border-radius: 3px; white-space: nowrap;
+  }
+  .c { color: var(--ink-faint); font-style: italic; }
+  .a { color: var(--accent); }
+  .k { color: var(--agent); }
+  .s { color: var(--ink-soft); }
+  .n, .b { color: var(--accent); }
+
+  /* ---------- derivation strip ---------- */
+
+  .strip {
+    display: grid; gap: 12px;
+    grid-template-columns: 1fr auto 1fr auto 1fr;
+    align-items: stretch;
+  }
+  .step-panel { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .step-panel pre { flex: 1; }
+  .arrow {
+    align-self: center; font-family: var(--mono); font-size: 18px;
+    color: var(--rule-2); padding-top: 18px;
+  }
+  @media (max-width: 860px) {
+    .strip { grid-template-columns: 1fr; }
+    .arrow { transform: rotate(90deg); padding: 0; justify-self: center; }
+  }
+
+  /* ---------- two-up ---------- */
+
+  .twoup { display: grid; gap: 14px; grid-template-columns: 1fr 1fr; align-items: start; }
+  @media (max-width: 860px) { .twoup { grid-template-columns: 1fr; } }
+  .stack { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+
+  /* ---------- trace player ---------- */
+
+  .player {
+    display: grid; gap: 16px; grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+    align-items: start;
+  }
+  @media (max-width: 900px) { .player { grid-template-columns: 1fr; } }
+
+  .scrub { display: flex; flex-direction: column; gap: 10px; }
+  .scrub-head {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 1rem;
+    font-family: var(--mono); font-size: 12px; color: var(--ink-soft);
+  }
+  .scrub-head b { font-family: var(--sans); font-size: 15px; color: var(--ink); font-weight: 600; }
+  input[type="range"] { width: 100%; accent-color: var(--accent); margin: 0; }
+
+  ol.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+  ol.steps button {
+    width: 100%; display: flex; align-items: center; gap: 10px; text-align: left;
+    font-family: var(--mono); font-size: 12px; color: var(--ink-soft);
+    background: transparent; border: 1px solid transparent; border-radius: 3px;
+    padding: 7px 9px; cursor: pointer; transition: background 120ms ease, border-color 120ms ease;
+  }
+  ol.steps button:hover { background: var(--panel-2); }
+  ol.steps button[aria-pressed="true"] { background: var(--panel); border-color: var(--rule-2); color: var(--ink); }
+  .kind {
+    font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700;
+    padding: 3px 7px; border-radius: 999px; flex: none;
+    border: 1px solid currentColor;
+  }
+  .kind.agent { color: var(--agent); }
+  .kind.data  { color: var(--accent); }
+  .kind.app   { color: var(--app); }
+  .step-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .at { flex: none; color: var(--ink-faint); font-size: 11px; font-variant-numeric: tabular-nums; }
+
+  .stage-col { display: flex; flex-direction: column; gap: 8px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); }
+  @media (max-width: 900px) { .stage-col { position: static; } }
+  .stage {
+    background: var(--panel-2); border: 1px solid var(--rule); border-radius: 3px;
+    padding: 22px 18px; min-height: 190px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--sans);
+  }
+  .surface {
+    width: 100%; max-width: 300px; background: var(--panel);
+    border: 1px solid var(--rule); border-radius: 6px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.07), 0 6px 18px -12px rgba(0,0,0,0.35);
+    padding: 16px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .surface .s-title { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+  .surface .s-row { font-size: 14px; color: var(--ink); }
+  .surface .s-empty { font-size: 12.5px; color: var(--ink-faint); }
+  .nosurface {
+    font-family: var(--mono); font-size: 12px; color: var(--ink-faint);
+    border: 1px dashed var(--rule-2); border-radius: 4px; padding: 22px 16px;
+    text-align: center; max-width: 300px; line-height: 1.6;
+  }
+  .stage-caption { font-family: var(--mono); font-size: 11.5px; color: var(--ink-faint); }
+  .stage-caption b { color: var(--ink-soft); font-weight: 500; }
+
+  /* ---------- tables ---------- */
+
+  .table-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 3px; background: var(--panel); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  th {
+    font-family: var(--mono); font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--ink-faint); white-space: nowrap;
+  }
+  td.api { font-family: var(--mono); font-size: 12.5px; white-space: nowrap; color: var(--accent); }
+  td.ref { font-family: var(--mono); font-size: 12.5px; white-space: nowrap; }
+  td.fails { color: var(--ink-soft); }
+
+  /* ---------- weight chart ---------- */
+
+  .weight { display: flex; flex-direction: column; gap: 3px; font-family: var(--mono); font-size: 12px; }
+  .wrow { display: grid; grid-template-columns: 8.5rem 1fr 7.5rem; gap: 10px; align-items: center; }
+  @media (max-width: 560px) { .wrow { grid-template-columns: 7rem 1fr; } .wrow .wnum { grid-column: 2; text-align: right; } }
+  .wbar { height: 14px; background: var(--panel-2); border: 1px solid var(--rule); border-radius: 2px; overflow: hidden; }
+  .wbar span { display: block; height: 100%; background: var(--accent); opacity: 0.85; }
+  .wbar.shared span { background: var(--rule-2); }
+  .wnum { color: var(--ink-faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .wname { color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; }
+
+  /* ---------- callout ---------- */
+
+  .note {
+    border-left: 2px solid var(--accent); padding: 2px 0 2px 16px;
+    color: var(--ink-soft); font-size: 15.5px; max-width: var(--read);
+  }
+  ul.plain { margin: 0; padding-left: 1.1rem; max-width: var(--read); }
+  ul.plain li { margin-bottom: 0.5em; }
+
+  .cols { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+  .box { background: var(--panel); border: 1px solid var(--rule); border-radius: 3px; padding: 16px; display: flex; flex-direction: column; gap: 7px; }
+  .box p { margin: 0; font-size: 15px; color: var(--ink-soft); }
+
+  footer {
+    padding-block: 2.5rem 3.5rem; display: flex; flex-wrap: wrap; gap: 0.6rem 1.5rem;
+    justify-content: space-between; align-items: baseline;
+    font-family: var(--mono); font-size: 12px; color: var(--ink-faint);
+    border-top: 1px solid var(--rule);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="top">
+    <p class="eyebrow">Flutter · A2UI · pub.dev</p>
+    <h1>genui_gen</h1>
+    <p class="deck">Annotate a Flutter widget and the catalog an agent composes against is <b>derived from its constructor</b> — schema, builder and examples — so it cannot drift from the widget it describes.</p>
+    <div class="meta">
+      <span class="pill"><b>genui_gen</b> 0.8.0</span>
+      <span class="pill"><b>genui_gen_builder</b> 0.7.0</span>
+      <span class="pill">genui ^0.10.0</span>
+      <span class="pill">Flutter ≥3.35</span>
+      <a class="pill link" href="https://pub.dev/packages/genui_gen">pub.dev ↗</a>
+      <a class="pill link" href="https://github.com/diegolopezrm/genui_gen">GitHub ↗</a>
+    </div>
+  </header>
+
+  <section id="drift">
+    <div class="head">
+      <p class="eyebrow on">The problem</p>
+      <h2>A hand-written catalog drifts, and nothing tells you</h2>
+      <div class="prose">
+        <p>A <a href="https://pub.dev/packages/genui">genui</a> catalog needs three things per widget: a JSON schema the model composes against, a builder that turns that JSON back into a widget, and example data for tooling and few-shot prompts.</p>
+        <p>Write them by hand and they drift in silence. Rename a constructor parameter, add a required one, change an enum — the app still compiles, and the model keeps composing against last month's contract. The first symptom is a malformed message in production.</p>
+        <p>So don't write them. The generator reads the constructor with the analyzer and emits all three from it. The property names <i>are</i> the parameter names; the required list <i>is</i> the set of non-nullable parameters without defaults. There is no second source of truth to keep in sync.</p>
+      </div>
+    </div>
+
+    <div class="strip">
+      <div class="step-panel">
+        <p class="eyebrow">1 · you write this</p>
+        <pre><span class="a">@GenUiWidget</span>(description: <span class="s">'A product card with price and image.'</span>)
+class ProductCard extends StatelessWidget {
+  const ProductCard({
+    super.key,
+    required this.title,
+    required this.price,
+    this.imageUrl,
+    this.onTap,
+  });
+
+  <span class="c">/// Product name.</span>
+  final String title;
+
+  <span class="c">/// Price in USD.</span>
+  final double price;
+
+  <span class="c">/// Optional image URL.</span>
+  final String? imageUrl;
+
+  <span class="c">/// Fired when the card is tapped.</span>
+  final VoidCallback? onTap;</pre>
+      </div>
+
+      <div class="arrow" aria-hidden="true">→</div>
+
+      <div class="step-panel">
+        <p class="eyebrow">2 · build_runner emits this</p>
+        <pre>final CatalogItem productCardCatalogItem = CatalogItem(
+  name: <span class="s">'ProductCard'</span>,
+  dataSchema: S.object(
+    description: <span class="s">'A product card with price and image.'</span>,
+    properties: {
+      <span class="s">'title'</span>: A2uiSchemas.stringReference(
+        description: <span class="s">'Product name.'</span>,
+      ),
+      <span class="s">'price'</span>: A2uiSchemas.numberReference(
+        description: <span class="s">'Price in USD.'</span>,
+      ),
+      <span class="s">'imageUrl'</span>: A2uiSchemas.stringReference(...),
+      <span class="s">'onTap'</span>: A2uiSchemas.action(...),
+    },
+    required: [<span class="s">'title'</span>, <span class="s">'price'</span>],
+  ),
+  <span class="c">// + widgetBuilder, + exampleData</span>
+);</pre>
+      </div>
+
+      <div class="arrow" aria-hidden="true">→</div>
+
+      <div class="step-panel">
+        <p class="eyebrow">3 · the model may send this</p>
+        <pre>{
+  <span class="k">"id"</span>: <span class="s">"root"</span>,
+  <span class="k">"component"</span>: <span class="s">"ProductCard"</span>,
+  <span class="k">"title"</span>: <span class="s">"Noise-cancelling headphones"</span>,
+  <span class="k">"price"</span>: <span class="n">249.99</span>,
+  <span class="k">"imageUrl"</span>: {
+    <span class="k">"path"</span>: <span class="s">"/cart/0/image"</span>
+  },
+  <span class="k">"onTap"</span>: {
+    <span class="k">"event"</span>: { <span class="k">"name"</span>: <span class="s">"onTap"</span> }
+  }
+}</pre>
+        <p class="eyebrow">every property takes a literal or a binding</p>
+      </div>
+    </div>
+
+    <p class="note" style="margin-top:1.6rem">Change the constructor and the generated part changes in review, or the build fails. The catalog can't fall behind the widget, because the catalog is a function of the widget.</p>
+  </section>
+
+  <section id="trace">
+    <div class="head">
+      <p class="eyebrow on">package:genui_gen/tracing.dart</p>
+      <h2>The screen that failed is not in your source</h2>
+      <div class="prose">
+        <p>Someone reports that the list came up empty. You open the code and there is no list: a model composed that screen, once, from a context that will not come back.</p>
+        <p>A trace is that session kept on disk — every message the agent sent, the data model each time it changed, every action the app sent back. It replays with no model and no network, because A2UI describes interfaces as data.</p>
+        <p>Below is a real recording from the example app, five steps, exactly as <code>GenUiTraceRecorder</code> wrote it. Drag the scrubber.</p>
+      </div>
+    </div>
+
+    <div class="player">
+      <div class="scrub">
+        <div class="scrub-head">
+          <b id="stepLabel">Step 5 of 5</b>
+          <span id="stepAt">32 ms</span>
+        </div>
+        <label for="scrubber" class="eyebrow" style="clip-path: inset(50%); position: absolute;">Step</label>
+        <input type="range" id="scrubber" min="1" max="5" step="1" value="5">
+        <ol class="steps" id="stepList"></ol>
+        <pre id="wire" aria-live="polite"></pre>
+      </div>
+
+      <div class="stage-col">
+        <p class="eyebrow">what was on screen at that step</p>
+        <div class="stage" id="stage"></div>
+        <p class="stage-caption" id="stageCaption"></p>
+      </div>
+    </div>
+
+    <div class="twoup" style="margin-top:2rem">
+      <div class="stack">
+        <p class="eyebrow">record</p>
+        <pre>final recorder = GenUiTraceRecorder.attach(
+  controller,
+  catalogId: genUiCatalog.catalogId,
+  redact: const [<span class="s">'/user/email'</span>],
+);
+
+transport.messages.listen(recorder.handleMessage);
+<span class="c">// ...</span>
+await File(<span class="s">'bug-4821.a2ui-trace'</span>)
+    .writeAsString(recorder.build().encode());</pre>
+      </div>
+      <div class="stack">
+        <p class="eyebrow">replay, in a test, against today's catalog</p>
+        <pre>final player = GenUiTracePlayer(trace, catalog: genUiCatalog)
+  ..seek(<span class="n">4</span>);
+
+await tester.pumpWidget(
+  MaterialApp(home: GenUiTraceView(player: player)),
+);
+expect(find.text(<span class="s">'Call the dentist'</span>), findsOneWidget);</pre>
+      </div>
+    </div>
+
+    <p class="note" style="margin-top:1.6rem">That is how last week's session becomes this week's regression test: a catalog change that breaks a real conversation fails here first. <code>redact</code> names the data model paths that must never reach the file — the field holding an email belongs in that list before the first recording, not after the first leak.</p>
+  </section>
+
+  <section id="template">
+    <div class="head">
+      <p class="eyebrow on">@GenUiProp(template: true)</p>
+      <h2>A list the data fills, not the agent</h2>
+      <div class="prose">
+        <p>A list of children is normally written out by the agent, one id at a time. That works until the list <i>is</i> the data: five tasks today, nine tomorrow, and a new surface composed every time one is added.</p>
+        <p>A template property takes the other shape A2UI allows. The agent describes the row once and names a path; one row is built per entry there. A new entry adds a row with nobody asked.</p>
+      </div>
+    </div>
+
+    <div class="twoup">
+      <div class="stack">
+        <p class="eyebrow">the widget</p>
+        <pre><span class="a">@GenUiWidget</span>(description: <span class="s">'A titled list of rows, one per item in the data.'</span>)
+class TaskList extends StatelessWidget {
+  const TaskList({
+    super.key,
+    required this.title,
+    <span class="a">@GenUiProp(template: true)</span> required this.rows,
+    this.emptyLabel = <span class="s">'Nothing here yet.'</span>,
+  });
+
+  final String title;
+
+  <span class="c">/// One row per task.</span>
+  final List&lt;Widget&gt; rows;</pre>
+      </div>
+      <div class="stack">
+        <p class="eyebrow">the agent sends the row once</p>
+        <pre>{
+  <span class="k">"id"</span>: <span class="s">"root"</span>,
+  <span class="k">"component"</span>: <span class="s">"TaskList"</span>,
+  <span class="k">"title"</span>: <span class="s">"Today"</span>,
+  <span class="k">"rows"</span>: {
+    <span class="k">"componentId"</span>: <span class="s">"task_row"</span>,
+    <span class="k">"path"</span>: <span class="s">"/tasks"</span>
+  }
+},
+{
+  <span class="k">"id"</span>: <span class="s">"task_row"</span>,
+  <span class="k">"component"</span>: <span class="s">"Text"</span>,
+  <span class="k">"text"</span>: { <span class="k">"path"</span>: <span class="s">"label"</span> }
+}</pre>
+      </div>
+    </div>
+
+    <ul class="plain" style="margin-top:1.4rem">
+      <li>Each child reads its own entry: the child at index 2 binds <code>label</code> against <code>/tasks/2/label</code>, so one component describes every row.</li>
+      <li>Children are keyed by entry, not by position, so a row removed from the middle takes its state with it instead of handing it to the row that moved up.</li>
+      <li>The property still accepts a plain list of ids, so an agent that writes the children out one by one keeps working.</li>
+      <li>It is off by default — a template property publishes a schema a prompt tuned against the previous version was not written for, so turning it on is your call, not the generator's.</li>
+    </ul>
+  </section>
+
+  <section id="ci">
+    <div class="head">
+      <p class="eyebrow on">package:genui_gen/testing.dart</p>
+      <h2>Four things you can fail a build on</h2>
+      <div class="prose">
+        <p>The schema half of a catalog is checked when it's generated. The other half — what the rendered component says to the person using it, and what the whole document costs to send — has nothing checking it, and it's the half a Dart diff doesn't show.</p>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Call</th><th>What it keeps</th><th>What it fails on</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="api">genUiSemanticsGolden</td>
+            <td>Role, name, value, state and actions of every component, in traversal order, as a reviewable JSON file.</td>
+            <td class="fails">A widget change that quietly alters what a screen reader is told.</td>
+          </tr>
+          <tr>
+            <td class="api">genUiSemanticsAudit</td>
+            <td>Runs over that same recording.</td>
+            <td class="fails">A control with nothing to announce, a component that reaches assistive tech as nothing at all, two controls that announce themselves identically.</td>
+          </tr>
+          <tr>
+            <td class="api">genUiCatalogDiff</td>
+            <td>Yesterday's published <code>catalog.json</code> against today's.</td>
+            <td class="fails">A property that disappears, becomes required, changes type, or loses an enum value — all invisible to your compiler, all breaking for the agent.</td>
+          </tr>
+          <tr>
+            <td class="api">genUiCatalogWeight</td>
+            <td>How many characters each component takes of the document that travels in every request.</td>
+            <td class="fails">Nothing on its own. It tells you which component is eating the prompt.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="twoup" style="margin-top:1.4rem">
+      <div class="stack">
+        <p class="eyebrow">the golden, as it is written</p>
+        <pre>{
+  <span class="k">"components"</span>: {
+    <span class="k">"PreferenceRow"</span>: [
+      {
+        <span class="k">"role"</span>: <span class="s">"switch"</span>,
+        <span class="k">"name"</span>: <span class="s">"Sample label"</span>,
+        <span class="k">"state"</span>: { <span class="k">"on"</span>: <span class="b">true</span>, <span class="k">"disabled"</span>: <span class="b">false</span> },
+        <span class="k">"actions"</span>: [<span class="s">"tap"</span>, <span class="s">"focus"</span>]
+      }
+    ],
+    <span class="k">"Image"</span>: [],
+    <span class="k">"Icon"</span>: []
+  }
+}</pre>
+        <p class="eyebrow">two empty arrays: a screen reader is told nothing</p>
+      </div>
+      <div class="stack">
+        <p class="eyebrow">the weight of the example's catalog, measured</p>
+        <div class="weight" id="weight"></div>
+        <p class="eyebrow">characters, not tokens — a number that pretends to be exact about someone else's tokenizer is worse than an honest proportion</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="found">
+    <div class="head">
+      <p class="eyebrow on">Filed upstream</p>
+      <h2>What running it over the stock catalog turned up</h2>
+      <div class="prose">
+        <p>The semantics recorder was written for this package's own widgets. Pointed at genui's basic catalog — the components everyone gets for free — it produced a file full of empty arrays and unnamed controls. Each of these was measured with the tooling on this page before it was reported.</p>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Where</th><th>What the recording showed</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="ref"><a href="https://github.com/a2ui-project/a2ui/issues/2697">a2ui#2697</a></td>
+            <td>Every A2UI component declares <code>accessibility.label</code> and <code>description</code>. Neither reaches the semantics tree — the renderer drops them.</td>
+            <td class="ref"><a href="https://github.com/flutter/genui/pull/1035">genui#1035</a></td>
+          </tr>
+          <tr>
+            <td class="ref"><a href="https://github.com/a2ui-project/a2ui/issues/2763">a2ui#2763</a></td>
+            <td>Sliders, volume controls and playback buttons record a role and no name. There is nothing for a screen reader to say.</td>
+            <td class="ref"><a href="https://github.com/flutter/genui/pull/1042">genui#1042</a></td>
+          </tr>
+          <tr>
+            <td class="ref"><a href="https://github.com/a2ui-project/a2ui/issues/2740">a2ui#2740</a></td>
+            <td><code>Image</code> and <code>Icon</code> record as <code>[]</code>. The catalog's own description is never applied as a label.</td>
+            <td class="fails">Open</td>
+          </tr>
+          <tr>
+            <td class="ref"><a href="https://github.com/a2ui-project/a2ui/issues/2736">a2ui#2736</a></td>
+            <td><code>CheckBox</code> ignores a literal <code>value</code> and renders unchecked, so the model's state and the screen disagree.</td>
+            <td class="ref"><a href="https://github.com/flutter/genui/pull/1038">genui#1038</a></td>
+          </tr>
+          <tr>
+            <td class="ref"><a href="https://github.com/a2ui-project/a2ui/issues/2737">a2ui#2737</a></td>
+            <td><code>Slider</code> behaves as a two-position switch over its default range, and crashes below it.</td>
+            <td class="fails">Open</td>
+          </tr>
+          <tr>
+            <td class="ref"><a href="https://github.com/a2ui-project/a2ui/issues/2738">a2ui#2738</a></td>
+            <td>Proposal: hold Flutter, SwiftUI, Compose and the web to one semantics tree per component — the shape this recorder already writes.</td>
+            <td class="fails">Proposed</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="note" style="margin-top:1.4rem">Role, name, value, state and actions is the only description of a rendered surface that every A2UI renderer can be held to. Which means the same recording says what a second client, in another language, would have to reproduce from your catalog.</p>
+  </section>
+
+  <section id="start">
+    <div class="head">
+      <p class="eyebrow on">Getting started</p>
+      <h2>Three files and a build</h2>
+    </div>
+
+    <div class="cols">
+      <div class="box">
+        <p class="eyebrow">1 · pubspec.yaml</p>
+        <pre>dependencies:
+  genui: ^0.10.0
+  genui_gen: ^0.8.0
+
+dev_dependencies:
+  build_runner: ^2.15.0
+  genui_gen_builder: ^0.7.0</pre>
+      </div>
+      <div class="box">
+        <p class="eyebrow">2 · build.yaml</p>
+        <pre>targets:
+  $default:
+    builders:
+      genui_gen_builder:genui_catalog:
+        options:
+          catalog_id: com.example.app</pre>
+        <p>The id names your catalog to everything outside the build. A generator can't invent it.</p>
+      </div>
+      <div class="box">
+        <p class="eyebrow">3 · anywhere</p>
+        <pre>dart run build_runner build</pre>
+        <p>Every annotated widget lands in a generated <code>genui_catalog.g.dart</code>, sorted, so registering a catalog stops being a hand-maintained list of names.</p>
+      </div>
+    </div>
+
+    <div class="stack" style="max-width:var(--read); margin-top:1.6rem">
+      <p class="eyebrow">and the catalog is one line, whatever the app grows into</p>
+      <pre>import <span class="s">'genui_catalog.g.dart'</span>;
+
+final catalog = genUiCatalog.copyWith(
+  newItems: BasicCatalogItems.asCatalog().items.toList(),
+);</pre>
+    </div>
+
+    <div class="meta" style="margin-top:2rem">
+      <a class="pill link" href="https://pub.dev/packages/genui_gen">pub.dev/packages/genui_gen ↗</a>
+      <a class="pill link" href="https://github.com/diegolopezrm/genui_gen">Source and the runnable example ↗</a>
+      <a class="pill link" href="https://github.com/diegolopezrm/genui_gen#readme">Full reference ↗</a>
+    </div>
+  </section>
+
+  <footer>
+    <span>Diego Alejandro López Camacho · MIT</span>
+    <span>genui_gen 0.8.0 · genui_gen_builder 0.7.0</span>
+  </footer>
+
+</div>
+
+<script>
+  (function () {
+    var STEPS = [
+      {
+        kind: 'agent', at: 1, text: 'updateComponents — TaskList + the row template',
+        stage: 'none',
+        caption: 'Nothing on screen. The components are described, not created.',
+        json: `{
+  "version": "v0.9",
+  "updateComponents": {
+    "surfaceId": "session-1",
+    "components": [
+      {
+        "id": "root",
+        "component": "TaskList",
+        "title": "Today",
+        "rows": { "componentId": "task_row", "path": "/tasks" }
+      },
+      {
+        "id": "task_row",
+        "component": "Text",
+        "text": { "path": "label" }
+      }
+    ]
+  }
+}`
+      },
+      {
+        kind: 'agent', at: 8, text: 'createSurface — session-1',
+        stage: 'empty',
+        caption: 'Surface session-1 built against the app catalog. /tasks is empty, so TaskList shows its emptyLabel.',
+        json: `{
+  "version": "v0.9",
+  "createSurface": {
+    "surfaceId": "session-1",
+    "catalogId": "dev.dlsoft.genui_gen.example",
+    "sendDataModel": false
+  }
+}`
+      },
+      {
+        kind: 'data', at: 31, text: 'data model — session-1 {}',
+        stage: 'empty',
+        caption: 'The recorder keeps the data model itself, not only the messages — including writes the user makes that never go back to the agent.',
+        json: `{
+  "kind": "data",
+  "surfaceId": "session-1",
+  "data": {}
+}`
+      },
+      {
+        kind: 'agent', at: 31, text: 'updateDataModel — three tasks',
+        stage: 'rows',
+        caption: 'The agent never named a row. It filled a path, and the template built one row per entry.',
+        json: `{
+  "version": "v0.9",
+  "updateDataModel": {
+    "surfaceId": "session-1",
+    "value": {
+      "tasks": [
+        { "label": "Call the dentist" },
+        { "label": "Renew the passport" },
+        { "label": "Water the plants" }
+      ]
+    }
+  }
+}`
+      },
+      {
+        kind: 'data', at: 32, text: 'data model — session-1, three entries',
+        stage: 'rows',
+        caption: 'End of the turn. Add a fourth entry here and a fourth row appears, with no new surface composed.',
+        json: `{
+  "kind": "data",
+  "surfaceId": "session-1",
+  "data": {
+    "tasks": [
+      { "label": "Call the dentist" },
+      { "label": "Renew the passport" },
+      { "label": "Water the plants" }
+    ]
+  }
+}`
+      }
+    ];
+
+    var ROWS = ['Call the dentist', 'Renew the passport', 'Water the plants'];
+
+    function esc(s) {
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function highlight(src) {
+      return esc(src)
+        .replace(/"([^"]*)"(\s*:)/g, '<span class="k">"$1"</span>$2')
+        .replace(/:\s*"([^"]*)"/g, ': <span class="s">"$1"</span>')
+        .replace(/:\s*(-?\d+(?:\.\d+)?)/g, ': <span class="n">$1</span>')
+        .replace(/\b(true|false|null)\b/g, '<span class="b">$1</span>');
+    }
+
+    var list = document.getElementById('stepList');
+    var wire = document.getElementById('wire');
+    var stage = document.getElementById('stage');
+    var caption = document.getElementById('stageCaption');
+    var label = document.getElementById('stepLabel');
+    var at = document.getElementById('stepAt');
+    var scrubber = document.getElementById('scrubber');
+    var current = STEPS.length;
+
+    STEPS.forEach(function (step, i) {
+      var li = document.createElement('li');
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.innerHTML =
+        '<span class="kind ' + step.kind + '">' + step.kind + '</span>' +
+        '<span class="step-text">' + esc(step.text) + '</span>' +
+        '<span class="at">' + step.at + ' ms</span>';
+      btn.addEventListener('click', function () { select(i + 1); });
+      li.appendChild(btn);
+      list.appendChild(li);
+    });
+
+    function renderStage(kind) {
+      if (kind === 'none') {
+        return '<div class="nosurface">no surface yet<br>the components exist only as a message</div>';
+      }
+      var body = kind === 'rows'
+        ? ROWS.map(function (r) { return '<div class="s-row">' + r + '</div>'; }).join('')
+        : '<div class="s-empty">Nothing here yet.</div>';
+      return '<div class="surface"><div class="s-title">Today</div>' + body + '</div>';
+    }
+
+    function select(n) {
+      current = n;
+      var step = STEPS[n - 1];
+      label.textContent = 'Step ' + n + ' of ' + STEPS.length;
+      at.textContent = step.at + ' ms';
+      wire.innerHTML = highlight(step.json);
+      stage.innerHTML = renderStage(step.stage);
+      caption.textContent = step.caption;
+      scrubber.value = String(n);
+      Array.prototype.forEach.call(list.querySelectorAll('button'), function (b, i) {
+        b.setAttribute('aria-pressed', String(i === n - 1));
+      });
+    }
+
+    scrubber.addEventListener('input', function () { select(Number(scrubber.value)); });
+    select(current);
+
+    var WEIGHT = [
+      ['MetricsTable', 1646, 18.2], ['StatTile', 1499, 16.5], ['TaskList', 944, 10.4],
+      ['PreferenceRow', 932, 10.3], ['ProductCard', 907, 10.0], ['Panel', 885, 9.8],
+      ['TagRow', 649, 7.2], ['(shared definitions)', 1596, 17.6]
+    ];
+    var weight = document.getElementById('weight');
+    weight.innerHTML =
+      '<div class="wrow"><span class="wname" style="color:var(--ink)">9058 chars</span>' +
+      '<span></span><span class="wnum">total document</span></div>' +
+      WEIGHT.map(function (w) {
+        var shared = w[0].charAt(0) === '(' ? ' shared' : '';
+        return '<div class="wrow">' +
+          '<span class="wname">' + w[0] + '</span>' +
+          '<span class="wbar' + shared + '"><span style="width:' + (w[2] / 18.2 * 100) + '%"></span></span>' +
+          '<span class="wnum">' + w[1] + ' · ' + w[2].toFixed(1) + '%</span>' +
+          '</div>';
+      }).join('');
+  })();
+</script>
