@@ -291,8 +291,8 @@
     <h1>genui_gen</h1>
     <p class="deck">Annotate a Flutter widget and the catalog an agent composes against is <b>derived from its constructor</b> — schema, builder and examples — so it cannot drift from the widget it describes.</p>
     <div class="meta">
-      <span class="pill"><b>genui_gen</b> 0.8.0</span>
-      <span class="pill"><b>genui_gen_builder</b> 0.7.0</span>
+      <span class="pill"><b>genui_gen</b> 0.9.0</span>
+      <span class="pill"><b>genui_gen_builder</b> 0.8.0</span>
       <span class="pill">genui ^0.10.0</span>
       <span class="pill">Flutter ≥3.35</span>
       <a class="pill link" href="https://pub.dev/packages/genui_gen">pub.dev ↗</a>
@@ -497,6 +497,56 @@ class TaskList extends StatelessWidget {
     </ul>
   </section>
 
+  <section id="functions">
+    <div class="head">
+      <p class="eyebrow on">@GenUiFunction</p>
+      <h2>The other half of a catalog</h2>
+      <div class="prose">
+        <p>Everything above is one half. Components are what the agent composes a surface out of. <b>Functions are what it computes a value with</b>, through the <code>{"call": ...}</code> form every bound property already accepts.</p>
+        <p>genui registers fourteen of them, and adding one of your own meant writing a <code>ClientFunction</code> by hand: the name, the description, an argument schema spelled out in JSON schema, the return type, and an <code>execute</code> that digs each argument back out of a map and casts it. The schema sits beside the code that reads the arguments and is free to drift from it, which is the problem this package exists to remove.</p>
+      </div>
+    </div>
+
+    <div class="twoup">
+      <div class="stack">
+        <p class="eyebrow">annotate an ordinary Dart function</p>
+        <pre>enum NameStyle { initials, firstOnly, lastFirst }
+
+<span class="a">@GenUiFunction</span>(description: <span class="s">'Shortens a full name for display.'</span>)
+String shortenName(
+  <span class="c">/// The name to shorten.</span>
+  String name, {
+  <span class="c">/// How to shorten it.</span>
+  NameStyle style = NameStyle.initials,
+}) { <span class="c">/* ... */</span> }</pre>
+        <p class="eyebrow">schema, required list, enum values and return type all come from the signature</p>
+      </div>
+      <div class="stack">
+        <p class="eyebrow">the agent names it, and never learns the rule</p>
+        <pre>{
+  <span class="k">"id"</span>: <span class="s">"row"</span>,
+  <span class="k">"component"</span>: <span class="s">"Text"</span>,
+  <span class="k">"text"</span>: {
+    <span class="k">"call"</span>: <span class="s">"shortenName"</span>,
+    <span class="k">"args"</span>: {
+      <span class="k">"name"</span>: { <span class="k">"path"</span>: <span class="s">"name"</span> },
+      <span class="k">"style"</span>: <span class="s">"lastFirst"</span>
+    }
+  }
+}</pre>
+      </div>
+    </div>
+
+    <p class="note" style="margin-top:1.6rem">Put that inside a template and one component describes a whole list whose text the app computes: three people in the data model, three rows reading <b>Lovelace, Ada</b> · <b>Hopper, Grace</b> · <b>Turing, Alan</b>. Neither the shortened strings nor the rule that produced them were ever on the wire.</p>
+
+    <ul class="plain" style="margin-top:1.4rem">
+      <li>A <code>Future&lt;T&gt;</code> return becomes an async function and a <code>Stream&lt;T&gt;</code> a reactive one, which is how a function with its own source of change keeps answering.</li>
+      <li>Arguments are coerced the way a widget property is, so a model that sends a string where a number was declared degrades instead of throwing inside the expression that called it.</li>
+      <li>A name genui's basic catalog already registers is a build error. A catalog is a map from name to function, and a second <code>required</code> would change what every prompt written against it means.</li>
+      <li>The generated functions reach the assembled catalog and the exported <code>catalog.json</code> on their own, so adding one needs no other change anywhere.</li>
+    </ul>
+  </section>
+
   <section id="ci">
     <div class="head">
       <p class="eyebrow on">package:genui_gen/testing.dart</p>
@@ -624,11 +674,11 @@ class TaskList extends StatelessWidget {
         <p class="eyebrow">1 · pubspec.yaml</p>
         <pre>dependencies:
   genui: ^0.10.0
-  genui_gen: ^0.8.0
+  genui_gen: ^0.9.0
 
 dev_dependencies:
   build_runner: ^2.15.0
-  genui_gen_builder: ^0.7.0</pre>
+  genui_gen_builder: ^0.8.0</pre>
       </div>
       <div class="box">
         <p class="eyebrow">2 · build.yaml</p>
@@ -665,7 +715,7 @@ final catalog = genUiCatalog.copyWith(
 
   <footer>
     <span>Diego Alejandro López Camacho · MIT</span>
-    <span>genui_gen 0.8.0 · genui_gen_builder 0.7.0</span>
+    <span>genui_gen 0.9.0 · genui_gen_builder 0.8.0</span>
   </footer>
 
 </div>
