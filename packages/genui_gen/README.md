@@ -61,11 +61,11 @@ fails. There is no second source of truth to keep in sync.
 ```yaml
 dependencies:
   genui: ^0.10.0
-  genui_gen: ^0.8.0
+  genui_gen: ^0.9.0
 
 dev_dependencies:
   build_runner: ^2.15.0
-  genui_gen_builder: ^0.7.0
+  genui_gen_builder: ^0.8.0
 ```
 
 This package is the runtime half of the pair: the annotations, and the helpers
@@ -232,6 +232,55 @@ One row is built per entry at `/tasks`, each reading its own entry, keyed by
 entry rather than by position. A new entry adds a row with nobody asked. It is
 off by default, and the property still accepts a plain list of ids.
 
+## Catalog functions
+
+A catalog has two halves. Components are what the agent composes a surface out
+of. Functions are what it computes a value with, through the `{"call": ...}`
+form any bound property already accepts. genui ships fourteen (`required`,
+`regex`, `email`, `formatString` and the rest), and adding one of your own
+meant writing a `ClientFunction` by hand: the name, the description, an
+argument schema spelled out in JSON schema, the return type, and an `execute`
+that digs each argument back out of a map and casts it.
+
+Annotate the function instead:
+
+```dart
+@GenUiFunction(description: 'Shortens a full name for display.')
+String shortenName(
+  /// The name to shorten.
+  String name, {
+  /// How to shorten it.
+  NameStyle style = NameStyle.initials,
+}) { ... }
+```
+
+The agent then names it, and never has to know the rule:
+
+```json
+{
+  "id": "row", "component": "Text",
+  "text": {
+    "call": "shortenName",
+    "args": { "name": {"path": "name"}, "style": "lastFirst" }
+  }
+}
+```
+
+The argument names are the parameter names, the required list is the set with
+no default, the enum values come from the enum, and the return type comes from
+the Dart return type. Arguments are coerced the way a widget property is, so a
+model that sends a string where a number was declared degrades instead of
+throwing inside the expression that called the function.
+
+A `Future<T>` return becomes an async function and a `Stream<T>` a reactive
+one, which is how a function with its own source of change (a clock, a
+request, a path it watches) keeps answering.
+
+The generated functions land in `genUiCatalogFunctions` and are handed to the
+assembled `Catalog`, so adding one needs no other change, and they reach the
+exported `catalog.json` under `functions` in the shape A2UI publishes for its
+own.
+
 ## Structured data
 
 Scalars only get you so far. Faking a table with parallel arrays (`labels`,
@@ -279,6 +328,7 @@ because schemas are inlined rather than referenced.
 | `@GenUiProp(description:, name:, ignore:, template:)` | parameter or field | Overrides the schema property; `ignore: true` excludes it, `template: true` lets a `List<Widget>` repeat over a data path. |
 | `@GenUiAction(eventName:, description:)` | parameter or field | Customizes a `VoidCallback` action. |
 | `@GenUiWrites('property')` | parameter or field | Makes a one-argument callback write the user's value back to that property's path. |
+| `@GenUiFunction(description:, name:)` | top-level function | Declares a catalog function the model calls with `{"call": ...}`. |
 
 Descriptions default to the parameter's doc comment, then the field's doc
 comment.

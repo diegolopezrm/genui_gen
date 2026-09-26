@@ -441,6 +441,89 @@
       "unevaluatedProperties": false
     }
   },
+  "functions": {
+    "formatPrice": {
+      "type": "object",
+      "description": "Formats a number of cents as a price string, so the agent never has to do currency arithmetic itself.",
+      "properties": {
+        "call": {
+          "const": "formatPrice"
+        },
+        "args": {
+          "type": "object",
+          "properties": {
+            "cents": {
+              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicNumber"
+            },
+            "currency": {
+              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString"
+            }
+          },
+          "required": [
+            "cents"
+          ]
+        },
+        "returnType": {
+          "const": "string"
+        }
+      },
+      "required": [
+        "call",
+        "args"
+      ],
+      "unevaluatedProperties": false
+    },
+    "shortenName": {
+      "type": "object",
+      "description": "Shortens a full name for display. Use it when a surface has room for a name but not the whole one, such as a table cell or an avatar.",
+      "properties": {
+        "call": {
+          "const": "shortenName"
+        },
+        "args": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString"
+            },
+            "style": {
+              "allOf": [
+                {
+                  "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString"
+                },
+                {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "initials",
+                        "firstOnly",
+                        "lastFirst"
+                      ]
+                    },
+                    {
+                      "type": "object"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "required": [
+            "name"
+          ]
+        },
+        "returnType": {
+          "const": "string"
+        }
+      },
+      "required": [
+        "call",
+        "args"
+      ],
+      "unevaluatedProperties": false
+    }
+  },
   "$defs": {
     "CatalogComponentCommon": {
       "type": "object",
@@ -503,7 +586,14 @@
       }
     },
     "anyFunction": {
-      "not": {}
+      "oneOf": [
+        {
+          "$ref": "#/functions/formatPrice"
+        },
+        {
+          "$ref": "#/functions/shortenName"
+        }
+      ]
     }
   }
 }

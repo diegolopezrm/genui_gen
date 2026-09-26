@@ -130,6 +130,24 @@ void main() {
     }
   });
 
+  testWidgets('the agent names a function and the app computes the text', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const GenUiGenExampleApp());
+    await tester.pump();
+
+    await tester.tap(find.text('Session'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Who is on the account?'));
+    await tester.pumpAndSettle();
+
+    // The agent sent {"call": "shortenName"} and a path. Neither the shortened
+    // strings nor the rule that produced them were ever on the wire.
+    expect(find.text('Lovelace, Ada'), findsOneWidget);
+    expect(find.text('Hopper, Grace'), findsOneWidget);
+    expect(find.text('Turing, Alan'), findsOneWidget);
+  });
+
   testWidgets('a session composes a surface and records it', (tester) async {
     await tester.pumpWidget(const GenUiGenExampleApp());
     await tester.pump();

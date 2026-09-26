@@ -284,3 +284,56 @@ class GenUiWrites {
   /// parameter name.
   final String property;
 }
+
+/// Marks a top-level Dart function as a function of the A2UI catalog.
+///
+/// A catalog has two halves. Components are what the agent composes a surface
+/// out of; functions are what it computes a value with, through the
+/// `{"call": ...}` form that any bound property already accepts. The basic
+/// catalog ships fourteen of them (`required`, `regex`, `length`, `numeric`,
+/// `email`, `formatString` and the rest), and an app that wants one of its own
+/// has to write a `ClientFunction` by hand: the name, the description, an
+/// `argumentSchema` spelled out in JSON schema, the return type, and an
+/// `execute` that digs each argument back out of a `JsonMap` and casts it.
+///
+/// That is the same drift this package removes from components, one half of
+/// the catalog over. The schema is written by hand beside the code that reads
+/// the arguments, so renaming a parameter, adding a required one or changing a
+/// type leaves the schema describing a function that no longer exists, and the
+/// app still compiles.
+///
+/// Annotate the function instead:
+///
+/// ```dart
+/// @GenUiFunction(description: 'Formats an amount as a price.')
+/// String formatPrice(double amount, {String currency = 'USD'}) =>
+///     NumberFormat.simpleCurrency(name: currency).format(amount);
+/// ```
+///
+/// The argument schema property names are the parameter names, the required
+/// list is the set of parameters without defaults, the descriptions come from
+/// the doc comments, and the return type comes from the Dart return type. The
+/// generated `execute` coerces each argument the way genui's own `Bound*`
+/// widgets coerce a widget property, so a model that sends a string where a
+/// number was declared degrades instead of throwing.
+///
+/// Register the generated functions the same way as the items: the aggregating
+/// builder puts them in `genui_catalog.g.dart` and hands them to the
+/// assembled `Catalog`, so they reach both the prompt and the exported
+/// `catalog.json`.
+@Target({TargetKind.function})
+class GenUiFunction {
+  /// Creates a [GenUiFunction] annotation.
+  const GenUiFunction({required this.description, this.name});
+
+  /// What the function does, and when the model should call it.
+  ///
+  /// Required, and fed to the model verbatim. A function the model cannot tell
+  /// apart from another one is a function it will call wrongly.
+  final String description;
+
+  /// The name the function is called by in `{"call": ...}`.
+  ///
+  /// Defaults to the Dart function name.
+  final String? name;
+}

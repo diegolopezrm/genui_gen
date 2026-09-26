@@ -8,17 +8,19 @@ import 'package:build/build.dart';
 import 'package:source_gen/source_gen.dart';
 
 import 'src/catalog_aggregator.dart';
+import 'src/function_generator.dart';
 import 'src/generator.dart';
 import 'src/strings.dart';
 
 export 'src/catalog_aggregator.dart' show CatalogAggregatingBuilder;
+export 'src/function_generator.dart' show GenUiFunctionGenerator;
 export 'src/generator.dart' show GenUiDataGenerator, GenUiGenerator;
 export 'src/strings.dart' show generatedFileHeader;
 
-/// Creates the builder that turns `@GenUiWidget` and `@GenUiData` classes
-/// into `<file>.genui.dart` part files.
+/// Creates the builder that turns `@GenUiWidget` and `@GenUiData` classes,
+/// and `@GenUiFunction` functions, into `<file>.genui.dart` part files.
 Builder genUiGenBuilder(BuilderOptions options) => PartBuilder(
-  const [GenUiGenerator(), GenUiDataGenerator()],
+  const [GenUiGenerator(), GenUiDataGenerator(), GenUiFunctionGenerator()],
   '.genui.dart',
   header: generatedFileHeader,
   options: options,

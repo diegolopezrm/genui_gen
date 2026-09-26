@@ -322,3 +322,76 @@ String lowerCamel(String name) {
 
 bool _isUpper(String char) =>
     char.toUpperCase() == char && char.toLowerCase() != char;
+
+/// What a `@GenUiFunction` hands back, as genui's `ClientFunctionReturnType`
+/// spells it.
+enum FunctionReturn {
+  string('string'),
+  number('number'),
+  boolean('boolean'),
+  array('array'),
+  object('object'),
+  any('any'),
+
+  /// A `void` function. Named `empty` because genui's enum constant is, `void`
+  /// being a keyword.
+  empty('empty');
+
+  const FunctionReturn(this.constantName);
+
+  /// The `ClientFunctionReturnType` constant to emit.
+  final String constantName;
+}
+
+/// How the annotated function delivers its answer.
+enum FunctionDelivery {
+  /// Returns a value. Emitted through the default `GenUiClientFunction`
+  /// constructor.
+  sync,
+
+  /// Returns a `Future`. Emitted through `GenUiClientFunction.async`.
+  async,
+
+  /// Returns a `Stream`, and may keep answering as its own sources change.
+  /// Emitted through `GenUiClientFunction.streaming`.
+  streaming,
+}
+
+/// Intermediate representation of a function annotated with `@GenUiFunction`.
+///
+/// Arguments reuse [PropSpec]: an argument and a widget property are the same
+/// thing from the model's side, a named value with a schema and a description,
+/// so the mapping, the coercion and the description lookup are shared.
+final class FunctionSpec {
+  FunctionSpec({
+    required this.dartName,
+    required this.functionName,
+    required this.description,
+    required this.args,
+    required this.returns,
+    required this.delivery,
+  });
+
+  /// The Dart function name, which the generated body calls.
+  final String dartName;
+
+  /// The name the model calls it by in `{"call": ...}`.
+  ///
+  /// Defaults to [dartName]; `@GenUiFunction(name: ...)` overrides it.
+  final String functionName;
+
+  /// What the function does, fed to the model verbatim.
+  final String description;
+
+  /// The parameters, in declaration order.
+  final List<PropSpec> args;
+
+  /// What the function hands back.
+  final FunctionReturn returns;
+
+  /// How it hands it back.
+  final FunctionDelivery delivery;
+
+  /// The generated top-level variable holding the `ClientFunction`.
+  String get variableName => '${dartName}GenUiFunction';
+}

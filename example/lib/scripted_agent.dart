@@ -102,6 +102,39 @@ class ScriptedAgent {
       ],
       data: <String, Object?>{},
     ),
+    ScriptedTurn(
+      prompt: 'Who is on the account?',
+      keywords: <String>['who', 'account', 'team', 'people', 'owner'],
+      description:
+          'A surface whose text the app computes, through a catalog '
+          'function the agent only had to name.',
+      components: <JsonMap>[
+        {
+          'id': 'root',
+          'component': 'TaskList',
+          'title': 'On the account',
+          'rows': {'componentId': 'person_row', 'path': '/people'},
+        },
+        {
+          'id': 'person_row',
+          'component': 'Text',
+          'text': {
+            'call': 'shortenName',
+            'args': {
+              'name': {'path': 'name'},
+              'style': 'lastFirst',
+            },
+          },
+        },
+      ],
+      data: <String, Object?>{
+        'people': <Object?>[
+          {'name': 'Ada Lovelace'},
+          {'name': 'Grace Murray Hopper'},
+          {'name': 'Alan Turing'},
+        ],
+      },
+    ),
   ];
 
   /// The turn that best matches [prompt], or the first one.

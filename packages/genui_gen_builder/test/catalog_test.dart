@@ -143,23 +143,30 @@ void main() {
 
   group('the assembled catalog', () {
     test('carries the configured id', () async {
-      final out = await aggregate({
-        'a|lib/card.genui.dart': part(['cardCatalogItem']),
-      }, options: {'catalog_id': 'com.example.my_catalog'});
+      final out = await aggregate(
+        {
+          'a|lib/card.genui.dart': part(['cardCatalogItem']),
+        },
+        options: {'catalog_id': 'com.example.my_catalog'},
+      );
 
       expect(
         normalize(out!),
         contains(
           'final Catalog genUiCatalog = Catalog(genUiCatalogItems, '
+          'functions: genUiCatalogFunctions, '
           "catalogId: 'com.example.my_catalog')",
         ),
       );
     });
 
     test('a URL is a usable id', () async {
-      final out = await aggregate({
-        'a|lib/card.genui.dart': part(['cardCatalogItem']),
-      }, options: {'catalog_id': 'https://example.com/a2ui/catalog.json'});
+      final out = await aggregate(
+        {
+          'a|lib/card.genui.dart': part(['cardCatalogItem']),
+        },
+        options: {'catalog_id': 'https://example.com/a2ui/catalog.json'},
+      );
 
       expect(
         normalize(out!),
@@ -174,7 +181,9 @@ void main() {
 
       expect(
         normalize(out!),
-        contains('final Catalog genUiCatalog = Catalog(genUiCatalogItems)'),
+        contains(
+          'final Catalog genUiCatalog = Catalog(genUiCatalogItems, functions: genUiCatalogFunctions)',
+        ),
       );
       // The generated file is where someone reads about the option, so it has
       // to say how to set it.
@@ -183,9 +192,13 @@ void main() {
 
     test('an id that would not survive being written is rejected', () async {
       final errors = <String>[];
-      await aggregate({
-        'a|lib/card.genui.dart': part(['cardCatalogItem']),
-      }, options: {'catalog_id': r"com.example'); $evil ('"}, errors: errors);
+      await aggregate(
+        {
+          'a|lib/card.genui.dart': part(['cardCatalogItem']),
+        },
+        options: {'catalog_id': r"com.example'); $evil ('"},
+        errors: errors,
+      );
 
       expect(
         errors.join('\n'),

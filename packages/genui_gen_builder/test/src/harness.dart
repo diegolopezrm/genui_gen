@@ -178,6 +178,53 @@ class GenUiWrites {
   final String property;
 }
 
+class GenUiFunction {
+  const GenUiFunction({required this.description, this.name});
+  final String description;
+  final String? name;
+}
+
+enum ClientFunctionReturnType {
+  string,
+  number,
+  boolean,
+  array,
+  object,
+  any,
+  empty,
+}
+
+abstract interface class ClientFunction {}
+
+class GenUiClientFunction implements ClientFunction {
+  GenUiClientFunction({
+    required this.name,
+    required this.description,
+    required this.argumentSchema,
+    this.returnType = ClientFunctionReturnType.any,
+    required this.body,
+  });
+  GenUiClientFunction.async({
+    required this.name,
+    required this.description,
+    required this.argumentSchema,
+    this.returnType = ClientFunctionReturnType.any,
+    required this.body,
+  });
+  GenUiClientFunction.streaming({
+    required this.name,
+    required this.description,
+    required this.argumentSchema,
+    this.returnType = ClientFunctionReturnType.any,
+    required this.body,
+  });
+  final String name;
+  final String description;
+  final Schema argumentSchema;
+  final ClientFunctionReturnType returnType;
+  final Object? Function(Map<String, Object?> args, Object? context) body;
+}
+
 class GenUiBindings {
   const GenUiBindings({
     required this.dataContext,

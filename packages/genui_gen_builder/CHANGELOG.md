@@ -1,3 +1,26 @@
+## 0.8.0
+
+- Generates a `ClientFunction` for every top-level function annotated with
+  `@GenUiFunction`. The argument schema property names are the parameter
+  names, the required list is the set of parameters with no default that are
+  not nullable, the descriptions come from the doc comments, the enum values
+  come from the enum, and the return type comes from the Dart return type.
+  Each argument is read back through the same coercions a `@GenUiData` field
+  uses, so a model that sends a string where a number was declared degrades
+  instead of throwing inside the expression that called the function.
+- A `Future<T>` return is emitted through `GenUiClientFunction.async` and a
+  `Stream<T>` through `.streaming`, so a function with its own source of change
+  keeps answering.
+- `genui_catalog.g.dart` now also declares `genUiCatalogFunctions` and hands it
+  to the assembled `Catalog`, so adding a function needs no other change
+  anywhere. A package that declares functions and no widgets gets the file too.
+- Build errors, each naming the function: a private function, whose generated
+  variable no other library could name; a name genui's basic catalog already
+  registers, which would replace that function and change what every prompt
+  written against it means; an argument that is a widget or a callback, which a
+  function has nothing to build or dispatch; a return type the model cannot
+  receive; and an empty description.
+
 ## 0.7.1
 
 - Documentation only; no generator change.

@@ -39,11 +39,11 @@ widget.
 ```yaml
 dependencies:
   genui: ^0.10.0
-  genui_gen: ^0.8.0
+  genui_gen: ^0.9.0
 
 dev_dependencies:
   build_runner: ^2.15.0
-  genui_gen_builder: ^0.7.0
+  genui_gen_builder: ^0.8.0
 ```
 
 The generated code is a `part` of your file and builds its schema with
@@ -710,6 +710,102 @@ Worth knowing:
   parameter: a template repeats a component over a path, which means nothing
   for a string or a number.
 
+## Catalog functions (`@GenUiFunction`)
+
+A catalog has two halves, and everything above is one of them. Components are
+what the agent composes a surface out of. Functions are what it computes a
+value with, through the `{"call": ...}` form every bound property already
+accepts. genui registers fourteen of them (`required`, `regex`, `length`,
+`numeric`, `email`, `openUrl`, `formatString`, `formatNumber`,
+`formatCurrency`, `formatDate`, `pluralize`, `and`, `or`, `not`), and adding
+one of your own meant writing a `ClientFunction` by hand:
+
+```dart
+class ShortenName implements ClientFunction {
+  String get name => 'shortenName';
+  String get description => '...';
+  Schema get argumentSchema => S.object(  // written beside the code that
+    properties: {                          // reads it back, and free to
+      'name': ...,                         // drift from it
+    },
+    required: ['name'],
+  );
+  ClientFunctionReturnType get returnType => ClientFunctionReturnType.string;
+
+  Stream<Object?> execute(JsonMap args, ExecutionContext context) =>
+      Stream.value(_shorten(args['name'] as String));  // and a cast
+}
+```
+
+Annotate the function instead:
+
+```dart
+enum NameStyle { initials, firstOnly, lastFirst }
+
+@GenUiFunction(description: 'Shortens a full name for display.')
+String shortenName(
+  /// The name to shorten.
+  String name, {
+  /// How to shorten it.
+  NameStyle style = NameStyle.initials,
+}) { ... }
+```
+
+The agent names the function and never learns the rule:
+
+```json
+{
+  "id": "row",
+  "component": "Text",
+  "text": {
+    "call": "shortenName",
+    "args": { "name": {"path": "name"}, "style": "lastFirst" }
+  }
+}
+```
+
+Put that inside a [template](#lists-the-data-model-fills-genuiproptemplate-true)
+and one component describes every row of a list whose text the app computes:
+three people in the data model, three rows reading `Lovelace, Ada`,
+`Hopper, Grace`, `Turing, Alan`, with neither the strings nor the rule ever on
+the wire.
+
+### What comes from the signature
+
+| Part of the function | Becomes |
+|---|---|
+| parameter names | the argument schema's property names |
+| parameters with no default, non-nullable | the `required` list |
+| parameter doc comments, or `@GenUiProp(description:)` | the argument descriptions |
+| an enum parameter | a string argument carrying the enum's `name`s |
+| the Dart return type | `ClientFunctionReturnType` |
+| `Future<T>` | an async function (`GenUiClientFunction.async`) |
+| `Stream<T>` | a reactive one (`.streaming`), for a clock, a request, a watched path |
+
+Every argument is read back through the same coercions a `@GenUiData` field
+uses, so a model that sends a string where a number was declared degrades the
+way a widget property does rather than throwing inside the expression that
+called the function. A required argument the model omits falls back the same
+way, silently, because a function has no component to attribute the error to.
+
+Arguments may be a `String`, a number, a `bool`, an enum, or a `List` of those.
+A `Widget` or a callback is a build error naming the parameter: a function
+receives values the expression system already resolved, and has no surface to
+build a child on or event to dispatch.
+
+Worth knowing:
+
+- The generated functions land in `genUiCatalogFunctions` and are handed to the
+  assembled `Catalog`, so adding one needs no other change anywhere. They reach
+  the exported `catalog.json` under `functions`, in the shape A2UI publishes
+  for its own basic catalog.
+- A name genui's basic catalog already registers is a build error. A catalog is
+  a map from name to function, so a second `required` would replace the one
+  that is there and change what every prompt written against it means. Rename
+  it with `@GenUiFunction(name: ...)`.
+- A private function is a build error too: the generated variable would be
+  private, and no other library could put it in a catalog.
+
 ## Structured data (`@GenUiData`)
 
 Scalars only get you so far. A table, a chart series or a list of items needs
@@ -901,7 +997,7 @@ A runnable version of all of this is in
 [`example/lib/models/metric_row.dart`](example/lib/models/metric_row.dart) and
 [`example/lib/widgets/metrics_table.dart`](example/lib/widgets/metrics_table.dart).
 
-## Limitations (0.8)
+## Limitations (0.9)
 
 Not supported yet; each produces a build error that names the parameter:
 
@@ -912,6 +1008,8 @@ Not supported yet; each produces a build error that names the parameter:
   supported through [`@GenUiWrites`](#controls-the-user-operates-genuiwrites).
 - Widgets or callbacks used as fields of a `@GenUiData` class, and data
   classes that reference themselves.
+- `@GenUiData` classes as arguments of a `@GenUiFunction`. A function argument
+  is a scalar or a list of scalars for now.
 
 Two ways around it in the meantime:
 
@@ -945,6 +1043,11 @@ Two ways around it in the meantime:
   screen reader, and what it costs to send.
 - 0.8: `@GenUiProp(template: true)` — a list of children may be a template the
   data model repeats, so a list that grows does not need a new surface.
+- 0.9: `@GenUiFunction` — a top-level Dart function becomes a catalog function,
+  so the agent can compute a value with `{"call": ...}` instead of only
+  composing components. The argument schema, the return type and the argument
+  reading all come from the signature, and the assembled catalog and the
+  exported `catalog.json` pick the functions up on their own.
 - Proposed next: accessibility — `ComponentCommon` declares `label` and
   `description` on every A2UI component and the conformance suite tests them.
   genui does not apply them yet

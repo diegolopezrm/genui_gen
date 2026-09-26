@@ -14,7 +14,9 @@ the widget.
 
 A widget parameter may also be a plain data class annotated with `@GenUiData`,
 or a `List` of one, so a table, a chart series or any list of value objects can
-be composed by the model.
+be composed by the model. A top-level function annotated with `@GenUiFunction`
+becomes a catalog function, which is the other half of a catalog: what the
+model computes a value with rather than what it composes a surface out of.
 
 **[What the pair does, on one page →](https://diegolopezrm.github.io/genui_gen/)**
 
@@ -35,11 +37,11 @@ a new release of this package unless it removes API the generator uses.
 ```yaml
 dependencies:
   genui: ^0.10.0
-  genui_gen: ^0.8.0
+  genui_gen: ^0.9.0
 
 dev_dependencies:
   build_runner: ^2.15.0
-  genui_gen_builder: ^0.7.0
+  genui_gen_builder: ^0.8.0
 ```
 
 The generated part builds its schema with `S.object(...)` and shares your
@@ -54,6 +56,7 @@ Flutter-dependent runtime never loads into the build isolate.
 
 | Builder | Needs at least | Because it emits |
 |---|---|---|
+| 0.8.x | `genui_gen >= 0.9.0` | `GenUiClientFunction` |
 | 0.7.x | `genui_gen >= 0.8.0` | `genUiTemplateChildren`, `GenUiBinding.value` |
 | 0.6.x | `genui_gen >= 0.5.0` | the assembled `Catalog` with its `catalogId` |
 | 0.5.x | `genui_gen >= 0.4.0` | `genUiValueWriter` |

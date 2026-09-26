@@ -25,6 +25,9 @@ const aggregateFileName = 'genui_catalog.g.dart';
 /// The variable the emitted file declares.
 const aggregateVariableName = 'genUiCatalogItems';
 
+/// The name of the generated list of `ClientFunction`s.
+const aggregateFunctionsVariableName = 'genUiCatalogFunctions';
+
 /// The assembled [Catalog] the emitted file declares alongside the list.
 const aggregateCatalogVariableName = 'genUiCatalog';
 
@@ -74,6 +77,7 @@ class CatalogAggregatingBuilder implements Builder {
   @override
   Future<void> build(BuildStep buildStep) async {
     final items = <_Item>[];
+    final functions = <_Item>[];
     final assets = await buildStep
         .findAssets(Glob('lib/**$generatedPartExtension'))
         .toList();
@@ -99,18 +103,24 @@ class CatalogAggregatingBuilder implements Builder {
         }
         items.add(_Item(name, libraryImport, asset.path));
       }
+      for (final name in _catalogFunctionNames(source)) {
+        if (name.startsWith('_')) continue;
+        functions.add(_Item(name, libraryImport, asset.path));
+      }
     }
 
     // A package with nothing annotated gets no file, rather than an empty one
     // that looks like a mistake.
-    if (items.isEmpty) return;
+    if (items.isEmpty && functions.isEmpty) return;
 
     _checkForClashes(items);
+    _checkForClashes(functions);
     items.sort((a, b) => a.variableName.compareTo(b.variableName));
+    functions.sort((a, b) => a.variableName.compareTo(b.variableName));
 
     await buildStep.writeAsString(
       AssetId(buildStep.inputId.package, 'lib/$aggregateFileName'),
-      _emit(items),
+      _emit(items, functions),
     );
   }
 
@@ -135,9 +145,11 @@ class CatalogAggregatingBuilder implements Builder {
     }
   }
 
-  String _emit(List<_Item> items) {
-    final imports = {for (final item in items) item.libraryImport}.toList()
-      ..sort();
+  String _emit(List<_Item> items, List<_Item> functions) {
+    final imports = {
+      for (final item in items) item.libraryImport,
+      for (final function in functions) function.libraryImport,
+    }.toList()..sort();
     final out = StringBuffer()
       ..write(generatedFileHeader)
       ..writeln()
@@ -160,6 +172,24 @@ class CatalogAggregatingBuilder implements Builder {
       out.writeln('  ${item.variableName},');
     }
     out.writeln('];');
+
+    out
+      ..writeln()
+      ..writeln('/// Every [ClientFunction] generated in this package, by')
+      ..writeln('/// name.')
+      ..writeln('///')
+      ..writeln('/// These are the other half of a catalog: what the model')
+      ..writeln('/// computes a value with, through the `{"call": ...}` form')
+      ..writeln('/// any bound property accepts.')
+      ..writeln(
+        'final List<ClientFunction> $aggregateFunctionsVariableName = '
+        '<ClientFunction>[',
+      );
+    for (final function in functions) {
+      out.writeln('  ${function.variableName},');
+    }
+    out.writeln('];');
+
     _writeCatalog(out);
     return out.toString();
   }
@@ -207,10 +237,9 @@ class CatalogAggregatingBuilder implements Builder {
         ..writeln('/// ```');
     }
     out
-      ..writeln(
-        'final Catalog $aggregateCatalogVariableName = Catalog(',
-      )
-      ..writeln('  $aggregateVariableName,');
+      ..writeln('final Catalog $aggregateCatalogVariableName = Catalog(')
+      ..writeln('  $aggregateVariableName,')
+      ..writeln('  functions: $aggregateFunctionsVariableName,');
     if (id != null) out.writeln("  catalogId: '$id',");
     out.writeln(');');
   }
@@ -247,3 +276,22 @@ Iterable<String> _catalogItemNames(String source) sync* {
 /// Exposed for the generator's own diagnostics.
 String catalogItemVariableName(String className) =>
     '${lowerCamel(className)}CatalogItem';
+
+/// The names of the generated catalog function variables declared in [source].
+///
+/// Selected by the `GenUiFunction` suffix, for the same reasons the items are
+/// selected by `CatalogItem`: it is this package's own contract
+/// ([FunctionSpec.variableName]), and reading the declared type would mean
+/// touching `NamedType`, whose accessor has moved twice inside the analyzer
+/// range this package supports. A `@GenUiData` class generates
+/// `<name>GenUiSchema`, so it cannot be picked up by mistake.
+Iterable<String> _catalogFunctionNames(String source) sync* {
+  final unit = parseString(content: source, throwIfDiagnostics: false).unit;
+  for (final declaration in unit.declarations) {
+    if (declaration is! TopLevelVariableDeclaration) continue;
+    for (final variable in declaration.variables.variables) {
+      final name = variable.name.lexeme;
+      if (name.endsWith('GenUiFunction')) yield name;
+    }
+  }
+}

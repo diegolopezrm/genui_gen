@@ -1,3 +1,25 @@
+## 0.9.0
+
+- Added `@GenUiFunction`, the other half of an A2UI catalog. A catalog holds
+  components, which the agent composes a surface out of, and functions, which
+  it computes a value with through the `{"call": ...}` form any bound property
+  already accepts. genui ships fourteen of them and an app could add its own
+  only by writing a `ClientFunction` by hand: the name, the description, an
+  `argumentSchema` spelled out in JSON schema, the return type, and an
+  `execute` that digs each argument back out of a map and casts it. That is
+  the same drift this package removes from components, one half of the catalog
+  over.
+- Added `GenUiClientFunction`, which the generated code builds: a
+  `ClientFunction` whose body is a callback. Three constructors, for a function
+  that answers immediately, one that answers once later (`.async`), and one
+  that keeps answering as its own sources change (`.streaming`). A throw inside
+  the body becomes an error on the stream rather than an exception out of the
+  expression that called it.
+- `ClientFunction`, `ClientFunctionReturnType` and `A2uiSchemas` are now
+  re-exported, for the same reason `S` is: a file that declares only catalog
+  functions names them in its generated part and should not have to import
+  genui to get them.
+
 ## 0.8.1
 
 - Documentation only; no API change.

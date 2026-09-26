@@ -817,3 +817,89 @@ String _decodeArgument(PropSpec field, Set<String> symbols) {
       throw StateError('${field.kind} is not valid inside a data class');
   }
 }
+
+/// Emits the `final ClientFunction <name>GenUiFunction = ...;` declaration
+/// for [spec].
+///
+/// The body reads each argument out of the `args` map through the same
+/// coercions a `@GenUiData` field uses, so a model that sends a string where a
+/// number was declared degrades the way a widget property does rather than
+/// throwing inside the expression that called the function.
+EmittedCode emitFunction(FunctionSpec spec) {
+  final symbols = <String>{
+    'ClientFunction',
+    'GenUiClientFunction',
+    'ClientFunctionReturnType',
+    'A2uiSchemas',
+    'S',
+  };
+  final out = StringBuffer();
+
+  final String constructor = switch (spec.delivery) {
+    FunctionDelivery.sync => 'GenUiClientFunction',
+    FunctionDelivery.async => 'GenUiClientFunction.async',
+    FunctionDelivery.streaming => 'GenUiClientFunction.streaming',
+  };
+
+  out
+    ..writeln('/// Generated catalog function for [${spec.dartName}].')
+    ..writeln(
+      'final ClientFunction ${spec.variableName} = $constructor(',
+    )
+    ..writeln('  name: ${dartString(spec.functionName)},')
+    ..writeln('  description: ${dartWrappedString(spec.description)},')
+    ..writeln('  argumentSchema: ${_argumentSchema(spec, symbols)},')
+    ..writeln(
+      '  returnType: ClientFunctionReturnType.${spec.returns.constantName},',
+    )
+    ..writeln('  body: (args, context) {');
+
+  if (spec.args.isEmpty) {
+    out.writeln('    return ${spec.dartName}();');
+  } else {
+    symbols.add('GenUiMissingFieldReporter');
+    out
+      ..writeln('    final json = args;')
+      // The generated readers report a required argument the model left out
+      // through this reporter. A function has no component to attribute it to,
+      // so the fallback is taken silently, exactly as a widget property's is
+      // when the data model has not arrived yet.
+      ..writeln('    const GenUiMissingFieldReporter? onMissing = null;')
+      ..writeln('    return ${spec.dartName}(');
+    for (final arg in spec.args) {
+      final value = _decodeArgument(arg, symbols);
+      out.writeln(
+        arg.isNamed ? '      ${arg.dartName}: $value,' : '      $value,',
+      );
+    }
+    out.writeln('    );');
+  }
+
+  out
+    ..writeln('  },')
+    ..writeln(');');
+
+  return EmittedCode(out.toString(), symbols);
+}
+
+String _argumentSchema(FunctionSpec spec, Set<String> symbols) {
+  if (spec.args.isEmpty) return 'S.object(properties: {})';
+
+  final out = StringBuffer('S.object(\n    properties: {\n');
+  for (final arg in spec.args) {
+    out.writeln(
+      '      ${dartString(arg.schemaName)}: '
+      '${_propertySchema(arg, symbols)},',
+    );
+  }
+  out.write('    },\n');
+  final required = spec.args
+      .where((arg) => arg.isSchemaRequired)
+      .map((arg) => dartString(arg.schemaName))
+      .toList();
+  if (required.isNotEmpty) {
+    out.writeln('    required: [${required.join(', ')}],');
+  }
+  out.write('  )');
+  return out.toString();
+}

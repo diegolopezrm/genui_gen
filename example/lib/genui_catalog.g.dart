@@ -4,6 +4,7 @@
 
 import 'package:genui/genui.dart';
 
+import 'functions/text_functions.dart';
 import 'widgets/metrics_table.dart';
 import 'widgets/panel.dart';
 import 'widgets/preference_row.dart';
@@ -27,6 +28,17 @@ final List<CatalogItem> genUiCatalogItems = <CatalogItem>[
   taskListCatalogItem,
 ];
 
+/// Every [ClientFunction] generated in this package, by
+/// name.
+///
+/// These are the other half of a catalog: what the model
+/// computes a value with, through the `{"call": ...}` form
+/// any bound property accepts.
+final List<ClientFunction> genUiCatalogFunctions = <ClientFunction>[
+  formatPriceGenUiFunction,
+  shortenNameGenUiFunction,
+];
+
 /// Every generated [CatalogItem] of this package, as a
 /// [Catalog] ready to hand to genui.
 ///
@@ -41,5 +53,6 @@ final List<CatalogItem> genUiCatalogItems = <CatalogItem>[
 /// ```
 final Catalog genUiCatalog = Catalog(
   genUiCatalogItems,
+  functions: genUiCatalogFunctions,
   catalogId: 'dev.dlsoft.genui_gen.example',
 );
