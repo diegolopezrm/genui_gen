@@ -97,6 +97,7 @@ Object? _sampleFor(
         'event': {'name': prop.eventName ?? prop.schemaName},
       };
     case PropKind.valueWriter:
+    case PropKind.checkResult:
       // Derived from the property it writes to, and never sent by the model.
       return null;
   }

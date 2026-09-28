@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:analyzer/dart/element/element.dart';
+import 'package:analyzer/dart/element/nullability_suffix.dart';
 import 'package:analyzer/dart/element/type.dart';
 import 'package:build/build.dart';
 import 'package:source_gen/source_gen.dart';
@@ -26,6 +27,12 @@ const genUiPropChecker = TypeChecker.typeNamedLiterally(
 /// Matches `@GenUiAction` from `package:genui_gen`.
 const genUiActionChecker = TypeChecker.typeNamedLiterally(
   'GenUiAction',
+  inPackage: 'genui_gen',
+);
+
+/// Matches `@GenUiChecked` from `package:genui_gen`.
+const genUiCheckedChecker = TypeChecker.typeNamedLiterally(
+  'GenUiChecked',
   inPackage: 'genui_gen',
 );
 
@@ -583,6 +590,7 @@ String _kindLabel(PropKind kind) => switch (kind) {
   PropKind.widgetList => 'list of child components',
   PropKind.action => 'action',
   PropKind.valueWriter => 'value writer',
+  PropKind.checkResult => 'check result',
 };
 
 PropSpec? _analyseParameter(
@@ -621,6 +629,9 @@ PropSpec? _analyseParameter(
   final writesAnnotation =
       _annotation(genUiWritesChecker, param) ??
       (field == null ? null : _annotation(genUiWritesChecker, field));
+  final checkedAnnotation =
+      _annotation(genUiCheckedChecker, param) ??
+      (field == null ? null : _annotation(genUiCheckedChecker, field));
 
   if (propAnnotation != null && _readBool(propAnnotation, 'ignore')) {
     if (param.isRequired) {
@@ -633,6 +644,38 @@ PropSpec? _analyseParameter(
       );
     }
     return null;
+  }
+
+  if (checkedAnnotation != null) {
+    if (inData) {
+      throw InvalidGenerationSourceError(
+        '@GenUiChecked on `$qualified` is inside a @GenUiData class. Checks '
+        'belong to a component, which is what the agent attaches rules to; a '
+        'data class has no surface to be valid or invalid on.',
+        element: param,
+      );
+    }
+    final shape = _checkShapeOf(param.type);
+    if (shape == null) {
+      throw InvalidGenerationSourceError(
+        '@GenUiChecked on `$qualified` needs a parameter that can hold the '
+        'answer, but its type is `${param.type.getDisplayString()}`. Use a '
+        '`String?` for the message of the first failing rule, a `bool` for '
+        'whether every rule passes, or a `GenUiCheckResult` for both.',
+        element: param,
+      );
+    }
+    return PropSpec(
+      dartName: name,
+      schemaName: name,
+      kind: PropKind.checkResult,
+      isNullable: param.type.nullabilitySuffix != NullabilitySuffix.none,
+      isRequiredInConstructor: param.isRequired,
+      isNamed: param.isNamed,
+      defaultValueCode: param.defaultValueCode,
+      description: null,
+      checkShape: shape,
+    );
   }
 
   if (hasUnresolvedType(param.type)) {
@@ -843,7 +886,7 @@ bool _allowedInDataClass(PropKind kind) => switch (kind) {
   PropKind.widget ||
   PropKind.widgetList ||
   PropKind.action ||
-  PropKind.valueWriter => false,
+  PropKind.valueWriter || PropKind.checkResult => false,
 };
 
 /// Analyses the data class [dataElement] referenced from [cls], after
@@ -1072,4 +1115,21 @@ bool _readBool(ConstantReader? reader, String field) {
   final value = reader?.peek(field);
   if (value == null || value.isNull) return false;
   return value.boolValue;
+}
+
+
+/// What a `@GenUiChecked` parameter of [type] asks to receive, or `null` when
+/// the type cannot hold any of it.
+CheckResultShape? _checkShapeOf(DartType type) {
+  if (type.isDartCoreBool) return CheckResultShape.isValid;
+  if (type.isDartCoreString) {
+    return type.nullabilitySuffix == NullabilitySuffix.none
+        ? null // A failing rule has a message and a passing one does not.
+        : CheckResultShape.message;
+  }
+  final Element? element = type.element;
+  if (element != null && element.name == 'GenUiCheckResult') {
+    return CheckResultShape.result;
+  }
+  return null;
 }

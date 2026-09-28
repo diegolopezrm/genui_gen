@@ -21,6 +21,10 @@ void main() {
 /// has to be touched.
 final Catalog exampleCatalog = genUiCatalog.copyWith(
   newItems: BasicCatalogItems.asCatalog().items.toList(),
+  // The functions too, not just the items. A catalog holds both, and the
+  // fourteen basic ones are what a `checks` rule calls: without them
+  // `{"call": "required"}` names a function nobody registered.
+  newFunctions: BasicCatalogItems.asCatalog().functions.toList(),
 );
 
 /// The session recorded in the Session tab, for the Trace tab to replay.

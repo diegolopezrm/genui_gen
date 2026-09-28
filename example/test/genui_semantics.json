@@ -178,6 +178,20 @@
     "Divider": [],
     "Icon": [],
     "Image": [],
+    "LabeledField": [
+      {
+        "role": "text_field",
+        "name": "Sample label",
+        "value": "Sample value",
+        "state": {
+          "disabled": false
+        },
+        "actions": [
+          "tap",
+          "focus"
+        ]
+      }
+    ],
     "List": [
       {
         "role": "text",

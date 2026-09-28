@@ -135,6 +135,52 @@ class ScriptedAgent {
         ],
       },
     ),
+    ScriptedTurn(
+      prompt: 'I want to get the newsletter',
+      keywords: <String>['newsletter', 'sign', 'subscribe', 'email', 'form'],
+      description:
+          'A field carrying the rules the agent attached to it. Type in it '
+          'and the message goes away without anything going back.',
+      components: <JsonMap>[
+        {
+          'id': 'root',
+          'component': 'Panel',
+          'title': 'Newsletter',
+          'child': 'email',
+          'actions': <String>['subscribe'],
+        },
+        {
+          'id': 'email',
+          'component': 'LabeledField',
+          'label': 'Email',
+          'value': {'path': '/form/email'},
+          'checks': <Object?>[
+            {
+              'condition': {
+                'call': 'required',
+                'args': {
+                  'value': {'path': '/form/email'},
+                },
+              },
+              'message': 'We need an email to send it to.',
+            },
+          ],
+        },
+        {
+          'id': 'subscribe',
+          'component': 'Button',
+          'child': 'subscribe-label',
+          'variant': 'primary',
+          'action': {
+            'event': {'name': 'subscribe'},
+          },
+        },
+        {'id': 'subscribe-label', 'component': 'Text', 'text': 'Subscribe'},
+      ],
+      data: <String, Object?>{
+        'form': <String, Object?>{'email': ''},
+      },
+    ),
   ];
 
   /// The turn that best matches [prompt], or the first one.
@@ -174,6 +220,12 @@ class ScriptedTurn {
   final Map<String, Object?> data;
 
   /// The messages an agent would send for this turn.
+  ///
+  /// The data model is seeded with a mutable copy on purpose. These turns are
+  /// `const`, so their maps are immutable, and a data model seeded from one
+  /// drops every write made through it: the control writes, the write fails,
+  /// and nothing changes on screen. A real agent's payload arrives decoded
+  /// from JSON and is mutable already, so this is a cost of scripting one.
   List<core.A2uiMessage> messages(
     String surfaceId,
     String catalogId,
@@ -181,6 +233,18 @@ class ScriptedTurn {
     core.UpdateComponentsMessage(surfaceId: surfaceId, components: components),
     core.CreateSurfaceMessage(surfaceId: surfaceId, catalogId: catalogId),
     if (data.isNotEmpty)
-      core.UpdateDataModelMessage(surfaceId: surfaceId, value: data),
+      core.UpdateDataModelMessage(
+        surfaceId: surfaceId,
+        value: _mutable(data) as Map<String, Object?>,
+      ),
   ];
 }
+
+/// A deep, modifiable copy of a value that may have come from a `const` map.
+Object? _mutable(Object? value) => switch (value) {
+  Map() => <String, Object?>{
+    for (final entry in value.entries) '${entry.key}': _mutable(entry.value),
+  },
+  List() => <Object?>[for (final entry in value) _mutable(entry)],
+  _ => value,
+};

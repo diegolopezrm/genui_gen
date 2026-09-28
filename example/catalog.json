@@ -5,6 +5,49 @@
   "description": "The widgets this example app renders for an agent.",
   "catalogId": "dev.dlsoft.genui_gen.example",
   "components": {
+    "LabeledField": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "component": {
+              "type": "string",
+              "enum": [
+                "LabeledField"
+              ]
+            },
+            "label": {
+              "description": "The caption above the field.",
+              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString"
+            },
+            "value": {
+              "description": "What the field currently holds. The component writes the value the user chooses back to this property, so bind it to a data path if you need to read the result.",
+              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString"
+            },
+            "checks": {
+              "type": "array",
+              "description": "Validation rules for this component.",
+              "items": {
+                "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/CheckRule"
+              }
+            }
+          },
+          "required": [
+            "component",
+            "label",
+            "value"
+          ]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
     "MetricsTable": {
       "type": "object",
       "allOf": [
@@ -559,6 +602,9 @@
     },
     "anyComponent": {
       "oneOf": [
+        {
+          "$ref": "#/components/LabeledField"
+        },
         {
           "$ref": "#/components/MetricsTable"
         },

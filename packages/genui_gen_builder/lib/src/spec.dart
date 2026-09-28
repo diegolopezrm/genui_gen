@@ -67,6 +67,14 @@ enum PropKind {
   /// builder passes a callback that writes the user's value into the data
   /// model, at the path `<property>` is bound to.
   valueWriter,
+
+  /// A parameter marked `@GenUiChecked`.
+  ///
+  /// Not a schema property either: the model sends `checks`, and this
+  /// parameter receives what evaluating them said. A `String?` takes the
+  /// message of the first failing rule, a `bool` takes whether all of them
+  /// pass, and a `GenUiCheckResult` takes both.
+  checkResult,
 }
 
 extension PropKindX on PropKind {
@@ -89,7 +97,7 @@ extension PropKindX on PropKind {
     PropKind.widget ||
     PropKind.widgetList ||
     PropKind.action ||
-    PropKind.valueWriter => false,
+    PropKind.valueWriter || PropKind.checkResult => false,
   };
 
   /// Whether the value is a `@GenUiData` object or a list of them.
@@ -119,6 +127,7 @@ final class PropSpec {
     this.writerTypeName,
     this.writerValueKind,
     this.isTemplate = false,
+    this.checkShape,
   });
 
   /// The constructor parameter name.
@@ -164,6 +173,9 @@ final class PropSpec {
   /// For [PropKind.data] and [PropKind.dataList]: the analysed data class.
   final DataSpec? data;
 
+  /// For [PropKind.checkResult]: what the parameter's type asks to receive.
+  final CheckResultShape? checkShape;
+
   /// For [PropKind.valueWriter]: the schema name of the property this callback
   /// writes to.
   final String? writesProperty;
@@ -185,6 +197,7 @@ final class PropSpec {
   /// problem through `ctx.reportError`.
   bool get isSchemaRequired =>
       kind != PropKind.valueWriter &&
+      kind != PropKind.checkResult &&
       isRequiredInConstructor &&
       defaultValueCode == null &&
       !isNullable;
@@ -267,6 +280,17 @@ final class WidgetSpec {
   /// Name of the generated top-level variable, e.g. `productCardCatalogItem`.
   String get variableName => '${lowerCamel(className)}CatalogItem';
 
+  /// The parameter marked `@GenUiChecked`, when there is one.
+  ///
+  /// Its presence is what puts a `checks` property in the schema, so the model
+  /// may attach rules to the component at all.
+  PropSpec? get checkProp {
+    for (final prop in props) {
+      if (prop.kind == PropKind.checkResult) return prop;
+    }
+    return null;
+  }
+
   /// The Dart expression used to invoke the chosen constructor.
   String get constructorReference =>
       constructorName.isEmpty ? className : '$className.$constructorName';
@@ -276,7 +300,10 @@ final class WidgetSpec {
   /// Everything but the value writers, which are derived from the property
   /// they write to and never appear in the schema.
   Iterable<PropSpec> get schemaProps =>
-      props.where((p) => p.kind != PropKind.valueWriter);
+      props.where(
+        (p) =>
+            p.kind != PropKind.valueWriter && p.kind != PropKind.checkResult,
+      );
 
   Iterable<PropSpec> get writerProps =>
       props.where((p) => p.kind == PropKind.valueWriter);
@@ -394,4 +421,17 @@ final class FunctionSpec {
 
   /// The generated top-level variable holding the `ClientFunction`.
   String get variableName => '${dartName}GenUiFunction';
+}
+
+
+/// What a `@GenUiChecked` parameter receives, decided by its Dart type.
+enum CheckResultShape {
+  /// A `String?`: the message of the first failing rule, or `null`.
+  message,
+
+  /// A `bool` or `bool?`: whether every rule passes.
+  isValid,
+
+  /// A `GenUiCheckResult`: both.
+  result,
 }

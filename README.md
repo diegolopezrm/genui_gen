@@ -39,11 +39,11 @@ widget.
 ```yaml
 dependencies:
   genui: ^0.10.0
-  genui_gen: ^0.9.0
+  genui_gen: ^0.10.0
 
 dev_dependencies:
   build_runner: ^2.15.0
-  genui_gen_builder: ^0.8.0
+  genui_gen_builder: ^0.9.0
 ```
 
 The generated code is a `part` of your file and builds its schema with
@@ -326,6 +326,7 @@ import 'genui_catalog.g.dart';
 
 final catalog = genUiCatalog.copyWith(
   newItems: BasicCatalogItems.asCatalog().items.toList(),
+  newFunctions: BasicCatalogItems.asCatalog().functions.toList(),
 );
 ```
 
@@ -658,6 +659,93 @@ The model sends a binding, and reads the answer back from the path it chose:
 - Two callbacks may write the same property, which is what a slider with both
   `onChanged` and `onChangeEnd` needs.
 - Every one of these is a build error that names both sides.
+
+## Validation the agent writes (`@GenUiChecked`)
+
+A2UI lets the agent attach rules to an input component. A `CheckRule` is a
+condition to evaluate and the message to show when it fails, and both are
+required. The rules belong to the agent rather than to you, because what counts
+as valid depends on what it is asking for; a widget only has to be willing to
+say so.
+
+```dart
+@GenUiWidget(description: 'A labelled text input.')
+class LabeledField extends StatelessWidget {
+  const LabeledField({
+    super.key,
+    required this.label,
+    required this.value,
+    @GenUiWrites('value') this.onChanged,
+    @GenUiChecked() this.error,
+  });
+
+  final String label;
+  final String value;
+  final ValueChanged<String>? onChanged;
+
+  /// The message of the first failing rule, or null while all of them pass.
+  final String? error;
+
+  @override
+  Widget build(BuildContext context) => TextFormField(
+    initialValue: value,
+    onChanged: onChanged,
+    decoration: InputDecoration(labelText: label, errorText: error),
+  );
+}
+```
+
+The annotation does two things: it adds a `checks` property to the generated
+schema, so the model may send rules at all, and it hands that parameter the
+answer instead of taking it from the model. The agent then sends:
+
+```json
+{
+  "id": "email", "component": "LabeledField", "label": "Email",
+  "value": {"path": "/form/email"},
+  "checks": [
+    {
+      "condition": {
+        "call": "required",
+        "args": { "value": {"path": "/form/email"} }
+      },
+      "message": "We need an email to reach you."
+    }
+  ]
+}
+```
+
+Together with `@GenUiWrites` that closes the loop without the agent in it: the
+user types, the value lands at `/form/email`, the rule is re-evaluated against
+that same path, and the message clears. No message goes back over the wire.
+
+### What the parameter may be
+
+| Dart type | Receives |
+|---|---|
+| `String?` | the message of the first failing rule, `null` while all pass |
+| `bool`, `bool?` | whether every rule passes |
+| `GenUiCheckResult` | both |
+
+A non-nullable `String` is a build error: a passing rule has no message to give
+it.
+
+Worth knowing:
+
+- **The rules are evaluated one at a time, not folded together.** genui's own
+  `checksToExpression` combines the conditions into a single `and` and keeps no
+  messages, which is why the basic catalog can only colour a field red. The
+  message is the only part of a rule a person ever reads, and the agent wrote
+  it for them.
+- A rule whose condition has not resolved yet counts as passing, so a field is
+  not announced as invalid before the data model arrives. A rule with no
+  message is skipped rather than shown as an unexplained failure, and a
+  condition that throws counts as passing rather than taking the screen down.
+- A condition usually calls one of the basic catalog's functions (`required`,
+  `regex`, `length`, `numeric`, `email`), so those functions have to be in the
+  catalog you hand the controller. `Catalog.copyWith` takes items and functions
+  separately: pass `newFunctions` as well as `newItems`, or the rules will name
+  functions nobody registered.
 
 ## Lists the data model fills (`@GenUiProp(template: true)`)
 
@@ -997,7 +1085,7 @@ A runnable version of all of this is in
 [`example/lib/models/metric_row.dart`](example/lib/models/metric_row.dart) and
 [`example/lib/widgets/metrics_table.dart`](example/lib/widgets/metrics_table.dart).
 
-## Limitations (0.9)
+## Limitations (0.10)
 
 Not supported yet; each produces a build error that names the parameter:
 
@@ -1043,6 +1131,10 @@ Two ways around it in the meantime:
   screen reader, and what it costs to send.
 - 0.8: `@GenUiProp(template: true)` — a list of children may be a template the
   data model repeats, so a list that grows does not need a new surface.
+- 0.10: `@GenUiChecked` — a component may carry the validation rules the agent
+  attached to it, and a parameter receives the message of the first one that
+  fails. Each rule is evaluated on its own, so the sentence the agent wrote is
+  what the person reads.
 - 0.9: `@GenUiFunction` — a top-level Dart function becomes a catalog function,
   so the agent can compute a value with `{"call": ...}` instead of only
   composing components. The argument schema, the return type and the argument

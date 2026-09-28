@@ -1,3 +1,29 @@
+## 0.10.0
+
+- Added `@GenUiChecked`, the validation half of an input component. A2UI lets
+  the agent attach rules to a component: a `CheckRule` is a condition and the
+  message to show when it fails, and both are required. The rules belong to
+  the agent, because what counts as valid depends on what it is asking for, so
+  a widget only has to be willing to say so. Annotating a parameter adds a
+  `checks` property to the generated schema and hands that parameter the
+  answer: a `String?` takes the message of the first failing rule, a `bool`
+  takes whether every rule passes, and a `GenUiCheckResult` takes both.
+- Added `GenUiChecks` and `GenUiCheckResult`, which the generated code builds.
+  Each rule is evaluated on its own rather than combined, which is what keeps
+  the message. genui's `checksToExpression` folds the conditions into a single
+  `and` and drops every message, so the basic catalog can only colour a field
+  red; the sentence the agent wrote for the person reading the screen is the
+  only part of a rule they ever see.
+- A rule whose condition has not resolved yet counts as passing, so a field is
+  not announced as invalid before the data model arrives. A rule with no
+  message is skipped rather than shown as an unexplained failure, and a
+  condition that throws counts as passing rather than taking the screen down.
+- **Worth knowing if you compose catalogs:** `Catalog.copyWith` takes items and
+  functions separately, and the README used to show only `newItems`. A `checks`
+  rule calls `required`, `regex` or `email`, which live in the basic catalog's
+  functions, so merging only the items leaves those rules naming functions
+  nobody registered. The examples now pass `newFunctions` too.
+
 ## 0.9.0
 
 - Added `@GenUiFunction`, the other half of an A2UI catalog. A catalog holds

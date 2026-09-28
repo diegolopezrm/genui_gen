@@ -26,6 +26,8 @@ const importForSymbol = <String, String>{
   'S': _jsonSchemaBuilder,
   'ObjectSchema': _jsonSchemaBuilder,
   'GenUiBindings': _genuiGen,
+  'GenUiChecks': _genuiGen,
+  'GenUiCheckResult': _genuiGen,
   'GenUiClientFunction': _genuiGen,
   'GenUiBinding': _genuiGen,
   'GenUiMissingFieldReporter': _genuiGen,

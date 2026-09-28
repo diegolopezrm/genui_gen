@@ -148,6 +148,28 @@ void main() {
     expect(find.text('Turing, Alan'), findsOneWidget);
   });
 
+  testWidgets('the agent attaches a rule and the field enforces it', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const GenUiGenExampleApp());
+    await tester.pump();
+
+    await tester.tap(find.text('Session'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('I want to get the newsletter'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('We need an email to send it to.'), findsOneWidget);
+
+    // Typing satisfies the rule. Nothing goes back to the agent in between.
+    await tester.ensureVisible(find.byType(TextFormField));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField), 'diego@example.com');
+    await tester.pumpAndSettle();
+
+    expect(find.text('We need an email to send it to.'), findsNothing);
+  });
+
   testWidgets('a session composes a surface and records it', (tester) async {
     await tester.pumpWidget(const GenUiGenExampleApp());
     await tester.pump();

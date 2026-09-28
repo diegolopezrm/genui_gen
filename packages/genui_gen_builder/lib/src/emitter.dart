@@ -55,12 +55,19 @@ String _exampleLiteral(String json) {
 
 // --- Schema --------------------------------------------------------------
 
+/// The `checks` property, present only when the widget asked for the answer.
+String _checksSchema(Set<String> symbols) {
+  symbols.add('A2uiSchemas');
+  return "'checks': A2uiSchemas.checkable(),";
+}
+
 String _schema(WidgetSpec spec, Set<String> symbols) {
   final out = StringBuffer('S.object(');
   out.write('description: ${dartWrappedString(spec.description)},');
   final properties = spec.schemaProps.toList();
   final written = spec.writtenProperties;
-  if (properties.isNotEmpty) {
+  final bool checkable = spec.checkProp != null;
+  if (properties.isNotEmpty || checkable) {
     symbols.add('A2uiSchemas');
     out.write('properties: {');
     for (final prop in properties) {
@@ -71,6 +78,7 @@ String _schema(WidgetSpec spec, Set<String> symbols) {
       );
       out.write('${dartString(prop.schemaName)}: $schema,');
     }
+    if (checkable) out.write(_checksSchema(symbols));
     out.write('},');
     final required = spec.requiredProps.toList();
     if (required.isNotEmpty) {
@@ -201,6 +209,7 @@ String _propertySchema(
     case PropKind.action:
       return 'A2uiSchemas.action($description)';
     case PropKind.valueWriter:
+    case PropKind.checkResult:
       throw StateError('${prop.kind} is not a schema property');
   }
 }
@@ -233,15 +242,27 @@ String _widgetBuilder(WidgetSpec spec, Set<String> symbols) {
   final construction =
       '${spec.constructorReference}(${_arguments(spec, symbols)})';
 
+  // A component the agent may attach rules to evaluates them outside the
+  // bindings, so the answer is in scope for every property that follows and
+  // the widget rebuilds when a rule changes its mind.
+  final PropSpec? check = spec.checkProp;
+  if (check != null) {
+    symbols.add('GenUiChecks');
+    out.writeln('return GenUiChecks(');
+    out.writeln('dataContext: ctx.dataContext,');
+    out.writeln("checks: data['checks'],");
+    out.writeln('builder: (context, $_checkLocal) =>');
+  }
+
   final bound = spec.boundProps.toList();
   if (bound.isEmpty) {
-    out.writeln('return $construction;');
+    out.writeln(check == null ? 'return $construction;' : '$construction,);');
   } else {
     symbols.addAll(['GenUiBindings', 'GenUiBinding']);
     if (spec.writtenProperties.isNotEmpty) {
       symbols.add('genUiWriteReference');
     }
-    out.writeln('return GenUiBindings(');
+    out.writeln('${check == null ? 'return ' : ''}GenUiBindings(');
     out.writeln('dataContext: ctx.dataContext,');
     out.writeln('bindings: {');
     final written = spec.writtenProperties;
@@ -265,11 +286,14 @@ String _widgetBuilder(WidgetSpec spec, Set<String> symbols) {
     }
     out.writeln('},');
     out.writeln('builder: (context, v) => $construction,');
-    out.writeln(');');
+    out.writeln(check == null ? ');' : '),);');
   }
   out.write('}');
   return out.toString();
 }
+
+/// The name the evaluated result is bound to inside the generated builder.
+const _checkLocal = 'checked';
 
 /// A local helper that reports a missing required property through
 /// `genUiReportMissing` (once per component instance, never for data
@@ -326,6 +350,9 @@ String _bindingFactory(PropSpec prop) => switch (prop.kind) {
   PropKind.widget ||
   PropKind.widgetList ||
   PropKind.action ||
+  PropKind.checkResult => throw StateError(
+    'a check result is not bound; it comes from GenUiChecks',
+  ),
   PropKind.valueWriter => throw StateError(
     '${prop.kind} is not a bound property',
   ),
@@ -513,6 +540,13 @@ String _argument(PropSpec prop, Set<String> symbols, {bool isWritten = false}) {
       return '$local is List '
           '? $local.whereType<String>().map((id) => ctx.buildChild(id)).toList() '
           ': $fallback';
+    case PropKind.checkResult:
+      symbols.add('GenUiCheckResult');
+      return switch (prop.checkShape!) {
+        CheckResultShape.message => '$_checkLocal.message',
+        CheckResultShape.isValid => '$_checkLocal.isValid',
+        CheckResultShape.result => _checkLocal,
+      };
     case PropKind.valueWriter:
       // Not a schema property: the callback is derived from the one it writes
       // to, so the raw value of *that* property is what carries the path.
@@ -672,6 +706,7 @@ String _fieldSchema(PropSpec field, Set<String> symbols) {
     case PropKind.widgetList:
     case PropKind.action:
     case PropKind.valueWriter:
+    case PropKind.checkResult:
       throw StateError('${field.kind} is not valid inside a data class');
   }
 }
@@ -814,6 +849,7 @@ String _decodeArgument(PropSpec field, Set<String> symbols) {
     case PropKind.widgetList:
     case PropKind.action:
     case PropKind.valueWriter:
+    case PropKind.checkResult:
       throw StateError('${field.kind} is not valid inside a data class');
   }
 }

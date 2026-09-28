@@ -337,3 +337,51 @@ class GenUiFunction {
   /// Defaults to the Dart function name.
   final String? name;
 }
+
+/// Marks a parameter as the result of the component's validation checks.
+///
+/// A2UI lets the agent attach rules to an input component: a `CheckRule` is a
+/// condition to evaluate and the message to show when it fails, and both are
+/// required. The rules belong to the agent, not to the widget author, because
+/// what counts as valid depends on what the agent is asking for. A widget only
+/// has to be willing to say so.
+///
+/// Annotating a parameter with `@GenUiChecked` does two things: it adds a
+/// `checks` property to the generated schema, so the model may send rules, and
+/// it hands the parameter the answer instead of taking it from the model.
+///
+/// ```dart
+/// @GenUiWidget(description: 'A labelled text input.')
+/// class LabeledField extends StatelessWidget {
+///   const LabeledField({
+///     super.key,
+///     required this.label,
+///     required this.value,
+///     @GenUiChecked() this.error,
+///   });
+///
+///   final String label;
+///   final String value;
+///
+///   /// The message of the first rule that is failing, or null.
+///   final String? error;
+/// }
+/// ```
+///
+/// The parameter's type decides what it receives:
+///
+/// - a `String?` gets the message of the first failing rule, and `null` while
+///   everything passes. This is the one to reach for: the message is the only
+///   part of a rule a person ever reads, and it is what the agent wrote for
+///   them.
+/// - a `bool` gets whether every rule passes.
+/// - a `GenUiCheckResult` gets both.
+///
+/// A rule whose condition has not resolved yet counts as passing, so a field
+/// is not announced as invalid before the data model arrives, and a rule with
+/// no message is skipped rather than shown as an unexplained failure.
+@Target({TargetKind.parameter, TargetKind.field})
+class GenUiChecked {
+  /// Creates a [GenUiChecked] annotation.
+  const GenUiChecked();
+}

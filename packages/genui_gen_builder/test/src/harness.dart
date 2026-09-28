@@ -121,6 +121,7 @@ abstract final class A2uiSchemas {
   static Schema componentArrayReference({String? description}) =>
       const Schema();
   static Schema action({String? description}) => const Schema();
+  static Schema checkable({String? description}) => const Schema();
   static Schema dataBindingSchema({String? description}) => const Schema();
   static Schema functionCall() => const Schema();
   static Schema listOrReference({
@@ -171,6 +172,27 @@ class GenUiAction {
   const GenUiAction({this.eventName, this.description});
   final String? eventName;
   final String? description;
+}
+
+class GenUiChecked {
+  const GenUiChecked();
+}
+
+class GenUiCheckResult {
+  const GenUiCheckResult({required this.isValid, required this.message});
+  final bool isValid;
+  final String? message;
+}
+
+class GenUiChecks {
+  const GenUiChecks({
+    required this.dataContext,
+    required this.checks,
+    required this.builder,
+  });
+  final Object? dataContext;
+  final Object? checks;
+  final Object Function(Object context, GenUiCheckResult result) builder;
 }
 
 class GenUiWrites {

@@ -1,3 +1,21 @@
+## 0.9.0
+
+- A parameter annotated `@GenUiChecked` puts a `checks` property in the
+  component's schema, so the model may attach validation rules, and receives
+  what evaluating them said instead of anything the model sent. The parameter's
+  type decides what it gets: a `String?` the message of the first failing rule,
+  a `bool` whether every rule passes, a `GenUiCheckResult` both.
+- The rules are evaluated outside the property bindings, so the answer is in
+  scope for every property and the widget rebuilds when a rule changes its
+  mind.
+- Build errors, each naming the parameter: a `@GenUiChecked` parameter whose
+  type cannot hold the answer, a non-nullable `String` (a passing rule has no
+  message to give it), and the annotation inside a `@GenUiData` class, which
+  has no surface to be valid or invalid on.
+- The doc comment emitted in `genui_catalog.g.dart` now shows `newFunctions`
+  alongside `newItems`, because a catalog holds both and a check rule calls the
+  basic catalog's functions.
+
 ## 0.8.0
 
 - Generates a `ClientFunction` for every top-level function annotated with

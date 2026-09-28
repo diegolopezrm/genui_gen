@@ -61,11 +61,11 @@ fails. There is no second source of truth to keep in sync.
 ```yaml
 dependencies:
   genui: ^0.10.0
-  genui_gen: ^0.9.0
+  genui_gen: ^0.10.0
 
 dev_dependencies:
   build_runner: ^2.15.0
-  genui_gen_builder: ^0.8.0
+  genui_gen_builder: ^0.9.0
 ```
 
 This package is the runtime half of the pair: the annotations, and the helpers
@@ -133,6 +133,7 @@ import 'genui_catalog.g.dart';
 
 final catalog = genUiCatalog.copyWith(
   newItems: BasicCatalogItems.asCatalog().items.toList(),
+  newFunctions: BasicCatalogItems.asCatalog().functions.toList(),
 );
 
 final controller = SurfaceController(catalogs: [catalog]);
@@ -209,6 +210,47 @@ class PreferenceRow extends StatelessWidget {
 
 The callback is not a schema property — the model never supplies it. The model
 binds `enabled` to a path and reads the user's answer back from the same path.
+
+## Validation the agent writes
+
+A2UI lets the agent attach rules to an input component. A `CheckRule` is a
+condition and the message to show when it fails, and both are required. The
+rules belong to the agent, because what counts as valid depends on what it is
+asking for. A widget only has to be willing to say so:
+
+```dart
+@GenUiWidget(description: 'A labelled text input.')
+class LabeledField extends StatelessWidget {
+  const LabeledField({
+    super.key,
+    required this.label,
+    required this.value,
+    @GenUiWrites('value') this.onChanged,
+    @GenUiChecked() this.error,
+  });
+
+  final String label;
+  final String value;
+  final ValueChanged<String>? onChanged;
+
+  /// The message of the first failing rule, or null while all of them pass.
+  final String? error;
+  // ...
+}
+```
+
+`@GenUiChecked` adds a `checks` property to the schema, so the model may send
+rules, and hands that parameter the answer. A `String?` takes the message of
+the first failing rule, a `bool` takes whether every rule passes, and a
+`GenUiCheckResult` takes both.
+
+Each rule is evaluated on its own rather than folded into one `and`, which is
+what keeps the message: it is the only part of a rule a person ever reads.
+Together with `@GenUiWrites` the loop closes without the agent in it, since the
+user's value and the rule resolve against the same path.
+
+The conditions call the basic catalog's functions, so pass `newFunctions` as
+well as `newItems` when you compose your catalog.
 
 ## Lists the data model fills
 
@@ -328,6 +370,7 @@ because schemas are inlined rather than referenced.
 | `@GenUiProp(description:, name:, ignore:, template:)` | parameter or field | Overrides the schema property; `ignore: true` excludes it, `template: true` lets a `List<Widget>` repeat over a data path. |
 | `@GenUiAction(eventName:, description:)` | parameter or field | Customizes a `VoidCallback` action. |
 | `@GenUiWrites('property')` | parameter or field | Makes a one-argument callback write the user's value back to that property's path. |
+| `@GenUiChecked()` | parameter or field | Publishes a `checks` property and hands this parameter what the agent's rules say. |
 | `@GenUiFunction(description:, name:)` | top-level function | Declares a catalog function the model calls with `{"call": ...}`. |
 
 Descriptions default to the parameter's doc comment, then the field's doc

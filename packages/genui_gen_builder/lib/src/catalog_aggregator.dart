@@ -217,6 +217,10 @@ class CatalogAggregatingBuilder implements Builder {
       ..writeln('/// ```dart')
       ..writeln('/// final catalog = $aggregateCatalogVariableName.copyWith(')
       ..writeln('///   newItems: BasicCatalogItems.asCatalog().items.toList(),')
+      ..writeln(
+        '///   newFunctions: BasicCatalogItems.asCatalog().functions'
+        '.toList(),',
+      )
       ..writeln('/// );')
       ..writeln('/// ```');
     if (id == null) {

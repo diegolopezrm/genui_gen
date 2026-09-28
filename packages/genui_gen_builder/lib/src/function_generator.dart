@@ -300,5 +300,6 @@ bool _isArgumentKind(PropKind kind) => switch (kind) {
   PropKind.widget ||
   PropKind.widgetList ||
   PropKind.action ||
-  PropKind.valueWriter => false,
+  PropKind.valueWriter ||
+  PropKind.checkResult => false,
 };

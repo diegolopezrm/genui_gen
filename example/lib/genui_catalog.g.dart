@@ -5,6 +5,7 @@
 import 'package:genui/genui.dart';
 
 import 'functions/text_functions.dart';
+import 'widgets/labeled_field.dart';
 import 'widgets/metrics_table.dart';
 import 'widgets/panel.dart';
 import 'widgets/preference_row.dart';
@@ -19,6 +20,7 @@ import 'widgets/task_list.dart';
 /// removed, so a catalog composed from it cannot fall behind
 /// the widgets it is meant to describe.
 final List<CatalogItem> genUiCatalogItems = <CatalogItem>[
+  labeledFieldCatalogItem,
   metricsTableCatalogItem,
   panelCatalogItem,
   preferenceRowCatalogItem,
@@ -49,6 +51,7 @@ final List<ClientFunction> genUiCatalogFunctions = <ClientFunction>[
 /// ```dart
 /// final catalog = genUiCatalog.copyWith(
 ///   newItems: BasicCatalogItems.asCatalog().items.toList(),
+///   newFunctions: BasicCatalogItems.asCatalog().functions.toList(),
 /// );
 /// ```
 final Catalog genUiCatalog = Catalog(
