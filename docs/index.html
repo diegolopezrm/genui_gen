@@ -291,8 +291,8 @@
     <h1>genui_gen</h1>
     <p class="deck">Annotate a Flutter widget and the catalog an agent composes against is <b>derived from its constructor</b> — schema, builder and examples — so it cannot drift from the widget it describes.</p>
     <div class="meta">
-      <span class="pill"><b>genui_gen</b> 0.9.0</span>
-      <span class="pill"><b>genui_gen_builder</b> 0.8.0</span>
+      <span class="pill"><b>genui_gen</b> 0.10.0</span>
+      <span class="pill"><b>genui_gen_builder</b> 0.9.0</span>
       <span class="pill">genui ^0.10.0</span>
       <span class="pill">Flutter ≥3.35</span>
       <a class="pill link" href="https://pub.dev/packages/genui_gen">pub.dev ↗</a>
@@ -547,6 +547,59 @@ String shortenName(
     </ul>
   </section>
 
+  <section id="checks">
+    <div class="head">
+      <p class="eyebrow on">@GenUiChecked</p>
+      <h2>Validation the agent writes</h2>
+      <div class="prose">
+        <p>A2UI lets the agent attach rules to an input. A <code>CheckRule</code> is a condition and the message to show when it fails, and both are required. The rules belong to the agent, because <b>what counts as valid depends on what it is asking for</b>. A widget only has to be willing to say so.</p>
+      </div>
+    </div>
+
+    <div class="twoup">
+      <div class="stack">
+        <p class="eyebrow">the widget accepts the answer</p>
+        <pre>class LabeledField extends StatelessWidget {
+  const LabeledField({
+    super.key,
+    required this.label,
+    required this.value,
+    <span class="a">@GenUiWrites('value')</span> this.onChanged,
+    <span class="a">@GenUiChecked()</span> this.error,
+  });
+
+  <span class="c">/// The message of the first failing rule.</span>
+  final String? error;</pre>
+      </div>
+      <div class="stack">
+        <p class="eyebrow">the agent attaches the rule and the words</p>
+        <pre>{
+  <span class="k">"component"</span>: <span class="s">"LabeledField"</span>,
+  <span class="k">"value"</span>: { <span class="k">"path"</span>: <span class="s">"/form/email"</span> },
+  <span class="k">"checks"</span>: [
+    {
+      <span class="k">"condition"</span>: {
+        <span class="k">"call"</span>: <span class="s">"required"</span>,
+        <span class="k">"args"</span>: {
+          <span class="k">"value"</span>: { <span class="k">"path"</span>: <span class="s">"/form/email"</span> }
+        }
+      },
+      <span class="k">"message"</span>: <span class="s">"We need an email to reach you."</span>
+    }
+  ]
+}</pre>
+      </div>
+    </div>
+
+    <p class="note" style="margin-top:1.6rem">Together with <code>@GenUiWrites</code> the loop closes with the agent outside it. The user types, the value lands at <code>/form/email</code>, the rule is re-evaluated against that same path, and the message clears. Nothing goes back over the wire.</p>
+
+    <ul class="plain" style="margin-top:1.4rem">
+      <li><b>The rules are evaluated one at a time, not folded together.</b> genui's own helper combines the conditions into a single <code>and</code> and keeps no messages, which is why the stock catalog can only colour a field red. The message is the only part of a rule a person ever reads.</li>
+      <li>A <code>String?</code> takes that message, a <code>bool</code> takes whether every rule passes, a <code>GenUiCheckResult</code> takes both. A non-nullable <code>String</code> is a build error: a passing rule has no message to give it.</li>
+      <li>A rule that has not resolved yet counts as passing, so a field is not called invalid before the data model arrives. One with no message is skipped rather than shown as an unexplained failure.</li>
+    </ul>
+  </section>
+
   <section id="ci">
     <div class="head">
       <p class="eyebrow on">package:genui_gen/testing.dart</p>
@@ -716,7 +769,7 @@ final catalog = genUiCatalog.copyWith(
 
   <footer>
     <span>Diego Alejandro López Camacho · MIT</span>
-    <span>genui_gen 0.9.0 · genui_gen_builder 0.8.0</span>
+    <span>genui_gen 0.10.0 · genui_gen_builder 0.9.0</span>
   </footer>
 
 </div>
