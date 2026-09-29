@@ -72,7 +72,9 @@ import 'src/semantics.dart';
 
 export 'src/audit.dart';
 export 'src/catalog_diff.dart';
+export 'src/coverage.dart';
 export 'src/example_surface.dart';
+export 'src/fuzz.dart';
 export 'src/semantics.dart';
 
 /// Compares [recorded] against [golden], and returns what differs, or `null`

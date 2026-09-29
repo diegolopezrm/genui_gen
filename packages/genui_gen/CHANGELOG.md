@@ -1,3 +1,32 @@
+## 0.11.0
+
+- Added `genUiFuzz`, which renders everything the catalog's own schema allows
+  and reports what broke. A catalog is a contract with something that cannot
+  be recompiled, and the only thing holding a model to it is a JSON schema.
+  Every widget test writes the input the author had in mind; this writes the
+  ones the schema permits and the author did not: a required property left
+  out, a string where a number was declared, a binding that never resolves, a
+  list with two hundred entries. Each finding carries the exact component the
+  renderer was handed, so a case can be pasted into a test rather than
+  reconstructed from a description of it.
+- The cases come from mutating each item's own generated example rather than
+  from reading the schema, so a hand-written `CatalogItem` is fuzzed as well
+  as a generated one, as long as it carries example data.
+- Added `genUiFuzzSummary`, a table by component for a CI log.
+- Added `genUiCoverage`, which reads a corpus of recorded sessions and says
+  what the agent actually used. `genUiCatalogWeight` already said what each
+  component costs; this says which ones earned it. Together they answer the
+  question nothing else does: the example's catalog spends 43% of every
+  request on components its agent has never once composed. It also names the
+  properties never filled and the enum values never chosen.
+- Better few-shot samples. The example is what the model learns the property
+  is for, and `42` in a price teaches it that prices are round integers. A
+  property whose name the generator recognises now gets a value that reads
+  like one of its kind, and entries of a list vary instead of repeating.
+  Format hints (a URL, a date, a hex colour) still apply to optional
+  properties, because the model cannot guess a shape it has not seen; prose
+  only replaces a placeholder the example was going to carry anyway.
+
 ## 0.10.0
 
 - Added `@GenUiChecked`, the validation half of an input component. A2UI lets

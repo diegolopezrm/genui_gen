@@ -37,7 +37,7 @@ final CatalogItem metricsTableCatalogItem = CatalogItem(
   {
     "id": "root",
     "component": "MetricsTable",
-    "title": "Sample title",
+    "title": "Quarterly report",
     "rows": [
       {
         "label": "Sample label 1",

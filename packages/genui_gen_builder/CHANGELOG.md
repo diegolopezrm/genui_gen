@@ -1,3 +1,20 @@
+## 0.10.0
+
+- The generated few-shot example uses values that read like the property they
+  are in. A name the generator recognises gets a real one of its kind, a
+  number included: a price is `19.99` rather than `42.5`, a percentage `0.65`,
+  a count `3`. Entries of a list are varied so the example shows the model
+  that they differ.
+- Format hints and prose hints are kept apart. A URL, a date, an e-mail or a
+  hex colour is a shape the model cannot guess, so it is shown even for an
+  optional property. Prose only replaces the `Sample title` placeholder for a
+  property the example was going to carry anyway, because putting copy in the
+  example for a property nobody asked for teaches the model to fill it in.
+- Prose hints read the parameter name only, never the doc comment. A field
+  called `label` whose comment says "a short caption naming the metric" is not
+  a caption, and matching prose against prose found that sort of thing
+  constantly.
+
 ## 0.9.0
 
 - A parameter annotated `@GenUiChecked` puts a `checks` property in the

@@ -45,7 +45,7 @@ final CatalogItem panelCatalogItem = CatalogItem(
   {
     "id": "root",
     "component": "Panel",
-    "title": "Sample title",
+    "title": "Quarterly report",
     "child": "child_child",
     "actions": [
       "child_actions_1",

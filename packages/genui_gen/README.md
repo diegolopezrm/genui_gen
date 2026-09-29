@@ -61,11 +61,11 @@ fails. There is no second source of truth to keep in sync.
 ```yaml
 dependencies:
   genui: ^0.10.0
-  genui_gen: ^0.10.0
+  genui_gen: ^0.11.0
 
 dev_dependencies:
   build_runner: ^2.15.0
-  genui_gen_builder: ^0.9.0
+  genui_gen_builder: ^0.10.0
 ```
 
 This package is the runtime half of the pair: the annotations, and the helpers
@@ -433,6 +433,40 @@ together. Re-record a deliberate change with `GENUI_UPDATE_GOLDENS=1`. Role,
 name, value, state and actions in traversal order is the shape A2UI's rendering
 cases use, so the same file also says what a renderer of your catalog on
 another platform would have to reproduce.
+
+### Rendering what the schema allows
+
+`genUiFuzz` renders everything the catalog's own schema permits and reports
+what broke. Every widget test checks the input you had in mind; this checks the
+ones a model can send and you did not.
+
+```dart
+final findings = await genUiFuzz(catalog: genUiCatalog, pump: tester.pumpWidget);
+expect(findings, isEmpty, reason: genUiFuzzSummary(findings));
+```
+
+It mutates each item's own generated example: a required property left out, a
+string where a number was declared, an empty list, two hundred entries, a
+binding that never resolves. Each finding carries the exact component the
+renderer was handed, so it pastes into a test rather than needing to be
+rebuilt from a description. Pointed at genui's own basic catalog it currently
+reports 69 crashing cases across five components
+([a2ui#2872](https://github.com/a2ui-project/a2ui/issues/2872)).
+
+### What the agent actually used
+
+A catalog travels in every request whether the agent composes with it or not.
+`genUiCoverage` reads the traces `tracing.dart` records and says which
+components earned their place:
+
+```
+9 of 26 components used across 5 sessions
+     14639  43.4%  in every request, for components the agent never asked for
+```
+
+It also names the properties never filled and the enum values never chosen. Not
+a rule to enforce, since a catalog is written before the conversations that use
+it, but the answer to "is this too big" with data instead of intuition.
 
 ### Recording a session
 

@@ -34,7 +34,7 @@ final CatalogItem taskListCatalogItem = CatalogItem(
   {
     "id": "root",
     "component": "TaskList",
-    "title": "Sample title",
+    "title": "Quarterly report",
     "rows": [
       "child_rows_1",
       "child_rows_2"

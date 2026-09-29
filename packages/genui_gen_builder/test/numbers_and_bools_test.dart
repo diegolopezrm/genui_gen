@@ -128,9 +128,11 @@ class Defaults extends StatelessWidget {
       expect(out, contains("dense: v.boolean('dense')"));
     });
 
-    test('example uses 42 / 42.5 / true for required values only', () {
-      expect(out, contains('"count":42'));
-      expect(out, contains('"ratio":42.5'));
+    test('the example samples required values and leaves optional ones out', () {
+      // A name the generator recognises gets a number that reads like one of
+      // its kind; anything else falls back to 42 / 42.5.
+      expect(out, contains('"count":3'));
+      expect(out, contains('"ratio":0.65'));
       expect(out, contains('"value":42'));
       expect(out, contains('"highlighted":true'));
       expect(out, isNot(contains('"maxItems"')));

@@ -205,7 +205,7 @@
     "MetricsTable": [
       {
         "role": "text",
-        "name": "Sample title"
+        "name": "Quarterly report"
       },
       {
         "role": "text",
@@ -260,7 +260,7 @@
     "Panel": [
       {
         "role": "text",
-        "name": "Sample title\nSample child\nSample actions 1\nSample actions 2"
+        "name": "Quarterly report\nSample child\nSample actions 1\nSample actions 2"
       },
       {
         "role": "button",
@@ -292,7 +292,7 @@
     "ProductCard": [
       {
         "role": "text",
-        "name": "Sample title\n$42.50",
+        "name": "Quarterly report\n$19.99",
         "actions": [
           "tap",
           "focus"
@@ -382,7 +382,7 @@
     "TaskList": [
       {
         "role": "text",
-        "name": "Sample title\nSample rows 1\nSample rows 2"
+        "name": "Quarterly report\nSample rows 1\nSample rows 2"
       }
     ],
     "Text": [

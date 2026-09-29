@@ -37,11 +37,11 @@ a new release of this package unless it removes API the generator uses.
 ```yaml
 dependencies:
   genui: ^0.10.0
-  genui_gen: ^0.10.0
+  genui_gen: ^0.11.0
 
 dev_dependencies:
   build_runner: ^2.15.0
-  genui_gen_builder: ^0.9.0
+  genui_gen_builder: ^0.10.0
 ```
 
 The generated part builds its schema with `S.object(...)` and shares your

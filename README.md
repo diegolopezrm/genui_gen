@@ -39,11 +39,11 @@ widget.
 ```yaml
 dependencies:
   genui: ^0.10.0
-  genui_gen: ^0.10.0
+  genui_gen: ^0.11.0
 
 dev_dependencies:
   build_runner: ^2.15.0
-  genui_gen_builder: ^0.9.0
+  genui_gen_builder: ^0.10.0
 ```
 
 The generated code is a `part` of your file and builds its schema with
@@ -527,6 +527,93 @@ Worth knowing:
 - A component that reads a clock, a random number or a request renders from
   that rather than from the trace, and replays differently. Keep those behind
   a function the catalog declares and the trace covers them too.
+
+## Rendering what the schema allows (`genUiFuzz`)
+
+A catalog is a contract with something that cannot be recompiled, and the only
+thing holding a model to it is a JSON schema. Every widget test you write
+checks the input you had in mind. `genUiFuzz` checks the ones the schema
+permits and you did not.
+
+```dart
+testWidgets('the catalog survives what its own schema allows', (tester) async {
+  final findings = await genUiFuzz(
+    catalog: genUiCatalog,
+    pump: tester.pumpWidget,
+  );
+  expect(findings, isEmpty, reason: '${genUiFuzzSummary(findings)}\n\n'
+      '${findings.take(10).join('\n\n')}');
+});
+```
+
+It renders every item's own generated example with each property replaced by
+something else that property could hold: a required one left out, a null, a
+string where a number was declared, an empty list, a list of two hundred
+entries, a binding that never resolves, a call to a function nobody
+registered, a string longer than any layout expects.
+
+Every finding carries the component the renderer was handed, so a case is
+something to paste into a test rather than a description to reconstruct:
+
+```
+Slider: `max` as an empty list
+  threw: type 'List<Object?>' is not a subtype of type 'num?' in type cast
+  {"id":"root","component":"Slider","value":0.5,"max":[]}
+```
+
+The cases are built by mutating the examples rather than by reading the
+schema, which means a hand-written `CatalogItem` is fuzzed as well as a
+generated one, as long as it carries example data. The order is fixed, so a
+run is reproducible and `maxCasesPerComponent` always drops the same tail.
+
+Worth knowing:
+
+- `reportEmpty` also reports a case that rendered nothing at all. It is off by
+  default because most of those are correct: take the items away from a list
+  and it has nothing to draw. Turn it on to find the component that swallows a
+  wrong-typed property and leaves a blank space where the agent asked for
+  something.
+- `skip` and `only` take component names. Naming the ones you have accepted,
+  rather than leaving them out of the run, is what tells you the day they are
+  fixed.
+- Pointed at genui's own basic catalog it currently reports 69 crashing cases
+  across five components, filed as
+  [a2ui#2872](https://github.com/a2ui-project/a2ui/issues/2872).
+
+## What the agent actually used (`genUiCoverage`)
+
+A catalog travels in every request whether the agent composes with it or not.
+`genUiCatalogWeight` says what each component costs; this says which ones
+earned it.
+
+```dart
+final coverage = genUiCoverage(catalog: genUiCatalog, traces: recorded);
+print(coverage.describe());
+```
+
+Over the traces [`tracing.dart`](#when-the-screen-was-not-in-your-source-packagegenui_gentracingdart)
+already records, for the example app:
+
+```
+9 of 26 components used across 5 sessions and 5 surfaces
+  never composed:
+      2340   6.9%  ChoicePicker
+      1312   3.9%  TextField
+      1101   3.3%  Icon
+       ...
+     14639  43.4%  in every request, for components the agent never asked for
+  composed, with properties never filled:
+    Button: checks
+    Panel: onClose
+    TaskList: emptyLabel
+  enum values never chosen:
+    StatTile.trend: down, flat
+```
+
+That last number is the one worth looking at. It is not a rule to enforce: a
+catalog is written before the conversations that use it, and an error state
+should be rare. It is the answer, with data rather than intuition, to whether
+the catalog is too big and which part of it is the dead weight.
 
 ## What a change costs the agent (`genUiCatalogDiff`)
 
@@ -1085,7 +1172,7 @@ A runnable version of all of this is in
 [`example/lib/models/metric_row.dart`](example/lib/models/metric_row.dart) and
 [`example/lib/widgets/metrics_table.dart`](example/lib/widgets/metrics_table.dart).
 
-## Limitations (0.10)
+## Limitations (0.11)
 
 Not supported yet; each produces a build error that names the parameter:
 
@@ -1131,6 +1218,10 @@ Two ways around it in the meantime:
   screen reader, and what it costs to send.
 - 0.8: `@GenUiProp(template: true)` — a list of children may be a template the
   data model repeats, so a list that grows does not need a new surface.
+- 0.11: `genUiFuzz` renders everything the catalog's schema allows and reports
+  what broke; `genUiCoverage` reads a corpus of sessions and says which part of
+  the catalog the agent has never used, and what that part costs every request.
+  Few-shot samples now read like the property they are in.
 - 0.10: `@GenUiChecked` — a component may carry the validation rules the agent
   attached to it, and a parameter receives the message of the first one that
   fails. Each rule is evaluated on its own, so the sentence the agent wrote is

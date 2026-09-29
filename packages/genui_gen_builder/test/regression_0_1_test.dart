@@ -105,10 +105,10 @@ final CatalogItem productCardCatalogItem = CatalogItem(
   {
     "id": "root",
     "component": "ProductCard",
-    "title": "Sample title",
-    "price": 42.5,
-    "quantity": 42,
-    "rating": 42,
+    "title": "Quarterly report",
+    "price": 19.99,
+    "quantity": 3,
+    "rating": 5,
     "inStock": true,
     "trend": "up",
     "tags": [
