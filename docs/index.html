@@ -291,8 +291,8 @@
     <h1>genui_gen</h1>
     <p class="deck">Annotate a Flutter widget and the catalog an agent composes against is <b>derived from its constructor</b> — schema, builder and examples — so it cannot drift from the widget it describes.</p>
     <div class="meta">
-      <span class="pill"><b>genui_gen</b> 0.10.0</span>
-      <span class="pill"><b>genui_gen_builder</b> 0.9.0</span>
+      <span class="pill"><b>genui_gen</b> 0.11.0</span>
+      <span class="pill"><b>genui_gen_builder</b> 0.10.0</span>
       <span class="pill">genui ^0.10.0</span>
       <span class="pill">Flutter ≥3.35</span>
       <a class="pill link" href="https://pub.dev/packages/genui_gen">pub.dev ↗</a>
@@ -600,6 +600,94 @@ String shortenName(
     </ul>
   </section>
 
+  <section id="fuzz">
+    <div class="head">
+      <p class="eyebrow on">genUiFuzz</p>
+      <h2>Render what the schema allows, not what you meant</h2>
+      <div class="prose">
+        <p>A catalog is a contract with something that cannot be recompiled, and the only thing holding a model to it is a JSON schema. <b>Every widget test you write checks the input you had in mind.</b> This checks the ones the schema permits and you did not.</p>
+        <p>It takes each component's own generated example and replaces one property at a time: a required one left out, a string where a number was declared, an empty list, two hundred entries, a binding that never resolves, a call to a function nobody registered.</p>
+      </div>
+    </div>
+
+    <div class="twoup">
+      <div class="stack">
+        <p class="eyebrow">one line in a widget test</p>
+        <pre>final findings = await genUiFuzz(
+  catalog: genUiCatalog,
+  pump: tester.pumpWidget,
+);
+
+expect(findings, isEmpty,
+    reason: genUiFuzzSummary(findings));</pre>
+        <p class="eyebrow">every finding hands you the case, not a description of it</p>
+      </div>
+      <div class="stack">
+        <p class="eyebrow">pointed at genui's own basic catalog</p>
+        <pre>69 in 5 components
+    28  Slider  (28 threw)
+    17  Tabs  (17 threw)
+    11  TextField  (11 threw)
+    10  DateTimeInput  (10 threw)
+     3  Row  (3 threw)
+
+<span class="c">Slider: `max` as an empty list</span>
+  threw: type 'List&lt;Object?&gt;' is not a
+  subtype of type 'num?' in type cast
+  {"id":"root","component":"Slider",
+   "value":0.5,"max":[]}</pre>
+      </div>
+    </div>
+
+    <p class="note" style="margin-top:1.6rem">Two of those are input that is <b>valid against the component's own published schema</b>. A <code>Slider</code> whose value falls outside its own min and max asserts, and so does one whose max is negative. Nothing in the schema says a model may not pick those numbers. Filed as <a href="https://github.com/a2ui-project/a2ui/issues/2872">a2ui#2872</a>.</p>
+  </section>
+
+  <section id="coverage">
+    <div class="head">
+      <p class="eyebrow on">genUiCoverage</p>
+      <h2>What the agent never asked for, and what it costs</h2>
+      <div class="prose">
+        <p>A catalog travels in every request whether the agent composes with it or not. The weight report says what each component costs. This says which ones earned it.</p>
+        <p>It reads the traces the recorder already keeps, so the corpus is whatever sessions you have: a canary run, a week of bug reports, the scripted turns in your example app.</p>
+      </div>
+    </div>
+
+    <div class="twoup">
+      <div class="stack">
+        <p class="eyebrow">the whole call</p>
+        <pre>final coverage = genUiCoverage(
+  catalog: genUiCatalog,
+  traces: recorded,
+);
+
+print(coverage.describe());</pre>
+      </div>
+      <div class="stack">
+        <p class="eyebrow">the example app's own catalog</p>
+        <pre>9 of 26 components used across 5 sessions
+
+never composed:
+    2340   6.9%  ChoicePicker
+    1312   3.9%  TextField
+    1101   3.3%  Icon
+     ...
+<span class="a">  14639  43.4%  in every request, for
+                components the agent
+                never asked for</span>
+
+composed, with properties never filled:
+  Button: checks
+  Panel: onClose
+  TaskList: emptyLabel
+
+enum values never chosen:
+  StatTile.trend: down, flat</pre>
+      </div>
+    </div>
+
+    <p class="note" style="margin-top:1.6rem">Not a rule to enforce. A catalog is written before the conversations that use it, and an error state should be rare. It is the answer to "is this catalog too big, and which part is the dead weight" with data instead of intuition.</p>
+  </section>
+
   <section id="ci">
     <div class="head">
       <p class="eyebrow on">package:genui_gen/testing.dart</p>
@@ -769,7 +857,7 @@ final catalog = genUiCatalog.copyWith(
 
   <footer>
     <span>Diego Alejandro López Camacho · MIT</span>
-    <span>genui_gen 0.10.0 · genui_gen_builder 0.9.0</span>
+    <span>genui_gen 0.11.0 · genui_gen_builder 0.10.0</span>
   </footer>
 
 </div>
