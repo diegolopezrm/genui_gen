@@ -166,4 +166,37 @@ void main() {
       expect(genUiSemanticsGolden(trimmed, golden), isNull);
     });
   });
+
+  group('isOperable', () {
+    test('a control the user works is operable', () {
+      for (final String action in <String>[
+        'tap',
+        'longPress',
+        'increase',
+        'decrease',
+        'setText',
+        'dismiss',
+      ]) {
+        expect(
+          GenUiSemanticNode(
+            role: 'button',
+            actions: <String>[action],
+          ).isOperable,
+          isTrue,
+          reason: action,
+        );
+      }
+    });
+
+    test('a region the user only scrolls is not', () {
+      // An unnamed scrollable is ordinary; an unnamed button is a finding,
+      // and nothing downstream should confuse the two.
+      const node = GenUiSemanticNode(
+        role: 'group',
+        actions: <String>['scrollUp', 'scrollDown'],
+      );
+
+      expect(node.isOperable, isFalse);
+    });
+  });
 }

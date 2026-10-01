@@ -1,3 +1,29 @@
+## 0.13.0
+
+- Added `package:genui_gen/inspector.dart`. `GenUiInspector` wraps the app and
+  draws a panel over the running session: the component tree the model built,
+  every data model path with what holds it and what reads it, what a screen
+  reader would announce, and the messages that got the screen into this state.
+  Debugging an ordinary screen starts by opening the file that built it, and a
+  generated screen has no such file.
+- The Data tab reads bindings both ways, which is where it earns its keep. A
+  path nothing on the surface reads is payload the agent paid for and nobody
+  saw; a path a component binds that the data model has no entry for is the
+  usual reason a field renders empty with no error anywhere.
+- Added `GenUiSurfaceGraph`, the same reading with no widgets in it, for a test
+  that wants to assert on the shape of a surface. It reports components nothing
+  reaches from the root and components that contain themselves, and is honest
+  about the one thing it cannot know: A2UI names a child with a plain string,
+  so a reference to a component that was never created is indistinguishable
+  from text.
+- `GenUiTraceRecorder` now implements `A2uiMessageSink`, so it drops into
+  anywhere a controller goes, and exposes `changes` for a UI built over a trace
+  that is still growing.
+- Added `GenUiSemanticNode.isOperable`, the rule `genUiSemanticsAudit` already
+  used for "is this a control someone works, or a region they scroll past".
+  The inspector reads the same rule, so an unnamed scrollable is not reported
+  as an unnamed control in one place and ignored in the other.
+
 ## 0.12.0
 
 - Added `genUiAsStringMap`, `genUiAsNumMap` and `genUiAsBoolMap`, which the

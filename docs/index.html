@@ -259,6 +259,35 @@
   .wnum { color: var(--ink-faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .wname { color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; }
 
+  /* ---------- inspector panel ---------- */
+
+  .panel-shot {
+    background: #1C2026; border: 1px solid #2E343D; border-radius: 3px;
+    font-family: var(--mono); font-size: 12.5px; line-height: 1.5;
+    color: #E6E8EB; overflow: hidden;
+  }
+  .panel-tabs {
+    display: flex; gap: 2px; align-items: center;
+    padding: 7px 10px; border-bottom: 1px solid #2E343D;
+  }
+  .panel-tabs button {
+    font: inherit; color: #9BA3AD; background: none; border: 0;
+    padding: 3px 8px; cursor: pointer; border-radius: 2px;
+  }
+  .panel-tabs button[aria-selected="true"] { color: #E0B457; font-weight: 600; }
+  .panel-tabs button:hover { color: #E6E8EB; }
+  .panel-tabs .shut { margin-left: auto; color: #9BA3AD; padding: 3px 8px; }
+  @media (max-width: 420px) { .panel-tabs .shut { display: none; } }
+  .panel-body { padding: 8px 0; min-height: 14.5em; }
+  .panel-body > div { padding: 4px 12px; }
+  .panel-body .p-lead { color: #9BA3AD; padding-bottom: 6px; }
+  .panel-body .p-sub { color: #9BA3AD; }
+  .panel-body .p-type { color: #E0B457; }
+  .panel-body .p-val { color: #E0B457; }
+  .panel-body .p-bad { color: #E88A7D; }
+  .panel-body .p-in1 { padding-left: 26px; }
+  .panel-body [hidden] { display: none; }
+
   /* ---------- callout ---------- */
 
   .note {
@@ -291,8 +320,8 @@
     <h1>genui_gen</h1>
     <p class="deck">Annotate a Flutter widget and the catalog an agent composes against is <b>derived from its constructor</b> — schema, builder and examples — so it cannot drift from the widget it describes.</p>
     <div class="meta">
-      <span class="pill"><b>genui_gen</b> 0.11.0</span>
-      <span class="pill"><b>genui_gen_builder</b> 0.10.0</span>
+      <span class="pill"><b>genui_gen</b> 0.13.0</span>
+      <span class="pill"><b>genui_gen_builder</b> 0.12.0</span>
       <span class="pill">genui ^0.10.0</span>
       <span class="pill">Flutter ≥3.35</span>
       <a class="pill link" href="https://pub.dev/packages/genui_gen">pub.dev ↗</a>
@@ -688,6 +717,91 @@ enum values never chosen:
     <p class="note" style="margin-top:1.6rem">Not a rule to enforce. A catalog is written before the conversations that use it, and an error state should be rare. It is the answer to "is this catalog too big, and which part is the dead weight" with data instead of intuition.</p>
   </section>
 
+  <section id="inspector">
+    <div class="head">
+      <p class="eyebrow on">package:genui_gen/inspector.dart</p>
+      <h2>A panel over the session in front of you</h2>
+      <div class="prose">
+        <p>Debugging an ordinary screen starts by opening the file that built it. A generated screen has no such file: a model composed it at runtime from a context that is gone, and the message it sent was handled and dropped. <b>The usual first question — what is this thing made of — has no answer in the source.</b></p>
+        <p>A trace is for the session you already lost. This is for the one you are looking at. Wrap it around whatever renders the surfaces and it draws a handle in the corner.</p>
+      </div>
+    </div>
+
+    <div class="twoup">
+      <div class="stack">
+        <p class="eyebrow">in debug, over the app you already have</p>
+        <pre>GenUiInspector(
+  controller: controller,
+  recorder: recorder,
+  child: GenUiConversation(...),
+)</pre>
+        <p class="eyebrow">gone from a release build; <code>enabled</code> defaults to <code>kDebugMode</code></p>
+      </div>
+      <div class="stack">
+        <p class="eyebrow">the four tabs, on one real turn of the example app</p>
+        <div class="panel-shot">
+          <div class="panel-tabs" role="tablist">
+            <button type="button" role="tab" aria-selected="true" aria-controls="ins-tree" id="ins-t-tree">tree</button>
+            <button type="button" role="tab" aria-selected="false" aria-controls="ins-data" id="ins-t-data">data</button>
+            <button type="button" role="tab" aria-selected="false" aria-controls="ins-sem" id="ins-t-sem">semantics</button>
+            <button type="button" role="tab" aria-selected="false" aria-controls="ins-msg" id="ins-t-msg">messages</button>
+            <span class="shut" aria-hidden="true">close</span>
+          </div>
+          <div class="panel-body">
+            <div id="ins-tree" role="tabpanel" aria-labelledby="ins-t-tree">
+              <div class="p-lead">2 components on session-1, bound to 2 paths.</div>
+              <div><span class="p-type">TaskList</span> <span class="p-sub">root</span><br><span class="p-sub">/tasks</span></div>
+              <div class="p-in1"><span class="p-type">Text</span> <span class="p-sub">task_row</span><br><span class="p-sub">/tasks/*/label</span></div>
+            </div>
+            <div id="ins-data" role="tabpanel" aria-labelledby="ins-t-data" hidden>
+              <div>/tasks <span class="p-val">3 items</span><br><span class="p-sub">root</span></div>
+              <div>/tasks/0/label <span class="p-val">"Call the dentist"</span><br><span class="p-sub">task_row</span></div>
+              <div>/tasks/1/label <span class="p-val">"Renew the passport"</span><br><span class="p-sub">task_row</span></div>
+              <div>/tasks/2/label <span class="p-val">"Water the plants"</span><br><span class="p-sub">task_row</span></div>
+            </div>
+            <div id="ins-sem" role="tabpanel" aria-labelledby="ins-t-sem" hidden>
+              <div><span class="p-type">text</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Today</div>
+              <div><span class="p-type">text</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Call the dentist</div>
+              <div><span class="p-type">text</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Renew the passport</div>
+              <div><span class="p-type">text</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Water the plants</div>
+              <div><span class="p-type">text_field</span> Ask for something</div>
+            </div>
+            <div id="ins-msg" role="tabpanel" aria-labelledby="ins-t-msg" hidden>
+              <div><span class="p-sub">5&nbsp;&nbsp;15229ms</span> <span class="p-type">data</span> session-1</div>
+              <div><span class="p-sub">4&nbsp;&nbsp;15229ms</span> <span class="p-type">message</span> updateDataModel</div>
+              <div><span class="p-sub">3&nbsp;&nbsp;15229ms</span> <span class="p-type">data</span> session-1</div>
+              <div><span class="p-sub">2&nbsp;&nbsp;15226ms</span> <span class="p-type">message</span> createSurface</div>
+              <div><span class="p-sub">1&nbsp;&nbsp;15226ms</span> <span class="p-type">message</span> updateComponents</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cols" style="margin-top:1.6rem">
+      <div class="box">
+        <p class="eyebrow on">Tree</p>
+        <p>What the model built, with the paths each component binds. A path written inside a template comes back resolved — <code>label</code> under a template over <code>/tasks</code> is <code>/tasks/*/label</code>, which is every row and no row in particular.</p>
+      </div>
+      <div class="box">
+        <p class="eyebrow on">Data</p>
+        <p>Every path, what it holds now, and which components read it. It reads both ways, which is where it earns its keep.</p>
+      </div>
+      <div class="box">
+        <p class="eyebrow on">Semantics</p>
+        <p>What a screen reader would announce, taken live. A generated screen can announce nothing at all without looking any different.</p>
+      </div>
+      <div class="box">
+        <p class="eyebrow on">Messages</p>
+        <p>The session so far, from the same recorder that writes the trace: what the agent sent, how the data model changed, what the app sent back.</p>
+      </div>
+    </div>
+
+    <p class="note" style="margin-top:1.6rem">The Data tab reads bindings in both directions on purpose. <b>A path nothing on the surface reads is payload the agent paid for and nobody saw.</b> A path a component binds that the data model has no entry for is the usual reason a field renders empty with no error anywhere — neither one raises anything, and neither is visible from the code.</p>
+
+    <p class="note" style="margin-top:1rem"><code>GenUiSurfaceGraph</code> is the same reading with no widgets in it, for a test that wants to assert on the shape of a surface rather than look at it. It reports a component nothing reaches from the root and a component that contains itself. It does not report a child reference naming a component that was never created, because it cannot: A2UI names a child with a plain string, and nothing in the message tells that apart from text.</p>
+  </section>
+
   <section id="ci">
     <div class="head">
       <p class="eyebrow on">package:genui_gen/testing.dart</p>
@@ -815,7 +929,7 @@ enum values never chosen:
         <p class="eyebrow">1 · pubspec.yaml</p>
         <pre>dependencies:
   genui: ^0.10.0
-  genui_gen: ^0.12.0
+  genui_gen: ^0.13.0
 
 dev_dependencies:
   build_runner: ^2.15.0
@@ -857,7 +971,7 @@ final catalog = genUiCatalog.copyWith(
 
   <footer>
     <span>Diego Alejandro López Camacho · MIT</span>
-    <span>genui_gen 0.11.0 · genui_gen_builder 0.10.0</span>
+    <span>genui_gen 0.13.0 · genui_gen_builder 0.12.0</span>
   </footer>
 
 </div>
@@ -1029,4 +1143,20 @@ final catalog = genUiCatalog.copyWith(
           '</div>';
       }).join('');
   })();
+</script>
+
+<script>
+(function () {
+  var tabs = document.querySelectorAll('#inspector .panel-tabs button');
+  tabs.forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      tabs.forEach(function (other) {
+        var panel = document.getElementById(other.getAttribute('aria-controls'));
+        var on = other === tab;
+        other.setAttribute('aria-selected', on ? 'true' : 'false');
+        panel.hidden = !on;
+      });
+    });
+  });
+})();
 </script>

@@ -33,7 +33,7 @@ import 'trace.dart';
 /// model. A component that asks the clock or the network for something renders
 /// from that, not from the trace, and replays differently. Keep those behind a
 /// function the catalog declares, and the trace covers them too.
-class GenUiTraceRecorder {
+class GenUiTraceRecorder implements A2uiMessageSink {
   /// Creates a recorder attached to [controller].
   ///
   /// [redact] lists JSON Pointer paths whose values never reach the file.
@@ -61,13 +61,22 @@ class GenUiTraceRecorder {
   final List<GenUiTraceStep> _steps = <GenUiTraceStep>[];
   final Stopwatch _clock = Stopwatch()..start();
   final Map<String, VoidCallback> _dataListeners = <String, VoidCallback>{};
+  final _Changes _changes = _Changes();
+
+  /// Fires whenever a step is recorded.
+  ///
+  /// A trace is a growing list and [build] takes a snapshot of it, so anything
+  /// showing the session as it happens needs to know when to take another one.
+  Listenable get changes => _changes;
 
   late final StreamSubscription<ChatMessage> _submissions;
 
   /// Records [message] and hands it to the controller.
+  @override
   void handleMessage(core.A2uiMessage message) {
     final JsonMap json = message.toJson();
     _steps.add(GenUiMessageStep(_clock.elapsed, json));
+    _changes.notify();
     controller.handleMessage(message);
 
     // A surface can only be watched once it exists, which is after the
@@ -95,6 +104,7 @@ class GenUiTraceRecorder {
     }
     _dataListeners.clear();
     _clock.stop();
+    _changes.dispose();
   }
 
   ValueListenable<Object?> _rootOf(String surfaceId) => controller
@@ -109,6 +119,7 @@ class GenUiTraceRecorder {
       _steps.add(
         GenUiDataStep(_clock.elapsed, surfaceId, _redacted(root.value)),
       );
+      _changes.notify();
     }
 
     root.addListener(listener);
@@ -131,6 +142,7 @@ class GenUiTraceRecorder {
         decoded = utf8.decode(part.bytes, allowMalformed: true);
       }
       _steps.add(GenUiEventStep(_clock.elapsed, _redacted(decoded)));
+      _changes.notify();
     }
   }
 
@@ -182,4 +194,12 @@ class GenUiTraceRecorder {
 
   static List<String> _segmentsOf(String path) =>
       path.split('/').where((String segment) => segment.isNotEmpty).toList();
+}
+
+/// A notifier the recorder can fire.
+///
+/// `notifyListeners` is protected, and a recorder is not itself a notifier:
+/// nothing rebuilds from the recorder, only from [GenUiTraceRecorder.changes].
+class _Changes extends ChangeNotifier {
+  void notify() => notifyListeners();
 }

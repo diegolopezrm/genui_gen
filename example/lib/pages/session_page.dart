@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:genui/genui.dart';
+import 'package:genui_gen/inspector.dart';
 import 'package:genui_gen/tracing.dart';
 
 import '../main.dart';
@@ -86,89 +87,98 @@ class _SessionPageState extends State<SessionPage> {
     final ThemeData theme = Theme.of(context);
     final String? surfaceId = _turn == null ? null : '$_surfaceId-$_sessions';
 
-    return Column(
-      children: [
-        Expanded(
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              if (_turn == null)
-                _Hint(
-                  onPick: _ask,
-                  prompts: [
-                    for (final turn in ScriptedAgent.turns) turn.prompt,
-                  ],
-                )
-              else ...[
-                for (final _Entry entry in _log) _EntryView(entry: entry),
-                const SizedBox(height: 12),
-                Card(
-                  clipBehavior: Clip.antiAlias,
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Surface(
-                      surfaceContext: _controller.contextFor(surfaceId!),
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-        SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: Row(
+    // The panel over the session, which is where it belongs: it reports on a
+    // surface while someone is using it. `enabled` is forced on here because
+    // this example is built in release mode for the web; a real app leaves it
+    // at `kDebugMode` and ships without it.
+    return GenUiInspector(
+      controller: _controller,
+      recorder: _recorder,
+      enabled: true,
+      child: Column(
+        children: [
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.all(16),
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: _prompt,
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: _ask,
-                    decoration: InputDecoration(
-                      hintText: 'Ask for something',
-                      border: const OutlineInputBorder(),
-                      isDense: true,
-                      suffixIcon: IconButton(
-                        tooltip: 'Send',
-                        icon: const Icon(Icons.send),
-                        onPressed: () => _ask(_prompt.text),
+                if (_turn == null)
+                  _Hint(
+                    onPick: _ask,
+                    prompts: [
+                      for (final turn in ScriptedAgent.turns) turn.prompt,
+                    ],
+                  )
+                else ...[
+                  for (final _Entry entry in _log) _EntryView(entry: entry),
+                  const SizedBox(height: 12),
+                  Card(
+                    clipBehavior: Clip.antiAlias,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Surface(
+                        surfaceContext: _controller.contextFor(surfaceId!),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                IconButton.filledTonal(
-                  tooltip: 'Start over',
-                  icon: const Icon(Icons.refresh),
-                  onPressed: () {
-                    _recorder.dispose();
-                    _controller.dispose();
-                    setState(() {
-                      _log.clear();
-                      _turn = null;
-                      _sessions = 0;
-                      _start();
-                    });
-                    recordedTrace.value = null;
-                  },
-                ),
+                ],
               ],
             ),
           ),
-        ),
-        if (_turn != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Text(
-              'Recorded so far: '
-              '${recordedTrace.value?.steps.length ?? 0} steps. '
-              'Open the Trace tab to step through them.',
-              style: theme.textTheme.bodySmall,
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _prompt,
+                      textInputAction: TextInputAction.send,
+                      onSubmitted: _ask,
+                      decoration: InputDecoration(
+                        hintText: 'Ask for something',
+                        border: const OutlineInputBorder(),
+                        isDense: true,
+                        suffixIcon: IconButton(
+                          tooltip: 'Send',
+                          icon: const Icon(Icons.send),
+                          onPressed: () => _ask(_prompt.text),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton.filledTonal(
+                    tooltip: 'Start over',
+                    icon: const Icon(Icons.refresh),
+                    onPressed: () {
+                      _recorder.dispose();
+                      _controller.dispose();
+                      setState(() {
+                        _log.clear();
+                        _turn = null;
+                        _sessions = 0;
+                        _start();
+                      });
+                      recordedTrace.value = null;
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
-      ],
+          if (_turn != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                'Recorded so far: '
+                '${recordedTrace.value?.steps.length ?? 0} steps. '
+                'Open the Trace tab to step through them.',
+                style: theme.textTheme.bodySmall,
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

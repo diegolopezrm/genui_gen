@@ -87,7 +87,7 @@ List<GenUiAuditFinding> genUiSemanticsAudit(
 
     final controlNames = <String>[];
     for (final node in nodes) {
-      final bool operable = node.actions.any(_operableActions.contains);
+      final bool operable = node.isOperable;
       // A tooltip counts as a name here. It is weaker than one — Android
       // announces it, other platforms are less reliable — and the recording
       // shows which of the two a control has, so the distinction stays
@@ -131,15 +131,6 @@ List<GenUiAuditFinding> genUiSemanticsAudit(
 
   return findings;
 }
-
-const Set<String> _operableActions = <String>{
-  'tap',
-  'longPress',
-  'increase',
-  'decrease',
-  'setText',
-  'dismiss',
-};
 
 /// How much of every prompt one component takes up.
 ///

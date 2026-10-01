@@ -71,6 +71,12 @@ class GenUiSemanticNode {
   /// the platform's action names.
   final List<String> actions;
 
+  /// Whether a user operates this node, rather than reads or scrolls it.
+  ///
+  /// Scrolling is left out deliberately. A scrollable region with no name is
+  /// ordinary; a button with no name is a finding.
+  bool get isOperable => actions.any(_operableActions.contains);
+
   /// This node as JSON, omitting what it does not carry so that a golden file
   /// stays readable.
   Map<String, Object?> toJson() => <String, Object?>{
@@ -247,3 +253,12 @@ List<GenUiSemanticNode> genUiRenderedSemantics() {
     'afterwards.',
   );
 }
+
+const Set<String> _operableActions = <String>{
+  'tap',
+  'longPress',
+  'increase',
+  'decrease',
+  'setText',
+  'dismiss',
+};

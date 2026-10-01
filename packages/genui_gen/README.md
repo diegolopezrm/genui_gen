@@ -377,13 +377,14 @@ because schemas are inlined rather than referenced.
 Descriptions default to the parameter's doc comment, then the field's doc
 comment.
 
-## Three libraries
+## Four libraries
 
 | Import | What it is for |
 |---|---|
 | `package:genui_gen/genui_gen.dart` | the annotations, the runtime helpers the generated code calls, and `genUiCatalogJson` |
 | `package:genui_gen/testing.dart` | record what a component exposes to a screen reader and fail when it changes; audit the catalog; diff it against what you published; weigh what it costs the prompt |
 | `package:genui_gen/tracing.dart` | record a real agent session and replay it with no model and no network |
+| `package:genui_gen/inspector.dart` | a debug panel over the running session: the tree, the data model, the semantics and the messages |
 
 ### The catalog as a document
 
@@ -491,6 +492,34 @@ and every action the app reported. `GenUiTracePlayer` and `GenUiTraceView` put
 it back on screen at any step, with no model and no network, because A2UI
 describes interfaces as data. That is how last week's session becomes this
 week's regression test. `redact` names the paths a recording must not keep.
+
+### The panel over the running session
+
+A trace is for the session you already lost. The inspector is for the one in
+front of you.
+
+```dart
+GenUiInspector(
+  controller: controller,
+  recorder: recorder,
+  child: GenUiConversation(...),
+)
+```
+
+Four tabs. **Tree** is what the model built, with the paths each component
+binds, and it flags a component nothing reaches from the root or one that
+contains itself. **Data** is every path, what it holds right now, and which
+components read it; it reads both ways, so a path no component reads shows up
+as payload the agent paid for and nobody saw, and a path a component binds with
+nothing behind it shows up as the usual reason a field renders empty with no
+error anywhere. **Semantics** is what a screen reader would announce, taken
+live, which a generated screen can get wrong without looking any different.
+**Messages** is the session, from a `GenUiTraceRecorder`.
+
+It is gone from a release build: `enabled` defaults to `kDebugMode`, and when
+it is false the child is returned untouched. `GenUiSurfaceGraph` is the same
+reading with no widgets in it, for a test that wants to assert on the shape of
+a surface rather than look at it.
 
 ### Checking the contract and the cost
 
