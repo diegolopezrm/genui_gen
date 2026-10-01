@@ -44,12 +44,7 @@ void main() {
       catalog: catalog,
       traces: [
         traceOf([
-          {
-            'id': 'root',
-            'component': 'Used',
-            'title': 'hello',
-            'tone': 'warm',
-          },
+          {'id': 'root', 'component': 'Used', 'title': 'hello', 'tone': 'warm'},
         ]),
       ],
     );

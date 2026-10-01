@@ -40,8 +40,8 @@ final CatalogItem productCardCatalogItem = CatalogItem(
   {
     "id": "root",
     "component": "ProductCard",
-    "title": "Sample title",
-    "price": 42.5,
+    "title": "Quarterly report",
+    "price": 19.99,
     "imageUrl": "https://picsum.photos/seed/genui_gen/400/225",
     "onTap": {
       "event": {

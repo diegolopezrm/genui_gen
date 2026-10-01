@@ -19,9 +19,8 @@ String shortenName(String name, {NameStyle style = NameStyle.initials}) {
   return switch (style) {
     NameStyle.initials => parts.map((p) => p[0].toUpperCase()).join(),
     NameStyle.firstOnly => parts.first,
-    NameStyle.lastFirst => parts.length == 1
-        ? parts.first
-        : '${parts.last}, ${parts.first}',
+    NameStyle.lastFirst =>
+      parts.length == 1 ? parts.first : '${parts.last}, ${parts.first}',
   };
 }
 
@@ -35,7 +34,6 @@ String formatPrice(int cents, {String currency = 'USD'}) {
   final fraction = (cents % 100).toString().padLeft(2, '0');
   return '$currency $whole.$fraction';
 }
-
 
 @GenUiFunction(
   description:

@@ -78,7 +78,9 @@ void main() {
     addTearDown(player.dispose);
 
     await tester.pumpWidget(
-      MaterialApp(home: Scaffold(body: GenUiTraceView(player: player))),
+      MaterialApp(
+        home: Scaffold(body: GenUiTraceView(player: player)),
+      ),
     );
     await tester.pumpAndSettle();
 

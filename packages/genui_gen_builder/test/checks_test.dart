@@ -76,10 +76,11 @@ class Field extends StatelessWidget {
       expect(out, contains('state: checked'));
     });
 
-    test('a non-nullable String is a build error, since passing has no message',
-        () {
-      expect(
-        generate('''
+    test(
+      'a non-nullable String is a build error, since passing has no message',
+      () {
+        expect(
+          generate('''
 @GenUiWidget(description: 'A field.')
 class Field extends StatelessWidget {
   const Field({super.key, required this.value, @GenUiChecked() this.error = ''});
@@ -87,15 +88,16 @@ class Field extends StatelessWidget {
   final String error;
 }
 '''),
-        throwsA(
-          isA<GenerationFailure>().having(
-            (e) => e.message,
-            'message',
-            contains('needs a parameter that can hold the answer'),
+          throwsA(
+            isA<GenerationFailure>().having(
+              (e) => e.message,
+              'message',
+              contains('needs a parameter that can hold the answer'),
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
 
     test('anything else is a build error naming the parameter', () {
       expect(

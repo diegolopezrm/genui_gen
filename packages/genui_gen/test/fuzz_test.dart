@@ -146,10 +146,7 @@ void main() {
     tester,
   ) async {
     expect(
-      () => genUiFuzz(
-        catalog: Catalog([sturdy]),
-        pump: tester.pumpWidget,
-      ),
+      () => genUiFuzz(catalog: Catalog([sturdy]), pump: tester.pumpWidget),
       throwsA(isA<ArgumentError>()),
     );
   });

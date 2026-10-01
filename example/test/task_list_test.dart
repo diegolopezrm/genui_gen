@@ -22,12 +22,7 @@ Future<SurfaceController> pumpTaskList(
     core.UpdateComponentsMessage(
       surfaceId: 's',
       components: [
-        {
-          'id': 'root',
-          'component': 'TaskList',
-          'title': 'Today',
-          'rows': rows,
-        },
+        {'id': 'root', 'component': 'TaskList', 'title': 'Today', 'rows': rows},
         {
           'id': 'task_row',
           'component': 'Text',

@@ -44,11 +44,7 @@ void main() {
 
     printOnFailure(weight.describe());
     // No component should be able to take over the prompt on its own.
-    expect(
-      weight.byComponent.keys.first,
-      isNotNull,
-      reason: weight.describe(),
-    );
+    expect(weight.byComponent.keys.first, isNotNull, reason: weight.describe());
     expect(weight.shareOf(weight.byComponent.keys.first), lessThan(0.5));
   });
 }

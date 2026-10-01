@@ -62,9 +62,6 @@ void main() {
     );
     expect(coverage.sessions, 0);
     expect(coverage.componentShare, 0);
-    expect(
-      coverage.unusedComponents.length,
-      exampleCatalog.items.length,
-    );
+    expect(coverage.unusedComponents.length, exampleCatalog.items.length);
   });
 }
