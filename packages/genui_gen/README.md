@@ -65,7 +65,7 @@ dependencies:
 
 dev_dependencies:
   build_runner: ^2.15.0
-  genui_gen_builder: ^0.10.0
+  genui_gen_builder: ^0.11.0
 ```
 
 This package is the runtime half of the pair: the annotations, and the helpers

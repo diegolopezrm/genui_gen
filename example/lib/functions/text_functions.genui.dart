@@ -65,3 +65,39 @@ final ClientFunction formatPriceGenUiFunction = GenUiClientFunction(
     );
   },
 );
+
+/// Generated catalog function for [describeMetric].
+final ClientFunction describeMetricGenUiFunction = GenUiClientFunction(
+  name: 'describeMetric',
+  description:
+      'Describes one metric in a sentence, for a tooltip or a '
+      'summary line. Takes the same row object the tables take.',
+  argumentSchema: S.object(
+    properties: {
+      'row': S.combined(
+        oneOf: [
+          metricRowGenUiSchema,
+          A2uiSchemas.dataBindingSchema(),
+          A2uiSchemas.functionCall(),
+        ],
+      ),
+    },
+    required: ['row'],
+  ),
+  returnType: ClientFunctionReturnType.string,
+  body: (args, context) {
+    final json = args;
+    const GenUiMissingFieldReporter? onMissing = null;
+    return describeMetric(switch (genUiAsObject(json['row'])) {
+      final Map<String, Object?> nested => metricRowFromGenUiJson(
+        nested,
+        genUiNestedField(onMissing, 'row'),
+      ),
+      _ => genUiMissingField<MetricRow>(
+        onMissing,
+        'row',
+        metricRowFromGenUiJson(const <String, Object?>{}),
+      ),
+    });
+  },
+);

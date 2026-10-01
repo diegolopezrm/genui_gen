@@ -43,7 +43,7 @@ dependencies:
 
 dev_dependencies:
   build_runner: ^2.15.0
-  genui_gen_builder: ^0.10.0
+  genui_gen_builder: ^0.11.0
 ```
 
 The generated code is a `part` of your file and builds its schema with
@@ -963,10 +963,12 @@ way a widget property does rather than throwing inside the expression that
 called the function. A required argument the model omits falls back the same
 way, silently, because a function has no component to attribute the error to.
 
-Arguments may be a `String`, a number, a `bool`, an enum, or a `List` of those.
-A `Widget` or a callback is a build error naming the parameter: a function
-receives values the expression system already resolved, and has no surface to
-build a child on or event to dispatch.
+Arguments may be a `String`, a number, a `bool`, an enum, a `List` of those, or
+a `@GenUiData` class and a `List` of one. The object schema is inlined and the
+generated decoder is called per argument, exactly as it is for a widget
+property. A `Widget` or a callback is a build error naming the parameter: a
+function receives values the expression system already resolved, and has no
+surface to build a child on or event to dispatch.
 
 Worth knowing:
 
@@ -1172,7 +1174,7 @@ A runnable version of all of this is in
 [`example/lib/models/metric_row.dart`](example/lib/models/metric_row.dart) and
 [`example/lib/widgets/metrics_table.dart`](example/lib/widgets/metrics_table.dart).
 
-## Limitations (0.11)
+## Limitations (0.12)
 
 Not supported yet; each produces a build error that names the parameter:
 
@@ -1183,8 +1185,6 @@ Not supported yet; each produces a build error that names the parameter:
   supported through [`@GenUiWrites`](#controls-the-user-operates-genuiwrites).
 - Widgets or callbacks used as fields of a `@GenUiData` class, and data
   classes that reference themselves.
-- `@GenUiData` classes as arguments of a `@GenUiFunction`. A function argument
-  is a scalar or a list of scalars for now.
 
 Two ways around it in the meantime:
 
@@ -1218,6 +1218,9 @@ Two ways around it in the meantime:
   screen reader, and what it costs to send.
 - 0.8: `@GenUiProp(template: true)` — a list of children may be a template the
   data model repeats, so a list that grows does not need a new surface.
+- 0.12: a `@GenUiFunction` may take a `@GenUiData` class, or a list of one, so
+  a function that works on an object no longer has to take it apart into
+  scalars.
 - 0.11: `genUiFuzz` renders everything the catalog's schema allows and reports
   what broke; `genUiCoverage` reads a corpus of sessions and says which part of
   the catalog the agent has never used, and what that part costs every request.

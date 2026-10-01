@@ -485,6 +485,96 @@
     }
   },
   "functions": {
+    "describeMetric": {
+      "type": "object",
+      "description": "Describes one metric in a sentence, for a tooltip or a summary line. Takes the same row object the tables take.",
+      "properties": {
+        "call": {
+          "const": "describeMetric"
+        },
+        "args": {
+          "type": "object",
+          "properties": {
+            "row": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "description": "One row of a metrics table: a labelled metric with its current value, the direction it is moving in and an optional short note explaining the number.",
+                  "properties": {
+                    "label": {
+                      "type": "string",
+                      "description": "A short caption naming the metric, e.g. \"Monthly revenue\"."
+                    },
+                    "value": {
+                      "type": "number",
+                      "description": "The current numeric value of the metric."
+                    },
+                    "trend": {
+                      "type": "string",
+                      "description": "Whether the metric went up, down or stayed flat.",
+                      "enum": [
+                        "up",
+                        "down",
+                        "flat"
+                      ]
+                    },
+                    "note": {
+                      "type": "string",
+                      "description": "An optional one-line comment about this row, e.g. \"vs. last quarter\"."
+                    }
+                  },
+                  "required": [
+                    "label",
+                    "value",
+                    "trend"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string",
+                      "description": "A relative or absolute path in the data model."
+                    }
+                  },
+                  "required": [
+                    "path"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "call": {
+                      "type": "string",
+                      "description": "The name of the function to call."
+                    },
+                    "args": {
+                      "type": "object",
+                      "description": "Arguments to pass to the function.",
+                      "additionalProperties": true
+                    }
+                  },
+                  "required": [
+                    "call"
+                  ]
+                }
+              ]
+            }
+          },
+          "required": [
+            "row"
+          ]
+        },
+        "returnType": {
+          "const": "string"
+        }
+      },
+      "required": [
+        "call",
+        "args"
+      ],
+      "unevaluatedProperties": false
+    },
     "formatPrice": {
       "type": "object",
       "description": "Formats a number of cents as a price string, so the agent never has to do currency arithmetic itself.",
@@ -633,6 +723,9 @@
     },
     "anyFunction": {
       "oneOf": [
+        {
+          "$ref": "#/functions/describeMetric"
+        },
         {
           "$ref": "#/functions/formatPrice"
         },

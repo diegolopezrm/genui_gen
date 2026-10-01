@@ -41,7 +41,7 @@ dependencies:
 
 dev_dependencies:
   build_runner: ^2.15.0
-  genui_gen_builder: ^0.10.0
+  genui_gen_builder: ^0.11.0
 ```
 
 The generated part builds its schema with `S.object(...)` and shares your

@@ -1,5 +1,8 @@
 import 'package:genui_gen/genui_gen.dart';
 
+import '../models/metric_row.dart';
+import '../models/trend.dart';
+
 part 'text_functions.genui.dart';
 
 /// How a name should be shortened.
@@ -31,4 +34,20 @@ String formatPrice(int cents, {String currency = 'USD'}) {
   final whole = (cents ~/ 100).toString();
   final fraction = (cents % 100).toString().padLeft(2, '0');
   return '$currency $whole.$fraction';
+}
+
+
+@GenUiFunction(
+  description:
+      'Describes one metric in a sentence, for a tooltip or a summary line. '
+      'Takes the same row object the tables take.',
+)
+String describeMetric(MetricRow row) {
+  final String direction = switch (row.trend) {
+    Trend.up => 'up',
+    Trend.down => 'down',
+    Trend.flat => 'flat',
+  };
+  final String note = row.note == null ? '' : ' (${row.note})';
+  return '${row.label}: ${row.value.toStringAsFixed(2)}, $direction$note';
 }

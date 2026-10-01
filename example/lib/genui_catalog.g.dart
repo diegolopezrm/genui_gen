@@ -37,6 +37,7 @@ final List<CatalogItem> genUiCatalogItems = <CatalogItem>[
 /// computes a value with, through the `{"call": ...}` form
 /// any bound property accepts.
 final List<ClientFunction> genUiCatalogFunctions = <ClientFunction>[
+  describeMetricGenUiFunction,
   formatPriceGenUiFunction,
   shortenNameGenUiFunction,
 ];

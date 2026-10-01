@@ -4,6 +4,7 @@ import 'package:build/build.dart';
 import 'package:source_gen/source_gen.dart';
 
 import 'emitter.dart';
+import 'generator.dart' show analyseDataReference;
 import 'imports.dart';
 import 'spec.dart';
 import 'strings.dart';
@@ -45,7 +46,6 @@ const _basicCatalogFunctions = {
   'regex',
   'required',
 };
-
 
 final _validName = RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$');
 
@@ -243,6 +243,17 @@ PropSpec _analyseArgument(
     );
   }
 
+  DataSpec? data;
+  if (mapping.kind.isData) {
+    data = analyseDataReference(
+      function.library,
+      mapping.dataElement!,
+      param,
+      qualified,
+      const <ClassElement>[],
+    );
+  }
+
   final propAnnotation = _propChecker.firstAnnotationOf(param);
   final reader = propAnnotation == null ? null : ConstantReader(propAnnotation);
   final renamed = reader == null || reader.read('name').isNull
@@ -274,7 +285,7 @@ PropSpec _analyseArgument(
       if (mapping.enumElement != null)
         for (final c in mapping.enumElement!.constants) c.name!,
     ],
-    data: null,
+    data: data,
   );
 }
 
@@ -282,7 +293,8 @@ PropSpec _analyseArgument(
 ///
 /// Components and actions are left out on purpose: a function receives values
 /// the expression system resolved, and has no surface to build a child on or
-/// to dispatch an event from.
+/// to dispatch an event from. A `@GenUiData` class is allowed: it is a shape
+/// the model emits, which is exactly what an argument is.
 bool _isArgumentKind(PropKind kind) => switch (kind) {
   PropKind.string ||
   PropKind.integer ||
@@ -294,9 +306,9 @@ bool _isArgumentKind(PropKind kind) => switch (kind) {
   PropKind.integerList ||
   PropKind.decimalList ||
   PropKind.numberList ||
-  PropKind.enumerationList => true,
+  PropKind.enumerationList ||
   PropKind.data ||
-  PropKind.dataList ||
+  PropKind.dataList => true,
   PropKind.widget ||
   PropKind.widgetList ||
   PropKind.action ||

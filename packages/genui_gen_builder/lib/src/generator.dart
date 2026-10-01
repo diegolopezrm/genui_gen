@@ -827,8 +827,8 @@ PropSpec? _analyseParameter(
 
   DataSpec? data;
   if (mapping.kind.isData) {
-    data = _analyseDataReference(
-      cls,
+    data = analyseDataReference(
+      cls.library,
       mapping.dataElement!,
       param,
       qualified,
@@ -904,15 +904,15 @@ bool _allowedInDataClass(PropKind kind) => switch (kind) {
 /// Both conditions hold automatically when the data class lives in the same
 /// file; across files they are checked here so the failure is a build error
 /// with a fix, not an unresolved identifier in generated code.
-DataSpec _analyseDataReference(
-  ClassElement cls,
+DataSpec analyseDataReference(
+  LibraryElement library,
   ClassElement dataElement,
   FormalParameterElement param,
   String qualified,
   List<ClassElement> stack,
 ) {
   _visibleTypeName(
-    cls.library,
+    library,
     dataElement,
     'Data class',
     param,
@@ -920,7 +920,7 @@ DataSpec _analyseDataReference(
     'name its generated schema and decoder',
   );
   _checkGeneratedPart(dataElement, param, qualified);
-  _checkImportCombinators(cls, dataElement, param, qualified);
+  _checkImportCombinators(library, dataElement, param, qualified);
   final annotation = _annotation(genUiDataChecker, dataElement)!;
   return buildDataSpec(dataElement, annotation, stack);
 }
@@ -937,20 +937,20 @@ DataSpec _analyseDataReference(
 /// arrives through a re-exporting barrel there is no combinator here to reason
 /// about, and the check stays out of the way.
 void _checkImportCombinators(
-  ClassElement cls,
+  LibraryElement library,
   ClassElement dataElement,
   FormalParameterElement param,
   String qualified,
 ) {
   final target = dataElement.library;
-  if (identical(target, cls.library)) return;
+  if (identical(target, library)) return;
 
   final name = dataElement.name!;
   final schemaName = '${lowerCamel(name)}GenUiSchema';
   final decoderName = '${lowerCamel(name)}FromGenUiJson';
 
   final blocked = <String>[];
-  for (final fragment in cls.library.fragments) {
+  for (final fragment in library.fragments) {
     for (final import in fragment.libraryImports) {
       if (import.prefix != null) continue;
       if (!identical(import.importedLibrary, target)) continue;

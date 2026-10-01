@@ -1,3 +1,12 @@
+## 0.11.0
+
+- A `@GenUiFunction` may take a `@GenUiData` class, or a `List` of one. The
+  object schema is inlined into the argument schema and the generated decoder
+  is called per argument, the same way a widget property already worked, so a
+  function that operates on an object no longer has to take it apart into
+  scalars first. A required argument the model leaves out falls back instead
+  of throwing, and a field it got wrong is reported as `argument.field`.
+
 ## 0.10.0
 
 - The generated few-shot example uses values that read like the property they

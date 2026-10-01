@@ -23,10 +23,7 @@ String shortenName(
 
     test('declares the name the model calls it by', () {
       expect(out, contains("name: 'shortenName'"));
-      expect(
-        out,
-        contains('final ClientFunction shortenNameGenUiFunction'),
-      );
+      expect(out, contains('final ClientFunction shortenNameGenUiFunction'));
     });
 
     test('derives the argument schema from the parameters', () {
@@ -191,6 +188,55 @@ String thing() => '';
           ),
         ),
       );
+    });
+  });
+  group('a @GenUiData class as an argument', () {
+    late String out;
+
+    setUpAll(() async {
+      out = await generate('''
+@GenUiData(description: 'A postal address.')
+class Address {
+  const Address({required this.street, this.zip});
+  /// Street and number.
+  final String street;
+  final String? zip;
+}
+
+@GenUiFunction(description: 'Formats an address on one line.')
+String formatAddress(Address address) => '';
+
+@GenUiFunction(description: 'Joins several addresses.')
+String formatAll(List<Address> addresses) => '';
+''');
+    });
+
+    test('inlines the object schema the data class generated', () {
+      expect(
+        out,
+        contains(
+          "'address': S.combined(oneOf: [addressGenUiSchema, "
+          'A2uiSchemas.dataBindingSchema(), A2uiSchemas.functionCall()])',
+        ),
+      );
+    });
+
+    test('a list of them is a list of that schema', () {
+      expect(
+        out,
+        contains(
+          "'addresses': A2uiSchemas.listOrReference(items: addressGenUiSchema)",
+        ),
+      );
+    });
+
+    test('decodes through the generated decoder, reporting by field', () {
+      expect(out, contains('addressFromGenUiJson(nested'));
+      expect(out, contains("genUiNestedField(onMissing, 'address')"));
+    });
+
+    test('a required one that never arrives falls back rather than throws', () {
+      expect(out, contains('genUiMissingField<Address>'));
     });
   });
 }
