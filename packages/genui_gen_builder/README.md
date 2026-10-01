@@ -37,7 +37,7 @@ a new release of this package unless it removes API the generator uses.
 ```yaml
 dependencies:
   genui: ^0.10.0
-  genui_gen: ^0.12.0
+  genui_gen: ^0.13.1
 
 dev_dependencies:
   build_runner: ^2.15.0

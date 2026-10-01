@@ -7,6 +7,12 @@ A page that shows it end to end — constructor to schema to the message an agen
 sends, a recorded session you can step through, and what the tooling found in
 the stock catalog: <https://diegolopezrm.github.io/genui_gen/>
 
+To see all of it in one app, [Quincena](https://github.com/diegolopezrm/quincena)
+is personal finance where an agent composes every answer from twenty generated
+components and six generated functions, with the inspector, recorded Gemini
+sessions and the test helpers wired in. It runs in the browser with no key:
+<https://diegolopezrm.github.io/quincena/>
+
 ## The problem
 
 A [genui](https://pub.dev/packages/genui) `Catalog` needs three things per
@@ -39,7 +45,7 @@ widget.
 ```yaml
 dependencies:
   genui: ^0.10.0
-  genui_gen: ^0.12.0
+  genui_gen: ^0.13.1
 
 dev_dependencies:
   build_runner: ^2.15.0

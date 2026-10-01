@@ -12,6 +12,11 @@ the widget's constructor, so it cannot drift from the widget it describes.
 
 **[See it end to end, with a recorded agent session you can step through →](https://diegolopezrm.github.io/genui_gen/)**
 
+Or see all of it in one app: [Quincena](https://github.com/diegolopezrm/quincena)
+is personal finance where an agent composes every answer from a catalog
+generated with this package. [It runs in the browser](https://diegolopezrm.github.io/quincena/),
+no key needed.
+
 ## In one screen
 
 You write this:
@@ -61,7 +66,7 @@ fails. There is no second source of truth to keep in sync.
 ```yaml
 dependencies:
   genui: ^0.10.0
-  genui_gen: ^0.12.0
+  genui_gen: ^0.13.1
 
 dev_dependencies:
   build_runner: ^2.15.0
