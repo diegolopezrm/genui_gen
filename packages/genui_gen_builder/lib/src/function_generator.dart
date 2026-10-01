@@ -286,6 +286,7 @@ PropSpec _analyseArgument(
         for (final c in mapping.enumElement!.constants) c.name!,
     ],
     data: data,
+    mapValueKind: mapping.mapValueKind,
   );
 }
 
@@ -308,7 +309,8 @@ bool _isArgumentKind(PropKind kind) => switch (kind) {
   PropKind.numberList ||
   PropKind.enumerationList ||
   PropKind.data ||
-  PropKind.dataList => true,
+  PropKind.dataList ||
+  PropKind.map => true,
   PropKind.widget ||
   PropKind.widgetList ||
   PropKind.action ||

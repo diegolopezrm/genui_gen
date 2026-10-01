@@ -36,6 +36,18 @@ final CatalogItem panelCatalogItem = CatalogItem(
         description:
             'Fired when the user presses the close button in the header.',
       ),
+      'meta': S.combined(
+        description:
+            'Extra labelled details, shown under the title. The keys are '
+            'the agent\'s to choose: this is for whatever it decided was '
+            'worth attaching to this particular panel, which is exactly '
+            'the case a fixed set of properties cannot express.',
+        oneOf: [
+          S.object(additionalProperties: S.string()),
+          A2uiSchemas.dataBindingSchema(),
+          A2uiSchemas.functionCall(),
+        ],
+      ),
     },
     required: ['title', 'child'],
   ),
@@ -85,7 +97,10 @@ final CatalogItem panelCatalogItem = CatalogItem(
     final _actions = data['actions'];
     return GenUiBindings(
       dataContext: ctx.dataContext,
-      bindings: {'title': GenUiBinding.string(data['title'])},
+      bindings: {
+        'title': GenUiBinding.string(data['title']),
+        'meta': GenUiBinding.object(data['meta']),
+      },
       builder: (context, v) => Panel(
         title: v.string('title') ?? missing<String>('title', ''),
         child: _child is String
@@ -98,6 +113,7 @@ final CatalogItem panelCatalogItem = CatalogItem(
                   .toList()
             : const [],
         onClose: genUiActionHandler(ctx, data['onClose']),
+        meta: genUiAsStringMap(v.object('meta')) ?? const <String, String>{},
       ),
     );
   },

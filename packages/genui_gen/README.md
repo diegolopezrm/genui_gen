@@ -61,11 +61,11 @@ fails. There is no second source of truth to keep in sync.
 ```yaml
 dependencies:
   genui: ^0.10.0
-  genui_gen: ^0.11.0
+  genui_gen: ^0.12.0
 
 dev_dependencies:
   build_runner: ^2.15.0
-  genui_gen_builder: ^0.11.0
+  genui_gen_builder: ^0.12.0
 ```
 
 This package is the runtime half of the pair: the annotations, and the helpers
@@ -168,6 +168,7 @@ core `Text` component for child widgets.
 | `List<E>` (+`?`) for an enum `E` | `listOrReference` carrying the enum's names | one `E` per entry; an unknown name is dropped |
 | a `@GenUiData` class (+`?`) | `oneOf` of its object schema, a data binding and a function call | the decoded instance |
 | `List<T>` (+`?`) where `T` is `@GenUiData` | `A2uiSchemas.listOrReference(items: <T schema>)` | one decoded `T` per entry |
+| `Map<String, V>` (+`?`), `V` a scalar, an enum or `Object?` | an object schema with `additionalProperties` | the coerced `Map` |
 | `Widget`, `Widget?` | `A2uiSchemas.componentReference` | `ctx.buildChild(id)` |
 | `List<Widget>` (+`?`) | list of component references, or a template — see below | one `ctx.buildChild` per id or per entry |
 | `VoidCallback`, `void Function()` (+`?`) | `A2uiSchemas.action` | a callback that dispatches a `UserActionEvent` |

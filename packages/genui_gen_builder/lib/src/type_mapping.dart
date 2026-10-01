@@ -31,6 +31,7 @@ final class TypeMapping {
     this.enumElement,
     this.dataElement,
     this.writerValueKind,
+    this.mapValueKind,
   });
 
   final PropKind kind;
@@ -38,6 +39,9 @@ final class TypeMapping {
 
   /// Set for [PropKind.valueWriter]: the kind the callback's argument maps to.
   final PropKind? writerValueKind;
+
+  /// Set for [PropKind.map]: what the values are, or `null` for `Object?`.
+  final PropKind? mapValueKind;
 
   /// Set for [PropKind.enumeration].
   final EnumElement? enumElement;
@@ -130,6 +134,25 @@ TypeMapping? mapType(DartType type) {
         dataElement = itemData;
       }
     }
+  } else if (type.isDartCoreMap && type.typeArguments.length == 2) {
+    final key = type.typeArguments.first;
+    final value = type.typeArguments.last;
+    // JSON object keys are strings, so that is the only key a model can send.
+    if (!key.isDartCoreString) return null;
+    if (value is DynamicType || value.isDartCoreObject) {
+      return TypeMapping(kind: PropKind.map, isNullable: isNullable);
+    }
+    if (value.nullabilitySuffix == NullabilitySuffix.question) return null;
+    final PropKind? valueKind = _scalarKindOf(value);
+    if (valueKind == null) return null;
+    return TypeMapping(
+      kind: PropKind.map,
+      isNullable: isNullable,
+      mapValueKind: valueKind,
+      enumElement: value.element is EnumElement
+          ? value.element! as EnumElement
+          : null,
+    );
   } else {
     dataElement = dataClassOf(type);
     if (dataElement != null) kind = PropKind.data;
@@ -246,3 +269,14 @@ const supportedTypesSummary =
 const supportedDataTypesSummary =
     'String, int, double, num, bool, enums, a List of any of those, a '
     '@GenUiData class and a List of one (each optionally nullable)';
+
+/// The kind a map's values map to, or `null` when they are not a scalar.
+PropKind? _scalarKindOf(DartType value) {
+  if (value.isDartCoreString) return PropKind.string;
+  if (value.isDartCoreInt) return PropKind.integer;
+  if (value.isDartCoreDouble) return PropKind.decimal;
+  if (value.isDartCoreNum) return PropKind.number;
+  if (value.isDartCoreBool) return PropKind.boolean;
+  if (value.element is EnumElement) return PropKind.enumeration;
+  return null;
+}

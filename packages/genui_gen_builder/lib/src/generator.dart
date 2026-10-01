@@ -591,6 +591,7 @@ String _kindLabel(PropKind kind) => switch (kind) {
   PropKind.action => 'action',
   PropKind.valueWriter => 'value writer',
   PropKind.checkResult => 'check result',
+  PropKind.map => 'map',
 };
 
 PropSpec? _analyseParameter(
@@ -717,6 +718,19 @@ PropSpec? _analyseParameter(
       );
     }
     final annotatable = annotatableClassName(param.type);
+    if (param.type is RecordType) {
+      throw InvalidGenerationSourceError(
+        'A record is not supported as the type of `$qualified`. The shape '
+        'would translate, but a record has nowhere to put a doc comment on '
+        'its fields, and the per-field description is most of what makes a '
+        'catalog entry usable: it is what the model reads to decide what to '
+        'put there. Declare the shape as a class and annotate it with '
+        '@GenUiData, which generates the same object schema with the '
+        'descriptions in it.',
+        element: param,
+      );
+    }
+
     final hint = annotatable == null
         ? ''
         : ' If `$annotatable` is a plain data class of your own, add '
@@ -865,6 +879,7 @@ PropSpec? _analyseParameter(
     writerTypeName: writerTypeName,
     writerValueKind: mapping.writerValueKind,
     isTemplate: isTemplate,
+    mapValueKind: mapping.mapValueKind,
   );
 }
 
@@ -882,11 +897,13 @@ bool _allowedInDataClass(PropKind kind) => switch (kind) {
   PropKind.numberList ||
   PropKind.enumerationList ||
   PropKind.data ||
-  PropKind.dataList => true,
+  PropKind.dataList ||
+  PropKind.map => true,
   PropKind.widget ||
   PropKind.widgetList ||
   PropKind.action ||
-  PropKind.valueWriter || PropKind.checkResult => false,
+  PropKind.valueWriter ||
+  PropKind.checkResult => false,
 };
 
 /// Analyses the data class [dataElement] referenced from [cls], after
@@ -1116,7 +1133,6 @@ bool _readBool(ConstantReader? reader, String field) {
   if (value == null || value.isNull) return false;
   return value.boolValue;
 }
-
 
 /// What a `@GenUiChecked` parameter of [type] asks to receive, or `null` when
 /// the type cannot hold any of it.

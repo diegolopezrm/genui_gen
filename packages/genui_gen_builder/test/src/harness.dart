@@ -319,6 +319,9 @@ List<String>? genUiAsStringList(Object? value) => null;
 List<num>? genUiAsNumList(Object? value) => null;
 Map<String, Object?>? genUiAsObject(Object? value) => null;
 List<Map<String, Object?>>? genUiAsObjectList(Object? value) => null;
+Map<String, String>? genUiAsStringMap(Object? value) => null;
+Map<String, num>? genUiAsNumMap(Object? value) => null;
+Map<String, bool>? genUiAsBoolMap(Object? value) => null;
 
 T genUiMissingField<T>(
   GenUiMissingFieldReporter? onMissing,

@@ -21,10 +21,18 @@ class Panel extends StatelessWidget {
     required this.child,
     this.actions = const [],
     @GenUiAction(eventName: 'panel_closed') this.onClose,
+    this.meta = const <String, String>{},
   });
 
   /// The heading shown at the top of the panel.
   final String title;
+
+  /// Extra labelled details, shown under the title.
+  ///
+  /// The keys are the agent's to choose: this is for whatever it decided was
+  /// worth attaching to this particular panel, which is exactly the case a
+  /// fixed set of properties cannot express.
+  final Map<String, String> meta;
 
   /// The component rendered as the body of the panel.
   final Widget child;
@@ -65,6 +73,21 @@ class Panel extends StatelessWidget {
               ],
             ),
             const Divider(height: 8),
+            if (meta.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 4, bottom: 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (final MapEntry<String, String> entry in meta.entries)
+                      Text(
+                        '${entry.key}: ${entry.value}',
+                        style: theme.textTheme.bodySmall,
+                      ),
+                  ],
+                ),
+              ),
             Padding(
               padding: const EdgeInsets.only(top: 8, right: 8),
               child: child,

@@ -106,6 +106,18 @@ Object? _sampleFor(
       return {
         'event': {'name': prop.eventName ?? prop.schemaName},
       };
+    case PropKind.map:
+      if (!required) return null;
+      return switch (prop.mapValueKind) {
+        PropKind.boolean => {'alpha': true, 'beta': false},
+        PropKind.string => {'alpha': 'Sample alpha', 'beta': 'Sample beta'},
+        PropKind.enumeration when prop.enumValues.isNotEmpty => {
+          'alpha': prop.enumValues.first,
+          'beta': prop.enumValues.last,
+        },
+        null => {'alpha': 'Sample alpha', 'beta': 2},
+        _ => {'alpha': 1, 'beta': 2},
+      };
     case PropKind.valueWriter:
     case PropKind.checkResult:
       // Derived from the property it writes to, and never sent by the model.

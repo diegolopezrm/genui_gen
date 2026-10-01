@@ -187,6 +187,46 @@
             "onClose": {
               "description": "Fired when the user presses the close button in the header.",
               "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/Action"
+            },
+            "meta": {
+              "description": "Extra labelled details, shown under the title. The keys are the agent's to choose: this is for whatever it decided was worth attaching to this particular panel, which is exactly the case a fixed set of properties cannot express.",
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string",
+                      "description": "A relative or absolute path in the data model."
+                    }
+                  },
+                  "required": [
+                    "path"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "call": {
+                      "type": "string",
+                      "description": "The name of the function to call."
+                    },
+                    "args": {
+                      "type": "object",
+                      "description": "Arguments to pass to the function.",
+                      "additionalProperties": true
+                    }
+                  },
+                  "required": [
+                    "call"
+                  ]
+                }
+              ]
             }
           },
           "required": [

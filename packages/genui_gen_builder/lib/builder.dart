@@ -47,7 +47,7 @@ String? _catalogId(BuilderOptions options) {
       configured,
       catalogIdOption,
       'must be a string, such as `com.example.my_catalog`. Quote it in '
-          '`build.yaml` if it looks like a number or a boolean',
+      '`build.yaml` if it looks like a number or a boolean',
     );
   }
   return configured;

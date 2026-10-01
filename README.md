@@ -39,11 +39,11 @@ widget.
 ```yaml
 dependencies:
   genui: ^0.10.0
-  genui_gen: ^0.11.0
+  genui_gen: ^0.12.0
 
 dev_dependencies:
   build_runner: ^2.15.0
-  genui_gen_builder: ^0.11.0
+  genui_gen_builder: ^0.12.0
 ```
 
 The generated code is a `part` of your file and builds its schema with
@@ -213,6 +213,7 @@ because `GenUiBindings` composes genui's `BoundString`, `BoundNumber`,
 | `List<E>`, `List<E>?` where `E` is an enum | `listOrReference` whose items carry the enum's `name`s | one `E` per entry; a name the enum does not declare is dropped |
 | a class annotated with `@GenUiData`, and its nullable variant | a `oneOf` of the inlined object schema, a data binding and a function call | the decoded instance |
 | `List<T>`, `List<T>?` where `T` is `@GenUiData` | `A2uiSchemas.listOrReference(items: <that object schema>)` | one decoded `T` per element |
+| `Map<String, V>`, `Map<String, V>?` where `V` is a scalar, an enum or `Object?` | an object schema with `additionalProperties` | the coerced `Map`; an entry the model got wrong is dropped |
 | `Widget`, `Widget?` | component reference | `ctx.buildChild(id)` |
 | `List<Widget>`, `List<Widget>?` | list of component references | one `ctx.buildChild` per id |
 | `VoidCallback`, `void Function()` and nullable variants | action | a callback that dispatches a `UserActionEvent` |
@@ -1178,8 +1179,15 @@ A runnable version of all of this is in
 
 Not supported yet; each produces a build error that names the parameter:
 
-- Maps with arbitrary keys (`Map<String, Object?>`, `Map<String, double>`).
-- Records.
+- Maps with a key that is not a `String`, or with a nullable value. A JSON
+  object has no other kind of key, and a schema cannot say that one value is
+  absent and another is null.
+- Records. The shape would translate, but a record has nowhere to put a doc
+  comment on its fields, and that per-field description is most of what makes
+  a catalog entry usable, since it is what the model reads to decide what to
+  put there. Declare the shape as a class and annotate it `@GenUiData`, which
+  generates the same object schema with the descriptions in it. The build
+  error says so.
 - Callbacks with more than one argument, and one-argument callbacks whose value
   is not a `String`, a number, a `bool` or an enum. A single scalar argument is
   supported through [`@GenUiWrites`](#controls-the-user-operates-genuiwrites).
@@ -1220,7 +1228,9 @@ Two ways around it in the meantime:
   data model repeats, so a list that grows does not need a new surface.
 - 0.12: a `@GenUiFunction` may take a `@GenUiData` class, or a list of one, so
   a function that works on an object no longer has to take it apart into
-  scalars.
+  scalars. A property, a field or an argument may also be a `Map<String, V>`,
+  for the case where the keys are the agent's to choose rather than part of
+  the contract.
 - 0.11: `genUiFuzz` renders everything the catalog's schema allows and reports
   what broke; `genUiCoverage` reads a corpus of sessions and says which part of
   the catalog the agent has never used, and what that part costs every request.

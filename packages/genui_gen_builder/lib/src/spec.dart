@@ -68,6 +68,13 @@ enum PropKind {
   /// model, at the path `<property>` is bound to.
   valueWriter,
 
+  /// `Map<String, V>` (+nullable) where `V` is a scalar, an enum, or
+  /// `Object?` → an object schema with `additionalProperties`.
+  ///
+  /// The keys are whatever the model chooses, which is the point: a map is
+  /// for the case where the names are data rather than part of the contract.
+  map,
+
   /// A parameter marked `@GenUiChecked`.
   ///
   /// Not a schema property either: the model sends `checks`, and this
@@ -93,11 +100,13 @@ extension PropKindX on PropKind {
     PropKind.numberList ||
     PropKind.enumerationList ||
     PropKind.data ||
-    PropKind.dataList => true,
+    PropKind.dataList ||
+    PropKind.map => true,
     PropKind.widget ||
     PropKind.widgetList ||
     PropKind.action ||
-    PropKind.valueWriter || PropKind.checkResult => false,
+    PropKind.valueWriter ||
+    PropKind.checkResult => false,
   };
 
   /// Whether the value is a `@GenUiData` object or a list of them.
@@ -128,6 +137,7 @@ final class PropSpec {
     this.writerValueKind,
     this.isTemplate = false,
     this.checkShape,
+    this.mapValueKind,
   });
 
   /// The constructor parameter name.
@@ -175,6 +185,12 @@ final class PropSpec {
 
   /// For [PropKind.checkResult]: what the parameter's type asks to receive.
   final CheckResultShape? checkShape;
+
+  /// For [PropKind.map]: what the values of the map are.
+  ///
+  /// `null` means `Object?`, an object whose values the schema says nothing
+  /// about.
+  final PropKind? mapValueKind;
 
   /// For [PropKind.valueWriter]: the schema name of the property this callback
   /// writes to.
@@ -299,11 +315,9 @@ final class WidgetSpec {
   ///
   /// Everything but the value writers, which are derived from the property
   /// they write to and never appear in the schema.
-  Iterable<PropSpec> get schemaProps =>
-      props.where(
-        (p) =>
-            p.kind != PropKind.valueWriter && p.kind != PropKind.checkResult,
-      );
+  Iterable<PropSpec> get schemaProps => props.where(
+    (p) => p.kind != PropKind.valueWriter && p.kind != PropKind.checkResult,
+  );
 
   Iterable<PropSpec> get writerProps =>
       props.where((p) => p.kind == PropKind.valueWriter);
@@ -422,7 +436,6 @@ final class FunctionSpec {
   /// The generated top-level variable holding the `ClientFunction`.
   String get variableName => '${dartName}GenUiFunction';
 }
-
 
 /// What a `@GenUiChecked` parameter receives, decided by its Dart type.
 enum CheckResultShape {

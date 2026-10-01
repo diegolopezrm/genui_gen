@@ -1,3 +1,11 @@
+## 0.12.0
+
+- Added `genUiAsStringMap`, `genUiAsNumMap` and `genUiAsBoolMap`, which the
+  generated code calls for a `Map<String, V>` property. An entry the model got
+  wrong is dropped rather than defaulted: a map is a set of keys the model
+  chose, so a key it could not express is better absent than present and
+  wrong.
+
 ## 0.11.0
 
 - Added `genUiFuzz`, which renders everything the catalog's own schema allows

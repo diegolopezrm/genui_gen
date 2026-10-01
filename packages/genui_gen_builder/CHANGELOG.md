@@ -1,3 +1,22 @@
+## 0.12.0
+
+- A property, a `@GenUiData` field or a function argument may be a
+  `Map<String, V>`, where `V` is a `String`, a number, a `bool`, an enum or
+  `Object?`. It becomes an object schema with `additionalProperties`, so the
+  contract pins what the values are and says nothing about the names. That is
+  the point of reaching for a map: the keys are data the agent chooses, which
+  is the one case a fixed set of properties cannot express.
+- The map as a whole still accepts a `{"path": ...}` or a `{"call": ...}`, the
+  same as a `@GenUiData` object, since it folds through the same binding.
+- A non-string key is a build error, because a JSON object has no other kind.
+  So is a nullable value, which the schema has no way to state.
+- A record is now rejected with its own message rather than the generic list
+  of supported types. The shape would translate, but a record has nowhere to
+  put a doc comment on its fields, and the per-field description is most of
+  what makes a catalog entry usable, since it is what the model reads to
+  decide what to put there. The error says that and points at `@GenUiData`,
+  which generates the same object schema with the descriptions in it.
+
 ## 0.11.0
 
 - A `@GenUiFunction` may take a `@GenUiData` class, or a `List` of one. The

@@ -138,3 +138,52 @@ GenUiMissingFieldReporter? genUiNestedField(
   if (onMissing == null) return null;
   return (String nested) => onMissing('$field.$nested');
 }
+
+/// [value] as a `Map<String, String>`, or `null` when it is not an object.
+///
+/// Keys are stringified, and an entry whose value is `null` is dropped rather
+/// than written as an empty string: the model leaving a key out and the model
+/// saying the value is empty are different statements.
+Map<String, String>? genUiAsStringMap(Object? value) {
+  final Map<String, Object?>? object = genUiAsObject(value);
+  if (object == null) return null;
+  return Map<String, String>.unmodifiable(<String, String>{
+    for (final MapEntry<String, Object?> entry in object.entries)
+      if (entry.value != null) entry.key: entry.value.toString(),
+  });
+}
+
+/// [value] as a `Map<String, num>`, or `null` when it is not an object.
+///
+/// An entry whose value is neither a number nor a string holding one is
+/// dropped, which matches how a list of numbers is read.
+Map<String, num>? genUiAsNumMap(Object? value) {
+  final Map<String, Object?>? object = genUiAsObject(value);
+  if (object == null) return null;
+  return Map<String, num>.unmodifiable(<String, num>{
+    for (final MapEntry<String, Object?> entry in object.entries)
+      if (entry.value is num)
+        entry.key: entry.value! as num
+      else if (entry.value is String &&
+          num.tryParse(entry.value! as String) != null)
+        entry.key: num.parse(entry.value! as String),
+  });
+}
+
+/// [value] as a `Map<String, bool>`, or `null` when it is not an object.
+///
+/// An entry that is not a bool, and not one of the strings `true` or `false`,
+/// is dropped.
+Map<String, bool>? genUiAsBoolMap(Object? value) {
+  final Map<String, Object?>? object = genUiAsObject(value);
+  if (object == null) return null;
+  return Map<String, bool>.unmodifiable(<String, bool>{
+    for (final MapEntry<String, Object?> entry in object.entries)
+      if (entry.value is bool)
+        entry.key: entry.value! as bool
+      else if (entry.value == 'true')
+        entry.key: true
+      else if (entry.value == 'false')
+        entry.key: false,
+  });
+}

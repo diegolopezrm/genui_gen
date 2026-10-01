@@ -124,6 +124,87 @@ const _writeBackNote =
     'The component writes the value the user chooses back to this property, so '
     'bind it to a data path if you need to read the result.';
 
+/// The schema one value of a `Map<String, V>` takes.
+///
+/// Plain `S.*` rather than a reference form: the binding applies to the map as
+/// a whole, the way it does for a list, so an individual value is a literal.
+String _mapValueSchema(PropSpec prop, Set<String> symbols) {
+  symbols.add('S');
+  return switch (prop.mapValueKind) {
+    null => 'true',
+    PropKind.string => 'S.string()',
+    PropKind.integer => 'S.integer()',
+    PropKind.decimal || PropKind.number => 'S.number()',
+    PropKind.boolean => 'S.boolean()',
+    PropKind.enumeration =>
+      'S.string(enumValues: [${prop.enumValues.map(dartString).join(', ')}])',
+    _ => throw StateError('${prop.mapValueKind} is not a map value'),
+  };
+}
+
+/// The type arguments a `@GenUiProp` map lands in, without the `Map`.
+String _mapTypeArguments(PropSpec prop) => switch (prop.mapValueKind) {
+  null => '<String, Object?>',
+  PropKind.string => '<String, String>',
+  PropKind.integer => '<String, int>',
+  PropKind.decimal => '<String, double>',
+  PropKind.number => '<String, num>',
+  PropKind.boolean => '<String, bool>',
+  PropKind.enumeration => '<String, ${prop.enumTypeName}>',
+  _ => throw StateError('${prop.mapValueKind} is not a map value'),
+};
+
+/// The full Dart type, for a type argument such as `genUiMissingField<...>`.
+String _mapDartType(PropSpec prop) => 'Map${_mapTypeArguments(prop)}';
+
+/// An empty map of that type, for a fallback.
+String _mapEmptyLiteral(PropSpec prop) => 'const ${_mapTypeArguments(prop)}{}';
+
+/// Reads a map out of [source], coercing its values.
+///
+/// An entry the model got wrong is dropped rather than defaulted: a map is a
+/// set of keys the model chose, so a key it could not express is better
+/// absent than present and wrong.
+String _mapExpression(PropSpec prop, Set<String> symbols, String source) {
+  switch (prop.mapValueKind) {
+    case null:
+      symbols.add('genUiAsObject');
+      return 'genUiAsObject($source)';
+    case PropKind.string:
+      symbols.add('genUiAsStringMap');
+      return 'genUiAsStringMap($source)';
+    case PropKind.number:
+      symbols.add('genUiAsNumMap');
+      return 'genUiAsNumMap($source)';
+    case PropKind.integer:
+      symbols.add('genUiAsNumMap');
+      return 'genUiAsNumMap($source)?.map('
+          '(key, value) => MapEntry(key, value.toInt()))';
+    case PropKind.decimal:
+      symbols.add('genUiAsNumMap');
+      return 'genUiAsNumMap($source)?.map('
+          '(key, value) => MapEntry(key, value.toDouble()))';
+    case PropKind.boolean:
+      symbols.add('genUiAsBoolMap');
+      return 'genUiAsBoolMap($source)';
+    case PropKind.enumeration:
+      symbols.add('genUiAsStringMap');
+      final type = prop.enumTypeName!;
+      // A name the enum does not declare is dropped, the same way it is in a
+      // list of enums. The switch is what keeps the whole thing null when the
+      // property never arrived, so a required one is still reported; a
+      // `fromEntries` would hand back an empty map and say nothing.
+      return '(switch (genUiAsStringMap($source)) { '
+          'final Map<String, String> entries => <String, $type>{ '
+          'for (final MapEntry<String, String> entry in entries.entries) '
+          'if ($type.values.asNameMap()[entry.value] case final value?) '
+          'entry.key: value, }, '
+          '_ => null })';
+    default:
+      throw StateError('${prop.mapValueKind} is not a map value');
+  }
+}
+
 String _propertySchema(
   PropSpec prop,
   Set<String> symbols, {
@@ -175,6 +256,18 @@ String _propertySchema(
         'items: S.string(enumValues: [$enumItemValues])',
       ].join(', ');
       return 'A2uiSchemas.listOrReference($enumItems)';
+    case PropKind.map:
+      // Same three forms as a data object, since it folds through the same
+      // `BoundObject`. The keys are the model's to choose, so the schema
+      // constrains the values and says nothing about the names.
+      symbols.add('S');
+      final mapArgs = [
+        if (description.isNotEmpty) description,
+        'oneOf: [S.object(additionalProperties: '
+            '${_mapValueSchema(prop, symbols)}), '
+            'A2uiSchemas.dataBindingSchema(), A2uiSchemas.functionCall()]',
+      ].join(', ');
+      return 'S.combined($mapArgs)';
     case PropKind.data:
       // Folded through `BoundObject`, which resolves `{"path": ...}` and
       // `{"call": ...}` as well as a literal, so the schema has to allow all
@@ -274,9 +367,7 @@ String _widgetBuilder(WidgetSpec spec, Set<String> symbols) {
       // something (see `_argument`).
       if (prop.isTemplate) {
         symbols.add('genUiTemplatePath');
-        out.writeln(
-          '$key: GenUiBinding.value(genUiTemplatePath(data[$key])),',
-        );
+        out.writeln('$key: GenUiBinding.value(genUiTemplatePath(data[$key])),');
         continue;
       }
       final raw = written.contains(prop.schemaName)
@@ -345,7 +436,7 @@ String _bindingFactory(PropSpec prop) => switch (prop.kind) {
   PropKind.integerList ||
   PropKind.decimalList ||
   PropKind.numberList => 'numberList',
-  PropKind.data => 'object',
+  PropKind.data || PropKind.map => 'object',
   PropKind.dataList => 'objectList',
   PropKind.widget ||
   PropKind.widgetList ||
@@ -475,6 +566,12 @@ String _argument(PropSpec prop, Set<String> symbols, {bool isWritten = false}) {
             '$listEnumType.values.asNameMap()[name]).nonNulls.toList()',
         'List<$listEnumType>',
         'const <$listEnumType>[]',
+      );
+    case PropKind.map:
+      return withFallback(
+        _mapExpression(prop, symbols, 'v.object($key)'),
+        _mapDartType(prop),
+        _mapEmptyLiteral(prop),
       );
     case PropKind.data:
       final decoder = prop.data!.decoderName;
@@ -693,6 +790,13 @@ String _fieldSchema(PropSpec field, Set<String> symbols) {
         'items: S.string(enumValues: [$enumFieldValues])',
       ].join(', ');
       return 'S.list($enumArgs)';
+    case PropKind.map:
+      symbols.add('S');
+      final mapArgs = [
+        if (description.isNotEmpty) description,
+        'additionalProperties: ${_mapValueSchema(field, symbols)}',
+      ].join(', ');
+      return 'S.object($mapArgs)';
     case PropKind.data:
       return _objectSchema(field.data!, field.description, symbols);
     case PropKind.dataList:
@@ -824,6 +928,12 @@ String _decodeArgument(PropSpec field, Set<String> symbols) {
         'List<$listEnumType>',
         'const <$listEnumType>[]',
       );
+    case PropKind.map:
+      return withFallback(
+        _mapExpression(field, symbols, raw),
+        _mapDartType(field),
+        _mapEmptyLiteral(field),
+      );
     case PropKind.data:
       symbols.addAll(['genUiAsObject', 'genUiNestedField']);
       final decoder = field.data!.decoderName;
@@ -879,9 +989,7 @@ EmittedCode emitFunction(FunctionSpec spec) {
 
   out
     ..writeln('/// Generated catalog function for [${spec.dartName}].')
-    ..writeln(
-      'final ClientFunction ${spec.variableName} = $constructor(',
-    )
+    ..writeln('final ClientFunction ${spec.variableName} = $constructor(')
     ..writeln('  name: ${dartString(spec.functionName)},')
     ..writeln('  description: ${dartWrappedString(spec.description)},')
     ..writeln('  argumentSchema: ${_argumentSchema(spec, symbols)},')
