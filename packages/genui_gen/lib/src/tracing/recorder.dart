@@ -74,7 +74,12 @@ class GenUiTraceRecorder implements A2uiMessageSink {
   /// Records [message] and hands it to the controller.
   @override
   void handleMessage(core.A2uiMessage message) {
-    final JsonMap json = message.toJson();
+    // A copy, taken now. The controller can adopt an updateDataModel's value
+    // by reference and write into it as the person types, at which point the
+    // message object is no longer what the agent sent. Recording it by
+    // reference would record the person's input as the agent's, and past
+    // [redact].
+    final JsonMap json = _redactedMessage(_copy(message.toJson())! as JsonMap);
     _steps.add(GenUiMessageStep(_clock.elapsed, json));
     _changes.notify();
     controller.handleMessage(message);
@@ -144,6 +149,37 @@ class GenUiTraceRecorder implements A2uiMessageSink {
       _steps.add(GenUiEventStep(_clock.elapsed, _redacted(decoded)));
       _changes.notify();
     }
+  }
+
+  /// [json] with every redacted path blanked in what an updateDataModel
+  /// writes.
+  ///
+  /// An agent can put personal data in the data model as easily as the
+  /// person can, from a tool that looked up their email for instance, and a
+  /// path named in [redact] never reaches the file whoever wrote it.
+  JsonMap _redactedMessage(JsonMap json) {
+    if (_redact.isEmpty) return json;
+    final Object? update = json['updateDataModel'];
+    if (update is! Map<String, Object?>) return json;
+    final List<String> at = _segmentsOf(update['path'] as String? ?? '');
+    for (final path in _redact) {
+      if (_startsWith(at, path)) {
+        // The message writes somewhere inside a redacted path.
+        update['value'] = '[redacted]';
+      } else if (_startsWith(path, at)) {
+        // The redacted path is inside the value the message writes.
+        _blank(update['value'], path.sublist(at.length));
+      }
+    }
+    return json;
+  }
+
+  static bool _startsWith(List<String> path, List<String> prefix) {
+    if (prefix.length > path.length) return false;
+    for (var i = 0; i < prefix.length; i++) {
+      if (path[i] != prefix[i]) return false;
+    }
+    return true;
   }
 
   /// [value] with every redacted path replaced.

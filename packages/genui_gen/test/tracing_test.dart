@@ -242,4 +242,99 @@ void main() {
       );
     });
   });
+
+  group('what reaches the file', () {
+    late SurfaceController controller;
+    late GenUiTraceRecorder recorder;
+
+    void start({List<String> redact = const <String>[]}) {
+      controller = SurfaceController(catalogs: [_catalog]);
+      addTearDown(controller.dispose);
+      recorder = GenUiTraceRecorder.attach(controller, redact: redact);
+      addTearDown(recorder.dispose);
+      recorder.handleMessage(
+        core.CreateSurfaceMessage(
+          surfaceId: 's',
+          catalogId: 'dev.dlsoft.trace',
+        ),
+      );
+    }
+
+    Map<String, Object?> sentValue() =>
+        recorder
+                .build()
+                .steps
+                .whereType<GenUiMessageStep>()
+                .map((GenUiMessageStep s) => s.message['updateDataModel'])
+                .whereType<Map<String, Object?>>()
+                .single['value']!
+            as Map<String, Object?>;
+
+    test('a message is kept as the agent sent it, not as it was changed', () {
+      start();
+      recorder.handleMessage(
+        core.UpdateDataModelMessage(
+          surfaceId: 's',
+          value: <String, Object?>{'note': ''},
+        ),
+      );
+      // The person types. The data model may be holding the very map the
+      // message carried.
+      controller.contextFor('s').dataModel.update(DataPath('/note'), 'typed');
+
+      expect(sentValue()['note'], '');
+    });
+
+    test('redact covers what the agent sent, too', () {
+      start(redact: const <String>['/user/email']);
+      recorder.handleMessage(
+        core.UpdateDataModelMessage(
+          surfaceId: 's',
+          value: <String, Object?>{
+            'user': <String, Object?>{
+              'email': 'ada@example.com',
+              'name': 'Ada',
+            },
+          },
+        ),
+      );
+
+      final Map<String, Object?> user =
+          sentValue()['user']! as Map<String, Object?>;
+      expect(user['email'], '[redacted]');
+      expect(user['name'], 'Ada');
+    });
+
+    test('redact follows a message that writes below the root', () {
+      start(redact: const <String>['/user/email']);
+      recorder.handleMessage(
+        core.UpdateDataModelMessage(
+          surfaceId: 's',
+          path: '/user',
+          value: <String, Object?>{'email': 'ada@example.com'},
+        ),
+      );
+
+      expect(sentValue()['email'], '[redacted]');
+    });
+
+    test('a message writing inside a redacted path is blanked whole', () {
+      start(redact: const <String>['/user']);
+      recorder.handleMessage(
+        core.UpdateDataModelMessage(
+          surfaceId: 's',
+          path: '/user/email',
+          value: 'ada@example.com',
+        ),
+      );
+
+      final Object? update = recorder
+          .build()
+          .steps
+          .whereType<GenUiMessageStep>()
+          .last
+          .message['updateDataModel'];
+      expect((update! as Map)['value'], '[redacted]');
+    });
+  });
 }

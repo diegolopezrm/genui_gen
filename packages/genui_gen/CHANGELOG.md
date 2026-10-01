@@ -1,3 +1,17 @@
+## 0.13.1
+
+- `GenUiTraceRecorder` copied nothing when it recorded a message from the
+  agent. The controller can keep an `updateDataModel`'s value by reference
+  and write into it as the person types, so a recorded message changed after
+  the fact and the trace showed the person's input as if the agent had sent
+  it. It also skipped `redact`, which only looked at the data model steps.
+  Found by a copied session in an app that redacts the free-text field of a
+  form: the field came out redacted in the data steps and in full in the
+  agent's message. Messages are now copied when they are recorded.
+- `redact` now applies to what an agent writes with `updateDataModel` as
+  well, including one that writes below the root. A path named there never
+  reaches the file, whoever put the value in it.
+
 ## 0.13.0
 
 - Added `package:genui_gen/inspector.dart`. `GenUiInspector` wraps the app and
