@@ -43,8 +43,12 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      # Formats, then fails on any difference, so the log shows the diff the
+      # formatter wants instead of just the names of the files.
       - name: Check formatting
-        run: dart format --output=none --set-exit-if-changed .
+        run: |
+          dart format .
+          git diff --exit-code
 
       - name: Analyze
         run: flutter analyze --fatal-infos
