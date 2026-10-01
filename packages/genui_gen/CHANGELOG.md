@@ -1,3 +1,13 @@
+## 0.13.2
+
+- Documentation only. The quickstart asked for `genui_gen: ^0.12.0`, which
+  never resolves to 0.13 and leaves out the recorder fix in 0.13.1. It asks
+  for `^0.13.1` now.
+- The README links [Quincena](https://diegolopezrm.github.io/quincena/), a
+  complete app built with this package: an agent composes every answer from
+  twenty generated components and six generated functions, with the
+  inspector, recorded sessions and the test helpers wired in.
+
 ## 0.13.1
 
 - `GenUiTraceRecorder` copied nothing when it recorded a message from the
