@@ -1,3 +1,20 @@
+## 0.14.0
+
+- Re-exports `Catalog`, `CatalogItem` and `JsonMap` alongside `A2uiSchemas`,
+  `ClientFunction` and `ClientFunctionReturnType`, which were already here.
+  Generated code names those six and nothing else of the renderer, so an
+  annotated file, and the generated catalog, now need only this library.
+  genui is being redesigned as `a2ui_flutter`; with the renderer behind this
+  one export, moving to it is a change in this package rather than in every
+  app's generated code. If your analyzer now reports an import of
+  `package:genui/genui.dart` as unnecessary, nothing else in that file used
+  it and it can go.
+- `genUiCatalogDiff` no longer reports a child property as a breaking type
+  change when one catalog writes `"type": "string"` and the other points at
+  `ComponentId` in A2UI's `common_types.json`. That definition is a string and
+  nothing more, and it is how `a2ui_flutter` describes a child. A reference to
+  any other definition still compares by name.
+
 ## 0.13.2
 
 - Documentation only. The quickstart asked for `genui_gen: ^0.12.0`, which

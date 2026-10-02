@@ -10,7 +10,6 @@ library;
 import 'package:analyzer/dart/element/element.dart';
 import 'package:source_gen/source_gen.dart';
 
-const _genui = "import 'package:genui/genui.dart';";
 const _genuiGen = "import 'package:genui_gen/genui_gen.dart';";
 const _jsonSchemaBuilder =
     "import 'package:json_schema_builder/json_schema_builder.dart';";
@@ -18,9 +17,11 @@ const _flutter = "import 'package:flutter/widgets.dart';";
 
 /// Which import provides each identifier the emitter may reference.
 const importForSymbol = <String, String>{
-  'CatalogItem': _genui,
-  'A2uiSchemas': _genui,
-  'JsonMap': _genui,
+  // genui_gen 0.14 re-exports the renderer types generated code names, so one
+  // import covers them whichever renderer it sits on.
+  'CatalogItem': _genuiGen,
+  'A2uiSchemas': _genuiGen,
+  'JsonMap': _genuiGen,
   'ClientFunction': _genuiGen,
   'ClientFunctionReturnType': _genuiGen,
   'S': _jsonSchemaBuilder,

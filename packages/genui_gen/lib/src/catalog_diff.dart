@@ -295,11 +295,33 @@ Set<String> _enumValues(Map<String, Object?> property) => <String>{
   for (final value in (property['enumValues'] as List?) ?? const []) '$value',
 };
 
+/// Definitions in A2UI's `common_types.json` that are a JSON type and nothing
+/// more, by name.
+///
+/// A property may name one of these by `$ref` or spell the type out, and both
+/// accept exactly the same values. genui spells a child's id as a string;
+/// a2ui_flutter points at `ComponentId`. Without this, moving a catalog from
+/// one to the other would report every child as a breaking change. The other
+/// definitions carry structure of their own and still compare by name.
+const Map<String, String> _plainCommonTypes = <String, String>{
+  'ComponentId': 'string',
+};
+
+const String _commonTypeDefs = r'common_types.json#/$defs/';
+
 /// What a property accepts, reduced to something two versions can be compared
 /// by: its type, or the set of shapes a `oneOf` offers.
 String? _shape(Map<String, Object?> property) {
   if (property['type'] case final Object type) return '$type';
-  if (property[r'$ref'] case final Object ref) return '$ref';
+  if (property[r'$ref'] case final Object ref) {
+    final String target = '$ref';
+    final int at = target.indexOf(_commonTypeDefs);
+    if (at >= 0) {
+      final String name = target.substring(at + _commonTypeDefs.length);
+      if (_plainCommonTypes[name] case final String type) return type;
+    }
+    return target;
+  }
   if (property['oneOf'] case final List branches) {
     final shapes = <String>[
       for (final branch in branches)

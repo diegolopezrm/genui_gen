@@ -2,7 +2,7 @@
 // ignore_for_file: type=lint
 // coverage:ignore-file
 
-import 'package:genui/genui.dart';
+import 'package:genui_gen/genui_gen.dart';
 
 import 'functions/text_functions.dart';
 import 'widgets/labeled_field.dart';

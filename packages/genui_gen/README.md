@@ -66,11 +66,11 @@ fails. There is no second source of truth to keep in sync.
 ```yaml
 dependencies:
   genui: ^0.10.0
-  genui_gen: ^0.13.1
+  genui_gen: ^0.14.0
 
 dev_dependencies:
   build_runner: ^2.15.0
-  genui_gen_builder: ^0.12.0
+  genui_gen_builder: ^0.13.0
 ```
 
 This package is the runtime half of the pair: the annotations, and the helpers
@@ -91,7 +91,6 @@ one-letter name in a file — a generated localization class, say — import
 
 ```dart
 import 'package:flutter/material.dart';
-import 'package:genui/genui.dart';
 import 'package:genui_gen/genui_gen.dart';
 
 part 'product_card.genui.dart';

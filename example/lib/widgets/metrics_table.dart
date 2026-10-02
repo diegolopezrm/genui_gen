@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:genui/genui.dart';
 import 'package:genui_gen/genui_gen.dart';
 
 import '../models/metric_row.dart';

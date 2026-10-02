@@ -1,6 +1,5 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:genui/genui.dart';
 import 'package:genui_gen/genui_gen.dart';
 import 'package:genui_gen/testing.dart';
 
@@ -174,5 +173,51 @@ void main() {
     expect(changes.length, greaterThan(1));
     expect(changes.first.isBreaking, isTrue);
     expect(changes.last.isBreaking, isFalse);
+  });
+
+  test('a child named by its ComponentId reference is still a string', () {
+    // a2ui_flutter describes a child as a `$ref` to the protocol's
+    // `ComponentId`, where genui spelled out `"type": "string"`. That
+    // definition is a string and nothing else, so a message an agent wrote
+    // against one is valid against the other.
+    final changes = genUiCatalogDiff(
+      catalogWith(properties: {'child': S.string()}),
+      catalogWith(
+        properties: {
+          'child': S.combined(
+            $ref:
+                'https://a2ui.org/specification/v0_9/common_types.json'
+                r'#/$defs/ComponentId',
+          ),
+        },
+      ),
+    );
+
+    expect(
+      changes.where(
+        (change) => change.kind == GenUiCatalogChangeKind.propertyTypeChanged,
+      ),
+      isEmpty,
+    );
+  });
+
+  test('a reference to any other definition still compares by name', () {
+    String ref(String name) =>
+        'https://a2ui.org/specification/v0_9/common_types.json'
+        '#/\$defs/$name';
+    final changes = genUiCatalogDiff(
+      catalogWith(
+        properties: {'price': S.combined($ref: ref('DynamicString'))},
+      ),
+      catalogWith(
+        properties: {'price': S.combined($ref: ref('DynamicNumber'))},
+      ),
+    );
+
+    final GenUiCatalogChange change = changes.singleWhere(
+      (change) => change.kind == GenUiCatalogChangeKind.propertyTypeChanged,
+    );
+    expect(change.isBreaking, isTrue);
+    expect(change.detail, contains('DynamicNumber'));
   });
 }

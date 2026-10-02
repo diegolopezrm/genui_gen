@@ -53,7 +53,12 @@ void main() {
     });
 
     expect(out, isNotNull);
-    expect(normalize(out!), contains("import 'package:genui/genui.dart';"));
+    expect(
+      normalize(out!),
+      contains("import 'package:genui_gen/genui_gen.dart';"),
+    );
+    // genui itself is not named: the catalog reaches it through genui_gen.
+    expect(normalize(out), isNot(contains('package:genui/')));
     expect(normalize(out), contains("import 'widgets/card.dart';"));
     expect(normalize(out), contains("import 'widgets/tile.dart';"));
     expect(

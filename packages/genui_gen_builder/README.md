@@ -37,11 +37,11 @@ a new release of this package unless it removes API the generator uses.
 ```yaml
 dependencies:
   genui: ^0.10.0
-  genui_gen: ^0.13.1
+  genui_gen: ^0.14.0
 
 dev_dependencies:
   build_runner: ^2.15.0
-  genui_gen_builder: ^0.12.0
+  genui_gen_builder: ^0.13.0
 ```
 
 The generated part builds its schema with `S.object(...)` and shares your
@@ -72,7 +72,6 @@ source. One is needed only to give the assembled catalog an id — see
 ```dart
 // lib/widgets/product_card.dart
 import 'package:flutter/material.dart';
-import 'package:genui/genui.dart';
 import 'package:genui_gen/genui_gen.dart';
 
 part 'product_card.genui.dart';

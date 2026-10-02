@@ -1,3 +1,12 @@
+## 0.13.0
+
+- The generated `genui_catalog.g.dart` imports `package:genui_gen/genui_gen.dart`
+  instead of `package:genui/genui.dart`. **Needs genui_gen 0.14.0**, which
+  re-exports the renderer types the catalog names. Upgrade both together.
+- When an annotated file is missing an import, the suggestion for
+  `CatalogItem`, `A2uiSchemas` and `JsonMap` is now genui_gen, for the same
+  reason.
+
 ## 0.12.0
 
 - A property, a `@GenUiData` field or a function argument may be a

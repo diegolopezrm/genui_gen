@@ -78,6 +78,8 @@ import 'package:json_schema_builder/json_schema_builder.dart';
 
 typedef JsonMap = Map<String, Object?>;
 
+class Catalog {}
+
 class DataContext {}
 
 class CatalogItemContext {
@@ -133,6 +135,7 @@ abstract final class A2uiSchemas {
   'genui_gen|lib/genui_gen.dart': '''
 library;
 
+export 'package:genui/genui.dart' show A2uiSchemas, Catalog, CatalogItem, JsonMap;
 export 'package:json_schema_builder/json_schema_builder.dart'
     show ObjectSchema, S, Schema;
 

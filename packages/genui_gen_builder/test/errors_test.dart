@@ -318,20 +318,17 @@ class Card extends StatelessWidget {
 }
 ''';
 
-    test('genui missing', () async {
-      await expectLater(
-        generate(
-          widget,
-          imports: '''
+    test('genui_gen on its own is enough', () async {
+      // genui_gen re-exports the renderer types generated code names, so an
+      // annotated file does not have to import genui at all.
+      final String out = await generate(
+        widget,
+        imports: '''
 import 'package:flutter/widgets.dart';
 import 'package:genui_gen/genui_gen.dart';
 ''',
-        ),
-        failsWith([
-          'identifiers that are not in scope in package:a/widget.dart',
-          "import 'package:genui/genui.dart';    // provides CatalogItem, A2uiSchemas, JsonMap",
-        ]),
       );
+      expect(out, contains('CatalogItem'));
     });
 
     test('genui_gen runtime missing', () async {
@@ -353,20 +350,21 @@ import 'package:json_schema_builder/json_schema_builder.dart';
       );
     });
 
-    test('genui imported only with a prefix', () async {
+    test('genui_gen imported only with a prefix', () async {
+      // The annotation resolves through the prefix; the generated code, which
+      // is a part of this library and names everything unprefixed, does not.
       await expectLater(
         generate(
-          widget,
+          widget.replaceAll('@GenUiWidget(', '@gg.GenUiWidget('),
           imports: '''
 import 'package:flutter/widgets.dart';
-import 'package:genui/genui.dart' as g;
-import 'package:genui_gen/genui_gen.dart';
+import 'package:genui/genui.dart';
+import 'package:genui_gen/genui_gen.dart' as gg;
 ''',
         ),
         failsWith([
-          "import 'package:genui/genui.dart';    // provides CatalogItem",
-          '`package:genui/genui.dart` is imported with prefix `g`, but '
-              'generated code needs its identifiers unprefixed',
+          '`package:genui_gen/genui_gen.dart` is imported with prefix `gg`, '
+              'but generated code needs its identifiers unprefixed',
         ]),
       );
     });

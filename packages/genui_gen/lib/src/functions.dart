@@ -3,12 +3,6 @@ import 'dart:async';
 import 'package:genui/genui.dart';
 import 'package:json_schema_builder/json_schema_builder.dart';
 
-// Re-exported for the same reason as `S`: a file that only declares catalog
-// functions names these two in its generated part, and should not have to
-// import genui to get them.
-export 'package:genui/genui.dart'
-    show A2uiSchemas, ClientFunction, ClientFunctionReturnType;
-
 /// The body of a synchronous catalog function.
 typedef GenUiFunctionBody =
     Object? Function(JsonMap args, ExecutionContext context);

@@ -153,7 +153,10 @@ class CatalogAggregatingBuilder implements Builder {
     final out = StringBuffer()
       ..write(generatedFileHeader)
       ..writeln()
-      ..writeln("import 'package:genui/genui.dart';")
+      // Only genui_gen, which re-exports the renderer types named below, so
+      // the generated catalog follows genui_gen to whichever renderer it is
+      // built on rather than naming genui itself.
+      ..writeln("import 'package:genui_gen/genui_gen.dart';")
       ..writeln();
     for (final import in imports) {
       out.writeln("import '$import';");

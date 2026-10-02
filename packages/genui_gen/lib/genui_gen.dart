@@ -46,6 +46,20 @@ library;
 export 'package:json_schema_builder/json_schema_builder.dart'
     show ObjectSchema, S, Schema;
 
+// Every renderer type generated code names, re-exported for the same reason as
+// `S`: a generated part, and the generated catalog, then need nothing but this
+// library. It also puts the renderer behind one line. genui is being
+// redesigned as a2ui_flutter, and when that lands, moving this package across
+// is a change here rather than a change in every app's generated code.
+export 'package:genui/genui.dart'
+    show
+        A2uiSchemas,
+        Catalog,
+        CatalogItem,
+        ClientFunction,
+        ClientFunctionReturnType,
+        JsonMap;
+
 export 'src/actions.dart';
 export 'src/annotations.dart';
 export 'src/bindings.dart';
