@@ -13,6 +13,19 @@ import 'package:genui/genui.dart';
 /// it.
 typedef GenUiPump = Future<void> Function(Widget widget);
 
+/// Puts a rendered surface inside the app it is drawn in, for [genUiFuzz].
+///
+/// Components often lean on what their app provides: a `ThemeExtension` the
+/// app's theme carries, localizations, an inherited service. Drawn without
+/// those ancestors, every component fails on the same missing ancestor, and
+/// the run reports that instead of anything the schema allows.
+typedef GenUiFuzzHost = Widget Function(Widget surface);
+
+/// The app [genUiFuzz] draws in when it is not given one.
+Widget _plainHost(Widget surface) => MaterialApp(
+  home: Scaffold(body: SingleChildScrollView(child: surface)),
+);
+
 /// Why a case is being reported.
 enum GenUiFuzzKind {
   /// An exception escaped while the component was building.
@@ -134,6 +147,24 @@ String genUiFuzzSummary(List<GenUiFuzzFinding> findings) {
 /// component that swallows a wrong-typed property and leaves a blank space
 /// where the agent asked for something.
 ///
+/// [host] puts each surface inside the app it is drawn in. Left out, that is
+/// a plain [MaterialApp]. Pass the app's own theme, and whatever else its
+/// components read from above, when they depend on it:
+///
+/// ```dart
+/// final findings = await genUiFuzz(
+///   catalog: exampleCatalog,
+///   pump: tester.pumpWidget,
+///   host: (surface) => MaterialApp(
+///     theme: appTheme,
+///     home: Scaffold(body: SingleChildScrollView(child: surface)),
+///   ),
+/// );
+/// ```
+///
+/// Keep the surface in a parent that lets it grow, as the scroll view above
+/// does, or a tall component is reported as overflowing.
+///
 /// [skip] leaves components out by name, for the ones whose failure you have
 /// already accepted. [only] restricts the run to a few while you are fixing
 /// one. [maxCasesPerComponent] bounds a component with many properties; the
@@ -142,6 +173,7 @@ String genUiFuzzSummary(List<GenUiFuzzFinding> findings) {
 Future<List<GenUiFuzzFinding>> genUiFuzz({
   required Catalog catalog,
   required GenUiPump pump,
+  GenUiFuzzHost host = _plainHost,
   Set<String> only = const <String>{},
   Set<String> skip = const <String>{},
   int maxCasesPerComponent = 80,
@@ -176,6 +208,7 @@ Future<List<GenUiFuzzFinding>> genUiFuzz({
     // be worth reporting.
     final _Render baseline = await _render(
       pump,
+      host,
       catalog,
       catalogId,
       example,
@@ -200,6 +233,7 @@ Future<List<GenUiFuzzFinding>> genUiFuzz({
 
       final _Render r = await _render(
         pump,
+        host,
         catalog,
         catalogId,
         components,
@@ -338,6 +372,7 @@ List<JsonMap>? _parseExample(CatalogItem item) {
 /// Renders [components] on a fresh surface and reports what happened.
 Future<_Render> _render(
   GenUiPump pump,
+  GenUiFuzzHost host,
   Catalog catalog,
   String catalogId,
   List<JsonMap> components,
@@ -366,14 +401,10 @@ Future<_Render> _render(
       core.CreateSurfaceMessage(surfaceId: surfaceId, catalogId: catalogId),
     );
     await pump(
-      MaterialApp(
-        home: Scaffold(
-          body: SingleChildScrollView(
-            child: KeyedSubtree(
-              key: probe,
-              child: Surface(surfaceContext: controller.contextFor(surfaceId)),
-            ),
-          ),
+      host(
+        KeyedSubtree(
+          key: probe,
+          child: Surface(surfaceContext: controller.contextFor(surfaceId)),
         ),
       ),
     );

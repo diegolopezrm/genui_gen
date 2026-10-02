@@ -163,4 +163,71 @@ void main() {
     expect(summary, contains('2 in 1 component'));
     expect(summary, contains('Fragile'));
   });
+
+  group('the app it is drawn in', () {
+    testWidgets('a component that needs its app is fuzzed inside it', (
+      tester,
+    ) async {
+      final catalog = catalogOf([branded]);
+
+      // Without the app's theme, the component fails on the missing
+      // extension before any case gets a chance to.
+      final List<GenUiFuzzFinding> bare = await genUiFuzz(
+        catalog: catalog,
+        pump: tester.pumpWidget,
+      );
+      expect(bare, hasLength(1));
+      expect(bare.single.mutation, 'its own generated example');
+
+      // Inside it, the component is held to what its schema allows, and it
+      // coerces, so nothing breaks.
+      final List<GenUiFuzzFinding> hosted = await genUiFuzz(
+        catalog: catalog,
+        pump: tester.pumpWidget,
+        host: (surface) => MaterialApp(
+          theme: ThemeData(extensions: const [_Brand(Color(0xFF0B7552))]),
+          home: Scaffold(body: SingleChildScrollView(child: surface)),
+        ),
+      );
+      expect(hosted, isEmpty, reason: genUiFuzzSummary(hosted));
+    });
+  });
 }
+
+/// A colour the app's theme carries, the way a design system's tokens do.
+class _Brand extends ThemeExtension<_Brand> {
+  const _Brand(this.color);
+
+  final Color color;
+
+  @override
+  _Brand copyWith() => this;
+
+  @override
+  _Brand lerp(_Brand? other, double t) => this;
+}
+
+/// A sturdy component that reads its app's theme extension, and only works
+/// inside an app that has it.
+final CatalogItem branded = CatalogItem(
+  name: 'Branded',
+  dataSchema: S.object(
+    description: 'A label on the brand colour.',
+    properties: {'label': A2uiSchemas.stringReference()},
+    required: ['label'],
+  ),
+  exampleData: [
+    () => '[{"id": "root", "component": "Branded", "label": "hello"}]',
+  ],
+  widgetBuilder: (ctx) {
+    final data = ctx.data as JsonMap;
+    return GenUiBindings(
+      dataContext: ctx.dataContext,
+      bindings: {'label': GenUiBinding.string(data['label'])},
+      builder: (context, v) => ColoredBox(
+        color: Theme.of(context).extension<_Brand>()!.color,
+        child: Text(v.string('label') ?? ''),
+      ),
+    );
+  },
+);

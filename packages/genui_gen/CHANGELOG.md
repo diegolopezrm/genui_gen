@@ -1,3 +1,12 @@
+## 0.14.1
+
+- `genUiFuzz` takes `host`, the app each surface is drawn in. It was always a
+  plain `MaterialApp`, so a catalog whose components read their app's theme
+  failed on every component before any case ran: drawn outside its app, a
+  component that reads a `ThemeExtension` with `!` has nothing to read. Found
+  fuzzing a real app's catalog. Left out, `host` is the same plain app as
+  before.
+
 ## 0.14.0
 
 - Re-exports `Catalog`, `CatalogItem` and `JsonMap` alongside `A2uiSchemas`,

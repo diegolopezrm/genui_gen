@@ -459,6 +459,21 @@ rebuilt from a description. Pointed at genui's own basic catalog it currently
 reports 69 crashing cases across five components
 ([a2ui#2872](https://github.com/a2ui-project/a2ui/issues/2872)).
 
+Components that lean on their app, a `ThemeExtension` from the app's theme for
+instance, need that app around them or every one fails the same way before any
+case runs. Give the fuzzer the app with `host`:
+
+```dart
+final findings = await genUiFuzz(
+  catalog: genUiCatalog,
+  pump: tester.pumpWidget,
+  host: (surface) => MaterialApp(
+    theme: appTheme,
+    home: Scaffold(body: SingleChildScrollView(child: surface)),
+  ),
+);
+```
+
 ### What the agent actually used
 
 A catalog travels in every request whether the agent composes with it or not.

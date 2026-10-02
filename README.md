@@ -582,6 +582,11 @@ Worth knowing:
 - `skip` and `only` take component names. Naming the ones you have accepted,
   rather than leaving them out of the run, is what tells you the day they are
   fixed.
+- `host` is the app each surface is drawn in, a plain `MaterialApp` unless you
+  pass one. Components that read their app's theme, a `ThemeExtension` with
+  your design tokens for instance, need that app to render at all, or every one
+  fails the same way before any case runs:
+  `host: (surface) => MaterialApp(theme: appTheme, home: Scaffold(body: SingleChildScrollView(child: surface)))`.
 - Pointed at genui's own basic catalog it currently reports 69 crashing cases
   across five components, filed as
   [a2ui#2872](https://github.com/a2ui-project/a2ui/issues/2872).
