@@ -229,6 +229,131 @@ void main() {
     expect(changes, isEmpty);
   });
 
+  test('a catalog moved from genui to a2ui_core reads the same', () {
+    // The same three properties as each renderer writes them: genui inlines a
+    // data binding and a function call, narrows the shared definition to an
+    // enum and spells a child list out; a2ui_core points at the shared
+    // definitions, spells the enum's union out, and lists `id`.
+    const String common =
+        'https://a2ui.org/specification/v0_9/common_types.json#/\$defs/';
+    final genui = <String, Object?>{
+      'components': {
+        'Tile': {
+          'allOf': [
+            {r'$ref': '${common}ComponentCommon'},
+            {
+              'properties': {
+                'component': {'const': 'Tile'},
+                'trend': {
+                  'allOf': [
+                    {r'$ref': '${common}DynamicString'},
+                    {
+                      'anyOf': [
+                        {
+                          'type': 'string',
+                          'enum': ['up', 'down'],
+                        },
+                        {'type': 'object'},
+                      ],
+                    },
+                  ],
+                },
+                'history': {
+                  'oneOf': [
+                    {
+                      'type': 'array',
+                      'items': {'type': 'number'},
+                    },
+                    {
+                      'type': 'object',
+                      'properties': {
+                        'path': {'type': 'string'},
+                      },
+                    },
+                    {
+                      'type': 'object',
+                      'properties': {
+                        'call': {'type': 'string'},
+                      },
+                    },
+                  ],
+                },
+                'rows': {
+                  'oneOf': [
+                    {
+                      'type': 'array',
+                      'items': {'type': 'string'},
+                    },
+                    {
+                      'type': 'object',
+                      'properties': {
+                        'componentId': {'type': 'string'},
+                        'path': {'type': 'string'},
+                      },
+                    },
+                  ],
+                },
+              },
+              'required': ['component', 'trend'],
+            },
+          ],
+        },
+      },
+    };
+    final a2ui = <String, Object?>{
+      'components': {
+        'Tile': {
+          'type': 'object',
+          'properties': {
+            'id': {r'$ref': r'#/$defs/ComponentId'},
+            'component': {'const': 'Tile'},
+            'trend': {
+              'anyOf': [
+                {
+                  'type': 'string',
+                  'enum': ['up', 'down'],
+                },
+                {r'$ref': r'#/$defs/DataBinding'},
+                {r'$ref': r'#/$defs/FunctionCall'},
+              ],
+            },
+            'history': {
+              'anyOf': [
+                {
+                  'type': 'array',
+                  'items': {'type': 'number'},
+                },
+                {r'$ref': r'#/$defs/DataBinding'},
+                {r'$ref': r'#/$defs/FunctionCall'},
+              ],
+            },
+            'rows': {r'$ref': r'#/$defs/ChildList'},
+          },
+          'required': ['id', 'trend', 'component'],
+        },
+      },
+    };
+
+    expect(genUiCatalogDiff(genui, a2ui), isEmpty);
+  });
+
+  test('an enum value removed inside the union is still found', () {
+    Map<String, Object?> withTrend(List<String> values) => catalogWith(
+      properties: {'trend': GenUiSchemas.string(enumValues: values)},
+    );
+
+    final changes = genUiCatalogDiff(
+      withTrend(['up', 'down', 'flat']),
+      withTrend(['up', 'down']),
+    );
+
+    final GenUiCatalogChange change = changes.singleWhere(
+      (change) => change.kind == GenUiCatalogChangeKind.enumValueRemoved,
+    );
+    expect(change.detail, 'flat');
+    expect(change.isBreaking, isTrue);
+  });
+
   test('a reference to any other definition still compares by name', () {
     String ref(String name) =>
         'https://a2ui.org/specification/v0_9/common_types.json'

@@ -10,9 +10,9 @@
 ///
 /// ```dart
 /// GenUiInspector(
-///   controller: controller,
+///   processor: processor,
 ///   recorder: recorder,
-///   child: GenUiConversation(...),
+///   child: MyConversation(...),
 /// )
 /// ```
 ///
@@ -40,9 +40,15 @@
 /// [GenUiSurfaceGraph] is the part of this with no widgets in it, for a test
 /// that wants to assert on the shape of a surface rather than look at it.
 ///
+/// [GenUiCatalogView] shows the catalog rather than a session: every example
+/// of every generated component, rendered by the same renderer, which is what
+/// genui's `DebugCatalogView` was for.
+///
 /// The panel is gone from a release build: `enabled` defaults to `kDebugMode`,
 /// and when it is false the child is returned untouched.
 library;
 
+export 'src/catalog_view.dart';
+export 'src/example_surface.dart';
 export 'src/inspector.dart' show GenUiInspector;
 export 'src/surface_graph.dart';
