@@ -76,17 +76,21 @@ void main() {
   group('genUiCatalogWeight', () {
     Map<String, Object?> catalogOf(Map<String, String> descriptions) =>
         genUiCatalogJson(
-          Catalog([
-            for (final entry in descriptions.entries)
-              CatalogItem(
-                name: entry.key,
-                dataSchema: S.object(
-                  description: 'A component.',
-                  properties: {'text': S.string(description: entry.value)},
+          CatalogImplementation(
+            id: 'dev.dlsoft.test',
+            components: [
+              for (final entry in descriptions.entries)
+                ComponentImplementation(
+                  name: entry.key,
+                  schema: S.object(
+                    description: 'A component.',
+                    properties: {'text': S.string(description: entry.value)},
+                  ),
+                  builder: (context, node, props, buildChild) =>
+                      const SizedBox.shrink(),
                 ),
-                widgetBuilder: (ctx) => const SizedBox.shrink(),
-              ),
-          ], catalogId: 'dev.dlsoft.test'),
+            ],
+          ),
         );
 
     test('puts the heaviest component first', () {

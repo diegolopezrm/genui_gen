@@ -1,4 +1,4 @@
-import 'package:genui/genui.dart';
+import 'package:a2ui_core/a2ui_core.dart';
 
 import 'audit.dart';
 import 'catalog_json.dart';
@@ -176,7 +176,7 @@ class GenUiCoverage {
 /// It is a number to look at, not a rule to enforce, which is why this hands
 /// back the counts rather than a verdict.
 GenUiCoverage genUiCoverage({
-  required Catalog catalog,
+  required Catalog<ComponentApi, FunctionApi> catalog,
   required Iterable<GenUiTrace> traces,
 }) {
   final componentUses = <String, int>{};
@@ -220,28 +220,26 @@ GenUiCoverage genUiCoverage({
 
   final catalogProperties = <String, Set<String>>{};
   final catalogEnumValues = <String, Set<String>>{};
-  for (final CatalogItem item in catalog.items) {
-    final Object schema = item.dataSchema.value;
-    if (schema is! Map) continue;
+  for (final ComponentApi component in catalog.components.values) {
+    final Map<String, Object?> schema = component.schema.value;
     final Object? properties = schema['properties'];
     if (properties is! Map) continue;
     final names = <String>{
       for (final Object? key in properties.keys)
-        if (key is String && key != 'component') key,
+        if (key is String && !_everyComponentTakes.contains(key)) key,
     };
-    catalogProperties[item.name] = names;
+    catalogProperties[component.name] = names;
     for (final String name in names) {
       final Set<String> values = _enumValuesIn(properties[name]);
       if (values.isNotEmpty) {
-        catalogEnumValues['${item.name}.$name'] = values;
+        catalogEnumValues['${component.name}.$name'] = values;
       }
     }
   }
 
-  GenUiCatalogWeight? weight;
-  if (catalog.catalogId != null) {
-    weight = genUiCatalogWeight(genUiCatalogJson(catalog));
-  }
+  final GenUiCatalogWeight weight = genUiCatalogWeight(
+    genUiCatalogJson(catalog),
+  );
 
   return GenUiCoverage(
     sessions: sessions,
@@ -249,18 +247,30 @@ GenUiCoverage genUiCoverage({
     componentUses: <String, int>{for (final e in sorted) e.key: e.value},
     propertyUses: propertyUses,
     enumValueUses: enumValueUses,
-    catalogComponents: catalog.items.map((i) => i.name).toSet(),
+    catalogComponents: catalog.components.keys.toSet(),
     catalogProperties: catalogProperties,
     catalogEnumValues: catalogEnumValues,
     weight: weight,
   );
 }
 
+/// The properties that are not the widget's own: the component's identity,
+/// and the ones every basic component takes, which a component that never
+/// needed them should not be reported for.
+const Set<String> _everyComponentTakes = {
+  'component',
+  'accessibility',
+  'weight',
+};
+
 /// The enum values declared anywhere inside a property's schema.
 ///
-/// A generated enum property is a `DynamicString` combined with an `anyOf`
-/// holding the constants, so the list is not at a fixed depth. Searching for
-/// it costs nothing and survives the shape changing.
+/// A generated enum property is a string limited to its names, offered next
+/// to a data binding and a function call, so the list is not at a fixed
+/// depth. Searching for it costs nothing and survives the shape changing.
+///
+/// A shared type is not searched: the function call's own `returnType` is an
+/// enum, and every dynamic property offers a function call.
 Set<String> _enumValuesIn(Object? schema) {
   final found = <String>{};
   void walk(Object? node) {
@@ -271,6 +281,7 @@ Set<String> _enumValuesIn(Object? schema) {
       return;
     }
     if (node is! Map) return;
+    if (node['commonTypesRef'] != null || node[r'$ref'] != null) return;
     final Object? values = node['enum'];
     if (values is List) {
       for (final Object? v in values) {

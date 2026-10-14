@@ -1,21 +1,42 @@
+import 'package:a2ui_core/a2ui_core.dart';
+import 'package:a2ui_flutter/a2ui_flutter.dart';
+import 'package:a2ui_flutter/basic_catalog.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:genui/genui.dart';
 import 'package:genui_gen/inspector.dart';
 
-SurfaceDefinition _definition(List<JsonMap> components) => SurfaceDefinition(
-  surfaceId: 's',
-  catalogId: 'dev.dlsoft.inspect',
-  components: <String, Component>{
-    for (final JsonMap json in components)
-      json['id']! as String: Component.fromJson(json),
-  },
-);
+typedef JsonMap = Map<String, Object?>;
+
+/// A surface holding [components], composed against the basic catalog.
+///
+/// The processor checks each component against its schema, but not the
+/// surface as a graph, since it is given no validation config: a surface the
+/// agent is still building, or one it got wrong, is what the graph reads.
+SurfaceModel<ComponentImplementation> _surface(List<JsonMap> components) {
+  final CatalogImplementation catalog = basicCatalog();
+  final processor = MessageProcessor<ComponentImplementation>(
+    catalogs: [catalog],
+    defaultVersion: A2uiProtocolVersion.v0_9,
+  );
+  addTearDown(processor.dispose);
+  processor.processMessages(<Object?>[
+    {
+      'version': 'v0.9',
+      'createSurface': {'surfaceId': 's', 'catalogId': catalog.id},
+    },
+    if (components.isNotEmpty)
+      {
+        'version': 'v0.9',
+        'updateComponents': {'surfaceId': 's', 'components': components},
+      },
+  ]);
+  return processor.groupModel.getSurface('s')!;
+}
 
 void main() {
   group('GenUiSurfaceGraph', () {
     test('reads the tree out of the component definitions', () {
       final graph = GenUiSurfaceGraph.of(
-        _definition(<JsonMap>[
+        _surface(<JsonMap>[
           {
             'id': 'root',
             'component': 'Column',
@@ -38,7 +59,7 @@ void main() {
 
     test('reads the paths each component is bound to', () {
       final graph = GenUiSurfaceGraph.of(
-        _definition(<JsonMap>[
+        _surface(<JsonMap>[
           {
             'id': 'root',
             'component': 'Column',
@@ -70,7 +91,7 @@ void main() {
 
     test('a template is both a child and a binding', () {
       final graph = GenUiSurfaceGraph.of(
-        _definition(<JsonMap>[
+        _surface(<JsonMap>[
           {
             'id': 'root',
             'component': 'Column',
@@ -97,7 +118,7 @@ void main() {
 
     test('an absolute path inside a template escapes the row', () {
       final graph = GenUiSurfaceGraph.of(
-        _definition(<JsonMap>[
+        _surface(<JsonMap>[
           {
             'id': 'root',
             'component': 'Column',
@@ -128,12 +149,12 @@ void main() {
       expect(graph.pathsOf('currency'), ['/settings/currency']);
     });
 
-    test('a child nothing created is not an edge, because it cannot be', () {
-      // 'chart' is a child reference the model made up, and in the message it
-      // is a string like any other. Nothing here can tell it apart from the
-      // text in 'heading', so the walk leaves it out rather than guessing.
+    test('a child nothing created is dangling, not an edge', () {
+      // 'chart' is a child reference the agent made up. The catalog's schema
+      // says `children` holds component ids, so it is read as one, and
+      // reported as the hole it leaves.
       final graph = GenUiSurfaceGraph.of(
-        _definition(<JsonMap>[
+        _surface(<JsonMap>[
           {
             'id': 'root',
             'component': 'Column',
@@ -145,11 +166,38 @@ void main() {
 
       expect(graph.childrenOf('root'), ['heading']);
       expect(graph.order, ['root', 'heading']);
+      expect(graph.dangling, {
+        'root': {'chart'},
+      });
+      expect(
+        graph.describe(),
+        contains('Names components that do not exist: chart (in root)'),
+      );
+    });
+
+    test('text that matches an id is not a child', () {
+      // The schema says `text` is a string to show, so it stays one even when
+      // it happens to spell a component's id.
+      final graph = GenUiSurfaceGraph.of(
+        _surface(<JsonMap>[
+          {
+            'id': 'root',
+            'component': 'Column',
+            'children': ['heading', 'card'],
+          },
+          {'id': 'heading', 'component': 'Text', 'text': 'card'},
+          {'id': 'card', 'component': 'Card', 'child': 'body'},
+          {'id': 'body', 'component': 'Text', 'text': 'Nearly full'},
+        ]),
+      );
+
+      expect(graph.childrenOf('heading'), isEmpty);
+      expect(graph.dangling, isEmpty);
     });
 
     test('flags a component nothing reaches', () {
       final graph = GenUiSurfaceGraph.of(
-        _definition(<JsonMap>[
+        _surface(<JsonMap>[
           {
             'id': 'root',
             'component': 'Column',
@@ -167,7 +215,7 @@ void main() {
 
     test('flags a component that contains itself, without hanging', () {
       final graph = GenUiSurfaceGraph.of(
-        _definition(<JsonMap>[
+        _surface(<JsonMap>[
           {'id': 'root', 'component': 'Card', 'child': 'inner'},
           {'id': 'inner', 'component': 'Card', 'child': 'root'},
         ]),
@@ -180,7 +228,7 @@ void main() {
 
     test('says so when there is no root', () {
       final graph = GenUiSurfaceGraph.of(
-        _definition(<JsonMap>[
+        _surface(<JsonMap>[
           {'id': 'heading', 'component': 'Text', 'text': 'Storage'},
         ]),
       );
@@ -192,7 +240,7 @@ void main() {
     });
 
     test('an empty surface describes itself without inventing findings', () {
-      final graph = GenUiSurfaceGraph.of(_definition(<JsonMap>[]));
+      final graph = GenUiSurfaceGraph.of(_surface(<JsonMap>[]));
 
       expect(graph.describe(), contains('0 components on s'));
       expect(graph.cyclic, isEmpty);

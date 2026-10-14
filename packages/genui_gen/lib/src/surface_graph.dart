@@ -1,4 +1,4 @@
-import 'package:genui/genui.dart';
+import 'package:a2ui_core/a2ui_core.dart';
 
 /// The component id A2UI renders a surface from.
 const String genUiRootComponentId = 'root';
@@ -18,34 +18,32 @@ const String genUiRowWildcard = '*';
 /// message that is gone by the time someone reports the bug. This reads that
 /// decision back out of the component definitions.
 ///
-/// It also answers two questions that are bugs when the answer is not empty:
-/// which components nothing on the surface reaches ([unreachable]), and
-/// whether a component contains itself ([cyclic]).
+/// It also answers three questions that are bugs when the answer is not
+/// empty: which components nothing on the surface reaches ([unreachable]),
+/// whether a component contains itself ([cyclic]), and which child references
+/// name a component the surface does not have ([dangling]).
 ///
-/// One caveat on [childrenOf]. A2UI names a child by its id, as a plain
-/// string, and the string carries nothing that marks it as an id rather than
-/// as text. The catalog's schema is what tells them apart, and in practice it
-/// does so by the description on the property, which every catalog is free to
-/// write its own way. So this reads a string property as a child when it
-/// matches the id of a component on the same surface, which has two
-/// consequences worth knowing. A literal that happens to equal an id is drawn
-/// as an edge. And a child reference naming a component that was never created
-/// is not drawn at all, because nothing distinguishes it from text; it shows
-/// up as the hole it leaves on screen, not here.
+/// The children of a component are the ones its catalog's schema marks as
+/// children, which a2ui_core reads the same way when it renders the surface.
+/// A component whose type its catalog does not hold has no schema to read, so
+/// for it a string property counts as a child when it matches the id of a
+/// component on the same surface, and a reference it makes to a missing
+/// component cannot be told from text.
 class GenUiSurfaceGraph {
   GenUiSurfaceGraph._({
-    required this.definition,
+    required this.surface,
     required Map<String, Set<String>> children,
     required Map<String, Set<String>> boundPaths,
     required this.order,
     required this.unreachable,
     required this.cyclic,
+    required this.dangling,
   }) : _children = children,
        _boundPaths = boundPaths;
 
-  /// Reads the graph out of [definition].
-  factory GenUiSurfaceGraph.of(SurfaceDefinition definition) {
-    final Set<String> ids = definition.components.keys.toSet();
+  /// Reads the graph out of [surface].
+  factory GenUiSurfaceGraph.of(SurfaceModel<ComponentApi> surface) {
+    final Set<String> ids = surface.componentsModel.keys.toSet();
     final children = <String, Set<String>>{};
     final boundPaths = <String, Set<String>>{};
 
@@ -55,12 +53,30 @@ class GenUiSurfaceGraph {
     final templates = <String, Map<String, String>>{};
     final rawPaths = <String, Set<String>>{};
 
-    for (final Component component in definition.components.values) {
+    final dangling = <String, Set<String>>{};
+
+    for (final ComponentModel component in surface.componentsModel.values) {
       final found = <String>{};
       final paths = <String>{};
       final repeated = <String, String>{};
-      _scan(component.properties, ids, found, paths, repeated);
-      children[component.id] = found;
+      final RefFields? refs = _refFieldsOf(surface, component);
+      // With the schema to go by, text is never read as an id; without it,
+      // a string that matches one is the best evidence there is.
+      _scan(
+        component.properties,
+        refs == null ? ids : const <String>{},
+        found,
+        paths,
+        repeated,
+      );
+      if (refs != null) {
+        for (final MapEntry<String, RefKind> field in refs.entries) {
+          _collect(component.properties[field.key], field.value, found);
+        }
+        final Set<String> missing = found.difference(ids);
+        if (missing.isNotEmpty) dangling[component.id] = missing;
+      }
+      children[component.id] = found.intersection(ids);
       rawPaths[component.id] = paths;
       if (repeated.isNotEmpty) templates[component.id] = repeated;
     }
@@ -101,7 +117,7 @@ class GenUiSurfaceGraph {
     }
 
     return GenUiSurfaceGraph._(
-      definition: definition,
+      surface: surface,
       children: children,
       boundPaths: boundPaths,
       order: List<String>.unmodifiable(order),
@@ -109,11 +125,15 @@ class GenUiSurfaceGraph {
         ids.where((String id) => !seen.contains(id)).toSet(),
       ),
       cyclic: Set<String>.unmodifiable(cyclic),
+      dangling: Map<String, Set<String>>.unmodifiable({
+        for (final MapEntry<String, Set<String>> entry in dangling.entries)
+          entry.key: Set<String>.unmodifiable(entry.value),
+      }),
     );
   }
 
   /// The surface this graph was read from.
-  final SurfaceDefinition definition;
+  final SurfaceModel<ComponentApi> surface;
 
   final Map<String, Set<String>> _children;
   final Map<String, Set<String>> _boundPaths;
@@ -133,8 +153,16 @@ class GenUiSurfaceGraph {
   /// Components that contain themselves, directly or through a descendant.
   final Set<String> cyclic;
 
+  /// The child references that name a component the surface does not have,
+  /// by the id of the component making them.
+  ///
+  /// a2ui_flutter draws a placeholder where such a child should be, and
+  /// replaces it if the component arrives later, so on a surface still being
+  /// built this is what has not come yet; on a finished one it is a hole.
+  final Map<String, Set<String>> dangling;
+
   /// Whether the surface has the component the renderer starts from.
-  bool get hasRoot => definition.components.containsKey(genUiRootComponentId);
+  bool get hasRoot => surface.componentsModel.has(genUiRootComponentId);
 
   /// The children of [id], in the order its properties name them.
   Set<String> childrenOf(String id) => _children[id] ?? const <String>{};
@@ -181,13 +209,13 @@ class GenUiSurfaceGraph {
     final out = StringBuffer();
     if (!hasRoot) {
       out.writeln(
-        '${definition.surfaceId} has no "$genUiRootComponentId" component, so '
+        '${surface.id} has no "$genUiRootComponentId" component, so '
         'nothing renders.',
       );
     }
     out.writeln(
       '${order.length} component${order.length == 1 ? '' : 's'} on '
-      '${definition.surfaceId}, bound to ${pathBindings.length} '
+      '${surface.id}, bound to ${pathBindings.length} '
       'path${pathBindings.length == 1 ? '' : 's'}.',
     );
     if (unreachable.isNotEmpty) {
@@ -198,6 +226,12 @@ class GenUiSurfaceGraph {
     }
     if (cyclic.isNotEmpty) {
       out.writeln('Contains itself: ${(cyclic.toList()..sort()).join(', ')}.');
+    }
+    if (dangling.isNotEmpty) {
+      final List<String> holders = dangling.keys.toList()..sort();
+      out.writeln(
+        'Names components that do not exist: ${[for (final String holder in holders) '${(dangling[holder]!.toList()..sort()).join(', ')} (in $holder)'].join('; ')}.',
+      );
     }
     return out.toString().trimRight();
   }
@@ -214,6 +248,44 @@ class GenUiSurfaceGraph {
         ? base.substring(0, base.length - 1)
         : base;
     return '$trimmed/$path';
+  }
+
+  /// The child references [component]'s catalog declares, or `null` when
+  /// its catalog cannot be resolved or does not hold its type.
+  static RefFields? _refFieldsOf(
+    SurfaceModel<ComponentApi> surface,
+    ComponentModel component,
+  ) {
+    final Catalog<ComponentApi, FunctionImplementation> catalog;
+    try {
+      catalog = surface.resolveCatalog(component.catalog);
+    } on A2uiError {
+      return null;
+    }
+    if (!catalog.components.containsKey(component.type)) return null;
+    return catalog.refMap.fieldsFor(component.type);
+  }
+
+  /// Adds the ids [value] names as [kind] of reference to [found].
+  ///
+  /// A template's id is left to [_scan], which also records the list it
+  /// repeats over.
+  static void _collect(Object? value, RefKind kind, Set<String> found) {
+    switch (kind) {
+      case SingleRef():
+        if (value is String) found.add(value);
+      case ListRef():
+        if (value is List) found.addAll(value.whereType<String>());
+      case NestedRef(:final fields, :final includesIds):
+        if (value is! List) return;
+        for (final Object? item in value) {
+          if (item is String && includesIds) found.add(item);
+          if (item is! Map) continue;
+          for (final MapEntry<String, RefKind> field in fields.entries) {
+            _collect(item[field.key], field.value, found);
+          }
+        }
+    }
   }
 
   static void _scan(
