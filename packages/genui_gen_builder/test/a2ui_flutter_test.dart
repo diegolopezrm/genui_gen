@@ -473,6 +473,20 @@ class Calendar extends StatelessWidget {
       );
     });
 
+    test('says isImplicitlyFlexible does nothing here', () async {
+      final warnings = await generateWarnings(
+        '''
+@GenUiWidget(description: 'Wide.', isImplicitlyFlexible: true)
+class Wide extends StatelessWidget {
+  const Wide({super.key});
+}
+''',
+        imports: a2uiImports,
+        extraAssets: {'genui_gen|lib/genui_gen.dart': a2uiGenUiGenStub},
+      );
+      expect(warnings, anyElement(contains('`weight`')));
+    });
+
     test('names the missing import for the a2ui_flutter types', () async {
       await expectLater(
         generateA2ui(
