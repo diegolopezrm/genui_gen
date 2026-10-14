@@ -4,27 +4,27 @@
 // pubspec.yaml:
 //
 //   dependencies:
-//     genui: ^0.10.0
-//     genui_gen: ^0.4.0
+//     a2ui_flutter: ^0.1.0
+//     genui_gen: ^0.15.0
 //
 //   dev_dependencies:
 //     build_runner: ^2.15.0
-//     genui_gen_builder: ^0.4.0
+//     genui_gen_builder: ^0.14.0
 //
 // Then `dart run build_runner build` writes two files next to this one, both
 // generated output and both committed here so the example compiles as you see
 // it: `main.genui.dart`, declaring `productCardCatalogItem`, and
-// `genui_catalog.g.dart`, which lists every generated item in the package as
-// `genUiCatalogItems`. With a single widget the item is named directly in
-// `buildCatalog()` below; in an app with several, spreading
+// `genui_catalog.g.dart`, which lists every generated component in the
+// package as `genUiCatalogItems`. With a single widget the component is named
+// directly in `buildCatalog()` below; in an app with several, spreading
 // `...genUiCatalogItems` is what keeps the catalog from falling behind.
 //
-// A full app, with six annotated widgets rendered through genui's
-// DebugCatalogView, is in the repository's top-level `example/` directory:
+// A full app, with the generated components rendered by a2ui_flutter, is in
+// the repository's top-level `example/` directory:
 // https://github.com/diegolopezrm/genui_gen/tree/main/example
 
+import 'package:a2ui_flutter/basic_catalog.dart';
 import 'package:flutter/material.dart';
-import 'package:genui/genui.dart';
 import 'package:genui_gen/genui_gen.dart';
 
 part 'main.genui.dart';
@@ -75,7 +75,7 @@ class ProductCard extends StatelessWidget {
               icon: Icon(favourite ? Icons.favorite : Icons.favorite_border),
               // The generated builder hands this a callback that writes the
               // new state into the data model, at the path `favourite` is
-              // bound to.
+              // bound to, or null when the agent sent a literal.
               onPressed: onFavouriteChanged == null
                   ? null
                   : () => onFavouriteChanged!(!favourite),
@@ -87,12 +87,16 @@ class ProductCard extends StatelessWidget {
   }
 }
 
-/// Registers the generated item next to genui's basic catalog.
+/// Registers the generated component next to the basic catalog.
 ///
-/// The basic items have to be there: a generated example composes genui's own
-/// `Text` for its child components, so a catalog without them fails validation.
-Catalog buildCatalog() {
-  return BasicCatalogItems.asCatalog().copyWith(
-    newItems: [productCardCatalogItem],
+/// A v0.9 surface draws on one catalog, so the basic components an agent
+/// composes the card with, a `Row` or a `Text`, belong in the same one.
+CatalogImplementation buildCatalog() {
+  final CatalogImplementation basic = basicCatalog();
+  return CatalogImplementation(
+    id: 'com.example.shop',
+    components: [...basic.components.values, productCardCatalogItem],
+    functions: basic.functions.values.toList(),
+    themeSchema: basic.themeSchema,
   );
 }

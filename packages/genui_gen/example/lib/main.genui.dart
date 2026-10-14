@@ -10,77 +10,34 @@ part of 'main.dart';
 // GenUiGenerator
 // **************************************************************************
 
-/// Generated [CatalogItem] for [ProductCard].
-final CatalogItem productCardCatalogItem = CatalogItem(
+/// Generated [ComponentImplementation] for [ProductCard].
+final ComponentImplementation productCardCatalogItem = ComponentImplementation(
   name: 'ProductCard',
-  dataSchema: S.object(
+  schema: GenUiSchemas.component(
     description: 'A product card with price and optional image.',
     properties: {
-      'title': A2uiSchemas.stringReference(description: 'Product name.'),
-      'price': A2uiSchemas.numberReference(description: 'Price in USD.'),
-      'imageUrl': A2uiSchemas.stringReference(
-        description: 'Optional image URL.',
-      ),
-      'favourite': A2uiSchemas.booleanReference(
+      'title': GenUiSchemas.string(description: 'Product name.'),
+      'price': GenUiSchemas.number(description: 'Price in USD.'),
+      'imageUrl': GenUiSchemas.string(description: 'Optional image URL.'),
+      'favourite': GenUiSchemas.boolean(
         description:
             'Whether the user has marked the product as a favourite. Bind '
             'it to a data path to read the answer back. The component '
             'writes the value the user chooses back to this property, so '
             'bind it to a data path if you need to read the result.',
       ),
-      'onTap': A2uiSchemas.action(
+      'onTap': GenUiSchemas.action(
         description: 'Fired when the card is tapped.',
       ),
     },
     required: ['title', 'price'],
   ),
-  exampleData: [
-    () => r'''
-[
-  {
-    "id": "root",
-    "component": "ProductCard",
-    "title": "Quarterly report",
-    "price": 19.99,
-    "imageUrl": "https://picsum.photos/seed/genui_gen/400/225",
-    "onTap": {
-      "event": {
-        "name": "onTap"
-      }
-    }
-  }
-]''',
-  ],
-  widgetBuilder: (ctx) {
-    final data = ctx.data as JsonMap;
-    T missing<T>(String property, T fallback) {
-      genUiReportMissing(ctx, 'ProductCard', property);
-      return fallback;
-    }
-
-    return GenUiBindings(
-      dataContext: ctx.dataContext,
-      bindings: {
-        'title': GenUiBinding.string(data['title']),
-        'price': GenUiBinding.number(data['price']),
-        'imageUrl': GenUiBinding.string(data['imageUrl']),
-        'favourite': GenUiBinding.bool(
-          genUiWriteReference(ctx, data['favourite'], 'favourite'),
-        ),
-      },
-      builder: (context, v) => ProductCard(
-        title: v.string('title') ?? missing<String>('title', ''),
-        price: (v.number('price') ?? missing<num>('price', 0)).toDouble(),
-        imageUrl: v.string('imageUrl'),
-        favourite:
-            (v.boolean('favourite') ?? genUiAsBool(data['favourite'])) ?? false,
-        onTap: genUiActionHandler(ctx, data['onTap']),
-        onFavouriteChanged: genUiValueWriter<bool>(
-          ctx,
-          data['favourite'],
-          'favourite',
-        ),
-      ),
-    );
-  },
+  builder: (context, node, props, buildChild) => ProductCard(
+    title: props.string('title') ?? '',
+    price: props.number('price') ?? 0,
+    imageUrl: props.string('imageUrl'),
+    favourite: props.boolean('favourite') ?? false,
+    onTap: props.action('onTap'),
+    onFavouriteChanged: genUiWriter<bool>(context, props, 'favourite'),
+  ),
 );

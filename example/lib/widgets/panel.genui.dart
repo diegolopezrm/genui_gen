@@ -10,10 +10,10 @@ part of 'panel.dart';
 // GenUiGenerator
 // **************************************************************************
 
-/// Generated [CatalogItem] for [Panel].
-final CatalogItem panelCatalogItem = CatalogItem(
+/// Generated [ComponentImplementation] for [Panel].
+final ComponentImplementation panelCatalogItem = ComponentImplementation(
   name: 'Panel',
-  dataSchema: S.object(
+  schema: GenUiSchemas.component(
     description:
         'A titled panel that wraps any other component. It has a '
         'header with the title and a close button, a body and an '
@@ -21,100 +21,41 @@ final CatalogItem panelCatalogItem = CatalogItem(
         'the bottom edge. Use it to group related content under a '
         'heading.',
     properties: {
-      'title': A2uiSchemas.stringReference(
+      'title': GenUiSchemas.string(
         description: 'The heading shown at the top of the panel.',
       ),
-      'child': A2uiSchemas.componentReference(
+      'child': GenUiSchemas.componentId(
         description: 'The component rendered as the body of the panel.',
       ),
-      'actions': S.list(
+      'actions': GenUiSchemas.componentIdList(
         description:
             'Components laid out along the bottom edge, usually buttons.',
-        items: A2uiSchemas.componentReference(),
       ),
-      'onClose': A2uiSchemas.action(
+      'onClose': GenUiSchemas.action(
         description:
             'Fired when the user presses the close button in the header.',
       ),
-      'meta': S.combined(
+      'meta': GenUiSchemas.object(
         description:
             'Extra labelled details, shown under the title. The keys are '
             'the agent\'s to choose: this is for whatever it decided was '
             'worth attaching to this particular panel, which is exactly '
             'the case a fixed set of properties cannot express.',
-        oneOf: [
-          S.object(additionalProperties: S.string()),
-          A2uiSchemas.dataBindingSchema(),
-          A2uiSchemas.functionCall(),
-        ],
+        literal: S.object(additionalProperties: S.string()),
       ),
     },
     required: ['title', 'child'],
   ),
-  exampleData: [
-    () => r'''
-[
-  {
-    "id": "root",
-    "component": "Panel",
-    "title": "Quarterly report",
-    "child": "child_child",
-    "actions": [
-      "child_actions_1",
-      "child_actions_2"
-    ],
-    "onClose": {
-      "event": {
-        "name": "panel_closed"
-      }
-    }
-  },
-  {
-    "id": "child_child",
-    "component": "Text",
-    "text": "Sample child"
-  },
-  {
-    "id": "child_actions_1",
-    "component": "Text",
-    "text": "Sample actions 1"
-  },
-  {
-    "id": "child_actions_2",
-    "component": "Text",
-    "text": "Sample actions 2"
-  }
-]''',
-  ],
-  widgetBuilder: (ctx) {
-    final data = ctx.data as JsonMap;
-    T missing<T>(String property, T fallback) {
-      genUiReportMissing(ctx, 'Panel', property);
-      return fallback;
-    }
-
-    final _child = data['child'];
-    final _actions = data['actions'];
-    return GenUiBindings(
-      dataContext: ctx.dataContext,
-      bindings: {
-        'title': GenUiBinding.string(data['title']),
-        'meta': GenUiBinding.object(data['meta']),
-      },
-      builder: (context, v) => Panel(
-        title: v.string('title') ?? missing<String>('title', ''),
-        child: _child is String
-            ? ctx.buildChild(_child)
-            : missing<Widget>('child', const SizedBox.shrink()),
-        actions: _actions is List
-            ? _actions
-                  .whereType<String>()
-                  .map((id) => ctx.buildChild(id))
-                  .toList()
-            : const [],
-        onClose: genUiActionHandler(ctx, data['onClose']),
-        meta: genUiAsStringMap(v.object('meta')) ?? const <String, String>{},
-      ),
-    );
-  },
+  builder: (context, node, props, buildChild) => Panel(
+    title: props.string('title') ?? '',
+    child: switch (props.child('child')) {
+      final childNode? => buildChild(childNode),
+      null => const SizedBox.shrink(),
+    },
+    actions: props['actions'] == null
+        ? const []
+        : props.children('actions').map(buildChild).toList(),
+    onClose: props.action('onClose'),
+    meta: genUiAsStringMap(props.value('meta')) ?? const <String, String>{},
+  ),
 );
