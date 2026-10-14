@@ -11,6 +11,10 @@
 /// take it, or a list of it, as a property, and a top-level function with
 /// [GenUiFunction] to make it a function of the catalog.
 ///
+/// Each generated component is a [GenUiComponent], which carries the examples
+/// the generator wrote for it; [genUiExampleInstructions] puts them where an
+/// agent reads them, in the catalog's instructions.
+///
 /// a2ui_core resolves every property of a component against its schema before
 /// the widget is built, so the generated builder only reads what it resolved.
 /// The helpers it needs for the rest ([GenUiSchemas], [genUiWriter] and
@@ -59,6 +63,7 @@ export 'package:a2ui_flutter/a2ui_flutter.dart'
 export 'src/annotations.dart' hide genUiGenTargetsA2uiFlutter;
 export 'src/catalog_json.dart';
 export 'src/checks.dart';
+export 'src/component.dart';
 export 'src/coerce.dart';
 export 'src/functions.dart';
 export 'src/schemas.dart';

@@ -10,8 +10,8 @@ part of 'panel.dart';
 // GenUiGenerator
 // **************************************************************************
 
-/// Generated [ComponentImplementation] for [Panel].
-final ComponentImplementation panelCatalogItem = ComponentImplementation(
+/// Generated [GenUiComponent] for [Panel].
+final GenUiComponent panelCatalogItem = GenUiComponent(
   name: 'Panel',
   schema: GenUiSchemas.component(
     description:
@@ -46,6 +46,41 @@ final ComponentImplementation panelCatalogItem = ComponentImplementation(
     },
     required: ['title', 'child'],
   ),
+  examples: [
+    r'''
+[
+  {
+    "id": "root",
+    "component": "Panel",
+    "title": "Quarterly report",
+    "child": "child_child",
+    "actions": [
+      "child_actions_1",
+      "child_actions_2"
+    ],
+    "onClose": {
+      "event": {
+        "name": "panel_closed"
+      }
+    }
+  },
+  {
+    "id": "child_child",
+    "component": "Text",
+    "text": "Sample child"
+  },
+  {
+    "id": "child_actions_1",
+    "component": "Text",
+    "text": "Sample actions 1"
+  },
+  {
+    "id": "child_actions_2",
+    "component": "Text",
+    "text": "Sample actions 2"
+  }
+]''',
+  ],
   builder: (context, node, props, buildChild) => Panel(
     title: props.string('title') ?? '',
     child: switch (props.child('child')) {

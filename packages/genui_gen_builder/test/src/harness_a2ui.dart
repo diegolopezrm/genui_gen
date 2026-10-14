@@ -64,6 +64,19 @@ class ComponentImplementation {
   ) builder;
 }
 
+class GenUiComponent extends ComponentImplementation {
+  const GenUiComponent({
+    required super.name,
+    required super.schema,
+    required super.builder,
+    this.examples = const [],
+  });
+  final List<String> examples;
+}
+
+String? genUiExampleInstructions(Iterable<ComponentImplementation> components) =>
+    null;
+
 class CatalogImplementation {
   CatalogImplementation({
     required String id,

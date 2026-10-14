@@ -12,6 +12,7 @@ import 'dart:async';
 import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:build/build.dart';
+import 'package:dart_style/dart_style.dart';
 import 'package:glob/glob.dart';
 import 'package:source_gen/source_gen.dart';
 
@@ -227,6 +228,7 @@ class CatalogAggregatingBuilder implements Builder {
     }.toList()..sort();
     final out = StringBuffer()
       ..write(generatedFileHeader)
+      ..writeln('// dart format width=80')
       ..writeln()
       ..writeln("import 'package:genui_gen/genui_gen.dart';")
       ..writeln();
@@ -236,15 +238,16 @@ class CatalogAggregatingBuilder implements Builder {
     out
       ..writeln()
       ..writeln(
-        '/// Every [ComponentImplementation] generated in this package,',
+        '/// Every [GenUiComponent] generated in this package, by name.',
       )
-      ..writeln('/// by name.')
       ..writeln('///')
       ..writeln('/// Rebuilt whenever a `@GenUiWidget` is added, renamed or')
       ..writeln('/// removed, so a catalog composed from it cannot fall behind')
       ..writeln('/// the widgets it is meant to describe.')
-      ..writeln('final List<ComponentImplementation> $aggregateVariableName =');
-    _writeList(out, 'ComponentImplementation', items);
+      ..writeln(
+        'final List<GenUiComponent> $aggregateVariableName = '
+        '<GenUiComponent>[${_list(items)}];',
+      );
     out
       ..writeln()
       ..writeln('/// Every [FunctionImplementation] generated in this package,')
@@ -254,9 +257,9 @@ class CatalogAggregatingBuilder implements Builder {
       ..writeln('/// computes a value with, through the `{"call": ...}` form')
       ..writeln('/// any dynamic property accepts.')
       ..writeln(
-        'final List<FunctionImplementation> $aggregateFunctionsVariableName =',
+        'final List<FunctionImplementation> $aggregateFunctionsVariableName = '
+        '<FunctionImplementation>[${_list(functions)}];',
       );
-    _writeList(out, 'FunctionImplementation', functions);
 
     final id = catalogId;
     if (id == null) {
@@ -268,7 +271,7 @@ class CatalogAggregatingBuilder implements Builder {
         '`$aggregateCatalogVariableName`: an a2ui_flutter catalog needs an '
         'id. Set one under genui_gen_builder:genui_catalog in build.yaml.',
       );
-      return out.toString();
+      return _format(out.toString());
     }
     _checkCatalogId(id);
     out
@@ -293,8 +296,15 @@ class CatalogAggregatingBuilder implements Builder {
       ..writeln('///     ...$aggregateFunctionsVariableName,')
       ..writeln('///   ],')
       ..writeln('///   themeSchema: BasicComponents.api.themeSchema,')
+      ..writeln(
+        '///   instructions: $aggregateCatalogVariableName.instructions,',
+      )
       ..writeln('/// );')
       ..writeln('/// ```')
+      ..writeln('///')
+      ..writeln('/// Its instructions show the agent an example of each')
+      ..writeln('/// component, which the catalog document carries to any')
+      ..writeln('/// agent that reads it.')
       ..writeln(
         'final CatalogImplementation $aggregateCatalogVariableName = '
         'CatalogImplementation(',
@@ -302,23 +312,32 @@ class CatalogAggregatingBuilder implements Builder {
       ..writeln("  id: '$id',")
       ..writeln('  components: $aggregateVariableName,')
       ..writeln('  functions: $aggregateFunctionsVariableName,')
+      ..writeln(
+        '  instructions: genUiExampleInstructions($aggregateVariableName),',
+      )
       ..writeln(');');
-    return out.toString();
+    return _format(out.toString());
   }
 
-  /// Writes the right-hand side of a list declaration whose name is already
-  /// written, the way `dart format` lays it out once the line is too long,
-  /// since the aggregate is not formatted after it is written.
-  void _writeList(StringBuffer out, String type, List<_Item> items) {
-    if (items.isEmpty) {
-      out.writeln('    <$type>[];');
-      return;
+  /// The variables of [items], one per line once formatted.
+  static String _list(List<_Item> items) =>
+      [for (final item in items) '\n  ${item.variableName},'].join();
+
+  /// [source] as `dart format` writes it, so that a check that the repository
+  /// is formatted passes over the generated catalog too.
+  ///
+  /// The file declares its own page width, as source_gen's parts do, so the
+  /// project's setting does not change it. Should the formatter ever fail, the
+  /// source is still valid Dart, so it is written as it is.
+  static String _format(String source) {
+    try {
+      return DartFormatter(
+        languageVersion: DartFormatter.latestLanguageVersion,
+        pageWidth: 80,
+      ).format(source);
+    } on FormatterException {
+      return source;
     }
-    out.writeln('    <$type>[');
-    for (final item in items) {
-      out.writeln('      ${item.variableName},');
-    }
-    out.writeln('    ];');
   }
 
   /// Rejects an id that would not survive being written into a string.
@@ -436,8 +455,7 @@ Iterable<String> _catalogFunctionNames(String source) sync* {
 ///
 /// Read off the declared type of the generated variables, which this package
 /// writes itself: a genui part declares `CatalogItem`s and `ClientFunction`s,
-/// an a2ui_flutter part `ComponentImplementation`s and
-/// `FunctionImplementation`s. The type is read as source text rather than
+/// an a2ui_flutter part `GenUiComponent`s and `FunctionImplementation`s. The type is read as source text rather than
 /// through `NamedType`, for the reason given on [_catalogItemNames].
 Renderer? _rendererOf(String source) {
   final unit = parseString(content: source, throwIfDiagnostics: false).unit;
@@ -446,7 +464,9 @@ Renderer? _rendererOf(String source) {
     switch (declaration.variables.type?.toSource()) {
       case 'CatalogItem' || 'ClientFunction':
         return Renderer.genui;
-      case 'ComponentImplementation' || 'FunctionImplementation':
+      case 'GenUiComponent' ||
+          'ComponentImplementation' ||
+          'FunctionImplementation':
         return Renderer.a2uiFlutter;
     }
   }

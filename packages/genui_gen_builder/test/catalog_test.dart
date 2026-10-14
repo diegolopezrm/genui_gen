@@ -229,8 +229,7 @@ void main() {
 
 String a2uiPart(List<String> names, {List<String> functions = const []}) => [
   '// GENERATED CODE - DO NOT MODIFY BY HAND',
-  for (final name in names)
-    'final ComponentImplementation $name = ComponentImplementation();',
+  for (final name in names) 'final GenUiComponent $name = GenUiComponent();',
   for (final name in functions)
     'final FunctionImplementation $name = GenUiClientFunction();',
 ].join('\n');
@@ -253,8 +252,8 @@ void a2uiMain() {
       expect(
         out,
         contains(
-          'final List<ComponentImplementation> genUiCatalogItems = '
-          '<ComponentImplementation>[productCardCatalogItem]',
+          'final List<GenUiComponent> genUiCatalogItems = '
+          '<GenUiComponent>[productCardCatalogItem]',
         ),
       );
       expect(
@@ -269,7 +268,8 @@ void a2uiMain() {
         contains(
           'final CatalogImplementation genUiCatalog = CatalogImplementation('
           "id: 'com.example.shop', components: genUiCatalogItems, "
-          'functions: genUiCatalogFunctions)',
+          'functions: genUiCatalogFunctions, '
+          'instructions: genUiExampleInstructions(genUiCatalogItems))',
         ),
       );
       expect(out, isNot(contains('CatalogItem>')));

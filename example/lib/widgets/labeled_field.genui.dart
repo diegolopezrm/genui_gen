@@ -10,8 +10,8 @@ part of 'labeled_field.dart';
 // GenUiGenerator
 // **************************************************************************
 
-/// Generated [ComponentImplementation] for [LabeledField].
-final ComponentImplementation labeledFieldCatalogItem = ComponentImplementation(
+/// Generated [GenUiComponent] for [LabeledField].
+final GenUiComponent labeledFieldCatalogItem = GenUiComponent(
   name: 'LabeledField',
   schema: GenUiSchemas.component(
     description:
@@ -31,6 +31,17 @@ final ComponentImplementation labeledFieldCatalogItem = ComponentImplementation(
     },
     required: ['label', 'value'],
   ),
+  examples: [
+    r'''
+[
+  {
+    "id": "root",
+    "component": "LabeledField",
+    "label": "Sample label",
+    "value": "Sample value"
+  }
+]''',
+  ],
   builder: (context, node, props, buildChild) => LabeledField(
     label: props.string('label') ?? '',
     value: props.string('value') ?? '',

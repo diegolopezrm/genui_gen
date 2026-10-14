@@ -1,6 +1,7 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint
 // coverage:ignore-file
+// dart format width=80
 
 import 'package:genui_gen/genui_gen.dart';
 
@@ -14,23 +15,21 @@ import 'widgets/stat_tile.dart';
 import 'widgets/tag_row.dart';
 import 'widgets/task_list.dart';
 
-/// Every [ComponentImplementation] generated in this package,
-/// by name.
+/// Every [GenUiComponent] generated in this package, by name.
 ///
 /// Rebuilt whenever a `@GenUiWidget` is added, renamed or
 /// removed, so a catalog composed from it cannot fall behind
 /// the widgets it is meant to describe.
-final List<ComponentImplementation> genUiCatalogItems =
-    <ComponentImplementation>[
-      labeledFieldCatalogItem,
-      metricsTableCatalogItem,
-      panelCatalogItem,
-      preferenceRowCatalogItem,
-      productCardCatalogItem,
-      statTileCatalogItem,
-      tagRowCatalogItem,
-      taskListCatalogItem,
-    ];
+final List<GenUiComponent> genUiCatalogItems = <GenUiComponent>[
+  labeledFieldCatalogItem,
+  metricsTableCatalogItem,
+  panelCatalogItem,
+  preferenceRowCatalogItem,
+  productCardCatalogItem,
+  statTileCatalogItem,
+  tagRowCatalogItem,
+  taskListCatalogItem,
+];
 
 /// Every [FunctionImplementation] generated in this package,
 /// by name.
@@ -60,10 +59,16 @@ final List<FunctionImplementation> genUiCatalogFunctions =
 ///     ...genUiCatalogFunctions,
 ///   ],
 ///   themeSchema: BasicComponents.api.themeSchema,
+///   instructions: genUiCatalog.instructions,
 /// );
 /// ```
+///
+/// Its instructions show the agent an example of each
+/// component, which the catalog document carries to any
+/// agent that reads it.
 final CatalogImplementation genUiCatalog = CatalogImplementation(
   id: 'dev.dlsoft.genui_gen.example',
   components: genUiCatalogItems,
   functions: genUiCatalogFunctions,
+  instructions: genUiExampleInstructions(genUiCatalogItems),
 );
