@@ -16,11 +16,21 @@ import 'strings.dart';
 ///
 /// Child components get ids prefixed with `child_` so they can never collide
 /// with `root`, whatever the property is called.
-String buildExampleJson(WidgetSpec spec) {
+///
+/// With [bindWritten], a property a callback writes back to is bound to a
+/// path named after it rather than given a literal. On a2ui_flutter only a
+/// bound property can be written, so a literal there renders a control the
+/// user cannot change, and an example is what the agent copies.
+String buildExampleJson(WidgetSpec spec, {bool bindWritten = false}) {
   final root = <String, Object?>{'id': 'root', 'component': spec.catalogName};
   final extra = <Map<String, Object?>>[];
+  final Set<String> written = bindWritten ? spec.writtenProperties : const {};
 
   for (final prop in spec.props) {
+    if (written.contains(prop.schemaName)) {
+      root[prop.schemaName] = <String, Object?>{'path': '/${prop.schemaName}'};
+      continue;
+    }
     final sample = _sampleFor(prop, extra);
     if (sample == null) continue;
     root[prop.schemaName] = sample;

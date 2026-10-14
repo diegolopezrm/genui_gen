@@ -38,7 +38,9 @@ final GenUiComponent labeledFieldCatalogItem = GenUiComponent(
     "id": "root",
     "component": "LabeledField",
     "label": "Sample label",
-    "value": "Sample value"
+    "value": {
+      "path": "/value"
+    }
   }
 ]''',
   ],

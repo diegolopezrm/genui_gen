@@ -45,7 +45,9 @@ final GenUiComponent preferenceRowCatalogItem = GenUiComponent(
     "id": "root",
     "component": "PreferenceRow",
     "label": "Sample label",
-    "enabled": true
+    "enabled": {
+      "path": "/enabled"
+    }
   }
 ]''',
   ],
