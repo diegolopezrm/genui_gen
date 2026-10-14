@@ -1,19 +1,21 @@
-/// Annotations and runtime helpers for generating genui `CatalogItem`s from
+/// Annotations and runtime helpers for generating a2ui_flutter components from
 /// your own Flutter widgets.
 ///
 /// Annotate a widget with [GenUiWidget] and run `build_runner` with
-/// `genui_gen_builder` to derive the JSON schema, the widget builder and the
-/// few-shot examples from the widget's constructor. Because everything is
-/// derived from the constructor, the catalog can never drift from the widget.
+/// `genui_gen_builder` to derive the JSON schema and the widget builder of a
+/// [ComponentImplementation] from the widget's constructor. Because everything
+/// is derived from the constructor, the catalog can never drift from the
+/// widget.
 ///
 /// Annotate a plain data class with [GenUiData] to let an annotated widget
-/// take it, or a list of it, as a property.
+/// take it, or a list of it, as a property, and a top-level function with
+/// [GenUiFunction] to make it a function of the catalog.
 ///
-/// The runtime helpers ([GenUiBindings], [GenUiBinding], [GenUiValues],
-/// [GenUiDecoder], [genUiActionHandler], [genUiValueWriter] and
-/// [genUiReportMissing]) are used by
-/// the generated code and are exported here so that generated parts only need
-/// to import this library.
+/// a2ui_core resolves every property of a component against its schema before
+/// the widget is built, so the generated builder only reads what it resolved.
+/// The helpers it needs for the rest ([GenUiSchemas], [genUiWriter] and
+/// [genUiMissingIn]) are exported here, so that generated parts only need to
+/// import this library.
 ///
 /// [genUiCatalogJson] and [genUiCatalogJsonString] go the other way: they turn
 /// the catalog the generator assembled into the A2UI `catalog.json` document,
@@ -31,8 +33,8 @@
 /// [genUiAsObjectList])
 /// and the field reporters ([GenUiMissingFieldReporter], [genUiMissingField],
 /// [genUiNestedField]): generated decoders call them instead of casting, so a
-/// model that sends a number where a string was declared degrades exactly the
-/// way genui's `Bound*` widgets do rather than throwing inside `build`.
+/// model that sends a number where a string was declared degrades rather than
+/// throwing inside `build`.
 library;
 
 // Generated parts are `part of` the annotated library, so they build their
@@ -48,25 +50,16 @@ export 'package:json_schema_builder/json_schema_builder.dart'
 
 // Every renderer type generated code names, re-exported for the same reason as
 // `S`: a generated part, and the generated catalog, then need nothing but this
-// library. It also puts the renderer behind one line. genui is being
-// redesigned as a2ui_flutter, and when that lands, moving this package across
-// is a change here rather than a change in every app's generated code.
-export 'package:genui/genui.dart'
-    show
-        A2uiSchemas,
-        Catalog,
-        CatalogItem,
-        ClientFunction,
-        ClientFunctionReturnType,
-        JsonMap;
+// library.
+export 'package:a2ui_core/a2ui_core.dart'
+    show A2uiReturnType, CommonSchemas, DataContext, FunctionImplementation;
+export 'package:a2ui_flutter/a2ui_flutter.dart'
+    show CatalogImplementation, ComponentImplementation, ComponentProps;
 
-export 'src/actions.dart';
-export 'src/annotations.dart';
-export 'src/bindings.dart';
+export 'src/annotations.dart' hide genUiGenTargetsA2uiFlutter;
 export 'src/catalog_json.dart';
 export 'src/checks.dart';
-export 'src/children.dart';
 export 'src/coerce.dart';
 export 'src/functions.dart';
-export 'src/missing.dart';
+export 'src/schemas.dart';
 export 'src/writers.dart';

@@ -9,3 +9,12 @@ workspace:
   - packages/genui_gen/example
   - packages/genui_gen_builder
   - example
+
+# a2ui_flutter is not on pub.dev yet, and needs an a2ui_core newer than 0.2.2.
+# Both come from a checkout of a2ui at the head of a2ui-project/a2ui#3088 until
+# they are published.
+dependency_overrides:
+  a2ui_core:
+    path: ../a2ui-pr3088/dart/a2ui_core
+  a2ui_flutter:
+    path: ../a2ui-pr3088/dart/a2ui_flutter
