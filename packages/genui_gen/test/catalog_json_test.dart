@@ -4,53 +4,43 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genui_gen/genui_gen.dart';
 
-CatalogItem _item(String name) => CatalogItem(
+ComponentImplementation _component(String name) => ComponentImplementation(
   name: name,
-  dataSchema: S.object(
+  schema: GenUiSchemas.component(
     description: 'A $name.',
-    properties: {'label': S.string(), 'count': S.integer()},
+    properties: {
+      'label': GenUiSchemas.string(description: 'What it says.'),
+      'count': GenUiSchemas.number(),
+    },
     required: ['label'],
   ),
-  widgetBuilder: (ctx) => const SizedBox.shrink(),
+  builder: (context, node, props, buildChild) => const SizedBox.shrink(),
 );
 
-Catalog _catalog({String? catalogId = 'dev.dlsoft.test'}) =>
-    Catalog([_item('Alpha'), _item('Beta')], catalogId: catalogId);
+CatalogImplementation _catalog() => CatalogImplementation(
+  id: 'dev.dlsoft.test',
+  components: [_component('Alpha'), _component('Beta')],
+);
 
 void main() {
   group('genUiCatalogJson', () {
-    test('describes every item as an A2UI component', () {
+    test('describes every component', () {
       final json = genUiCatalogJson(_catalog());
 
       final components = json['components']! as Map<String, Object?>;
       expect(components.keys, containsAll(<String>['Alpha', 'Beta']));
 
       final alpha = components['Alpha']! as Map<String, Object?>;
-      // `unevaluatedProperties: false` is what stops a model from inventing a
-      // property the widget does not take.
-      expect(alpha['unevaluatedProperties'], isFalse);
-
-      final own = (alpha['allOf']! as List).last as Map<String, Object?>;
-      final properties = own['properties']! as Map<String, Object?>;
-      // Pinned to this component's name, which is how a renderer knows which
-      // entry of `anyComponent` it is looking at. genui writes it as a `const`
-      // and `CatalogItem.dataSchema` then overwrites it with a one-value
-      // `enum`; both say the same thing, so neither is asserted over the
-      // other.
-      expect(
-        properties['component'],
-        anyOf(
-          equals(<String, Object?>{'const': 'Alpha'}),
-          equals(<String, Object?>{
-            'type': 'string',
-            'enum': <String>['Alpha'],
-          }),
-        ),
-      );
-      expect(properties.keys, containsAll(<String>['label', 'count']));
-      // The discriminator the renderer switches on is required alongside the
-      // widget's own required properties.
-      expect(own['required'], containsAll(<String>['component', 'label']));
+      // What stops a model from inventing a property the widget does not take.
+      expect(alpha['additionalProperties'], isFalse);
+      final properties = alpha['properties']! as Map<String, Object?>;
+      expect(properties['component'], {'const': 'Alpha'});
+      // A shared type is a reference, with this property's own description.
+      expect(properties['label'], {
+        r'$ref': r'#/$defs/DynamicString',
+        'description': 'What it says.',
+      });
+      expect(alpha['required'], containsAll(<String>['component', 'label']));
     });
 
     test('carries the catalog id a surface names', () {
@@ -79,32 +69,12 @@ void main() {
       expect(json['description'], 'The components the Acme app renders.');
     });
 
-    test('keeps the generic title when none is given', () {
-      expect(genUiCatalogJson(_catalog())['title'], 'A2UI Catalog');
-    });
-
-    test('rejects a catalog with no id', () {
-      expect(
-        () => genUiCatalogJson(_catalog(catalogId: null)),
-        throwsA(
-          isA<ArgumentError>().having(
-            (error) => error.message,
-            'message',
-            contains('catalogId'),
-          ),
-        ),
-      );
-    });
-
-    test('does not hand out the schema itself to edit', () {
+    test('does not hand out the catalog document itself to edit', () {
       final catalog = _catalog();
       genUiCatalogJson(catalog, title: 'Edited')['components'] = 'gone';
 
-      expect(catalog.fullSchema.value['title'], 'A2UI Catalog');
-      expect(
-        catalog.fullSchema.value['components'],
-        isA<Map<String, Object?>>(),
-      );
+      expect(catalog.catalogSchema['title'], isNull);
+      expect(catalog.catalogSchema['components'], isA<Map<String, Object?>>());
     });
   });
 

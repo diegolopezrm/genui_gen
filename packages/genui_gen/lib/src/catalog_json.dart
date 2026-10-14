@@ -1,12 +1,11 @@
 import 'dart:convert';
 
-import 'package:genui/genui.dart';
+import 'package:a2ui_core/a2ui_core.dart';
 
 /// The A2UI catalog document that describes [catalog].
 ///
 /// A catalog is the contract between the agent and the app: it says which
-/// components exist and what each one accepts. genui builds that description
-/// in memory to put it in the prompt, but everything outside this Flutter
+/// components exist and what each one accepts. Everything outside this Flutter
 /// process needs it as a document — an agent written in Python, a second
 /// client rendering the same surfaces in SwiftUI, a review that has to answer
 /// what the model was allowed to ask for last Tuesday.
@@ -28,36 +27,21 @@ import 'package:genui/genui.dart';
 /// });
 /// ```
 ///
-/// [title] and [description] replace the generic ones genui fills in, which
-/// read `A2UI Catalog` and `Custom catalog of A2UI components and functions.`
-/// for every catalog ever generated. An agent that is handed three of these
-/// has nothing else to tell them apart by.
+/// [title] and [description], when given, replace the catalog's own. An agent
+/// that is handed three catalogs has little else to tell them apart by.
 ///
-/// Throws an [ArgumentError] when [catalog] has no `catalogId`. That id is how
-/// a surface names the catalog it was built against, in `createSurface`, so a
-/// document without one describes components that nothing can ask for.
-///
-/// The `$ref`s in the result point at the shared types on `a2ui.org` for v0.9,
-/// the protocol version genui emits, so whatever resolves them needs network
-/// access or a local copy of `common_types.json`.
-JsonMap genUiCatalogJson(
-  Catalog catalog, {
+/// This is `Catalog.catalogSchema`, which a2ui_core builds for every catalog,
+/// with the title and description applied.
+Map<String, Object?> genUiCatalogJson(
+  Catalog<ComponentApi, FunctionApi> catalog, {
   String? title,
   String? description,
 }) {
-  if (catalog.catalogId == null) {
-    throw ArgumentError.value(
-      catalog,
-      'catalog',
-      'has no catalogId. Pass one to `Catalog(...)`, or set `catalog_id` in '
-          'the `genui_catalog` builder options, so that a surface can name '
-          'the catalog it was built against',
-    );
-  }
-  // Copied rather than edited in place: `fullSchema` builds a fresh map on
-  // every call today, but callers should not have to know that to be allowed
-  // to pass a title.
-  final JsonMap json = Map<String, Object?>.of(catalog.fullSchema.value);
+  // Copied rather than edited in place: `catalogSchema` is computed once and
+  // kept, and a2ui_core reads it again to resolve the catalog's references.
+  final Map<String, Object?> json = Map<String, Object?>.of(
+    catalog.catalogSchema,
+  );
   if (title != null) json['title'] = title;
   if (description != null) json['description'] = description;
   return json;
@@ -68,7 +52,7 @@ JsonMap genUiCatalogJson(
 /// Indented because the document belongs in a repository next to the widgets
 /// it describes, where it is read and reviewed like any other source file.
 String genUiCatalogJsonString(
-  Catalog catalog, {
+  Catalog<ComponentApi, FunctionApi> catalog, {
   String? title,
   String? description,
   String indent = '  ',

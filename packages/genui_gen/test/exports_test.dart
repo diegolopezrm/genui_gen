@@ -27,28 +27,33 @@ void main() {
   group('re-exported renderer symbols', () {
     // The generated catalog file and every generated part name these, and
     // import nothing but this library to get them. This file imports neither
-    // genui nor json_schema_builder for the same reason.
+    // a2ui_flutter nor json_schema_builder for the same reason.
     test('a catalog can be built from this library alone', () {
-      final JsonMap data = <String, Object?>{'title': 'A product.'};
-      final catalog = Catalog([
-        CatalogItem(
-          name: 'Card',
-          dataSchema: S.object(properties: {'title': S.string()}),
-          widgetBuilder: (ctx) => const SizedBox.shrink(),
-          exampleData: [() => '$data'],
-        ),
-      ], catalogId: 'dev.dlsoft.exports');
+      final catalog = CatalogImplementation(
+        id: 'dev.dlsoft.exports',
+        components: [
+          ComponentImplementation(
+            name: 'Card',
+            schema: GenUiSchemas.component(
+              description: 'A card.',
+              properties: {'title': GenUiSchemas.string()},
+            ),
+            builder: (context, node, props, buildChild) =>
+                Text(props.string('title') ?? ''),
+          ),
+        ],
+      );
 
-      expect(catalog.items.single.name, 'Card');
-      expect(A2uiSchemas.stringReference().value, isNotEmpty);
+      expect(catalog.components.keys.single, 'Card');
+      expect(CommonSchemas.dynamicString.value, isNotEmpty);
     });
 
     test('a function can be declared from this library alone', () {
-      final ClientFunction function = GenUiClientFunction(
+      final FunctionImplementation function = GenUiClientFunction(
         name: 'echo',
         description: 'Returns its argument.',
         argumentSchema: S.object(properties: {'value': S.string()}),
-        returnType: ClientFunctionReturnType.string,
+        returnType: A2uiReturnType.string,
         body: (args, context) => args['value'],
       );
 
