@@ -38,7 +38,7 @@ final ComponentImplementation _sizer = ComponentImplementation(
     );
     return TextButton(
       onPressed: write == null ? null : () => write(_Size.large),
-      child: Text(props.string('size') ?? 'none'),
+      child: Text(props.string('size') ?? _Size.small.name),
     );
   },
 );

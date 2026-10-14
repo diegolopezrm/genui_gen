@@ -2,44 +2,43 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:genui/genui.dart';
-import 'package:genui_gen/genui_gen.dart' show S;
+import 'package:genui_gen/genui_gen.dart';
 import 'package:genui_gen/testing.dart';
 
-/// A catalog item whose example renders a labelled button and a line of text.
-final CatalogItem _panel = CatalogItem(
+/// A component whose example renders a labelled button and a line of text.
+final GenUiComponent _panel = GenUiComponent(
   name: 'Panel',
-  dataSchema: S.object(
+  schema: GenUiSchemas.component(
     description: 'A panel.',
-    properties: {'title': S.string()},
+    properties: {'title': GenUiSchemas.string()},
     required: ['title'],
   ),
-  exampleData: [
-    () => r'''
+  examples: [
+    r'''
 [
   {"id": "root", "component": "Panel", "title": "Storage"}
 ]''',
   ],
-  widgetBuilder: (ctx) {
-    final title = (ctx.data as JsonMap)['title']! as String;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(title),
-        ElevatedButton(onPressed: () {}, child: const Text('Manage')),
-      ],
-    );
-  },
+  builder: (context, node, props, buildChild) => Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Text(props.string('title') ?? ''),
+      ElevatedButton(onPressed: () {}, child: const Text('Manage')),
+    ],
+  ),
 );
 
-final Catalog _catalog = Catalog([_panel], catalogId: 'dev.dlsoft.test');
+final CatalogImplementation _catalog = CatalogImplementation(
+  id: 'dev.dlsoft.test',
+  components: [_panel],
+);
 
 Future<List<GenUiSemanticNode>> record(WidgetTester tester) async {
   final SemanticsHandle handle = tester.ensureSemantics();
   await tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
-        body: GenUiExampleSurface(catalog: _catalog, item: _panel),
+        body: GenUiExampleSurface(catalog: _catalog, component: _panel),
       ),
     ),
   );

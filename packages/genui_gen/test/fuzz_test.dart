@@ -3,24 +3,22 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:genui_gen/genui_gen.dart';
 import 'package:genui_gen/testing.dart';
 
-/// A component that casts what the model sent, which is what the fuzzer is
-/// for: valid against its own schema, and fatal on anything else.
-final CatalogItem fragile = CatalogItem(
+/// A component that casts what the agent sent, which is what the fuzzer is
+/// for: fine with its own example, and fatal on a binding that resolves to
+/// nothing, which its schema allows.
+final GenUiComponent fragile = GenUiComponent(
   name: 'Fragile',
-  dataSchema: S.object(
+  schema: GenUiSchemas.component(
     description: 'Casts its property instead of coercing it.',
-    properties: {'label': A2uiSchemas.stringReference()},
+    properties: {'label': GenUiSchemas.string()},
     required: ['label'],
   ),
-  exampleData: [
-    () => '[{"id": "root", "component": "Fragile", "label": "hello"}]',
-  ],
-  widgetBuilder: (ctx) => _Fragile((ctx.data as JsonMap)['label']),
+  examples: ['[{"id": "root", "component": "Fragile", "label": "hello"}]'],
+  builder: (context, node, props, buildChild) => _Fragile(props.value('label')),
 );
 
 /// The cast happens while the widget builds, which is where a real one
-/// happens: genui hands the property over untouched and `Slider`,
-/// `TextField` and the rest read it with `as`.
+/// happens.
 class _Fragile extends StatelessWidget {
   const _Fragile(this.raw);
 
@@ -31,28 +29,20 @@ class _Fragile extends StatelessWidget {
 }
 
 /// The same component, written the way the generator writes one.
-final CatalogItem sturdy = CatalogItem(
+final GenUiComponent sturdy = GenUiComponent(
   name: 'Sturdy',
-  dataSchema: S.object(
+  schema: GenUiSchemas.component(
     description: 'Coerces its property.',
-    properties: {'label': A2uiSchemas.stringReference()},
+    properties: {'label': GenUiSchemas.string()},
     required: ['label'],
   ),
-  exampleData: [
-    () => '[{"id": "root", "component": "Sturdy", "label": "hello"}]',
-  ],
-  widgetBuilder: (ctx) {
-    final data = ctx.data as JsonMap;
-    return GenUiBindings(
-      dataContext: ctx.dataContext,
-      bindings: {'label': GenUiBinding.string(data['label'])},
-      builder: (context, v) => Text(v.string('label') ?? 'missing'),
-    );
-  },
+  examples: ['[{"id": "root", "component": "Sturdy", "label": "hello"}]'],
+  builder: (context, node, props, buildChild) =>
+      Text(props.string('label') ?? 'missing'),
 );
 
-Catalog catalogOf(List<CatalogItem> items) =>
-    Catalog(items, catalogId: 'test.fuzz');
+CatalogImplementation catalogOf(List<ComponentImplementation> components) =>
+    CatalogImplementation(id: 'test.fuzz', components: components);
 
 void main() {
   testWidgets('a component that casts is reported, with the case to paste', (
@@ -141,13 +131,39 @@ void main() {
     expect(on.length, greaterThanOrEqualTo(off.length));
   });
 
-  testWidgets('a catalog with no id says so instead of guessing', (
+  testWidgets('a case the schema turns away is not a finding', (tester) async {
+    final findings = await genUiFuzz(
+      catalog: catalogOf([fragile]),
+      pump: tester.pumpWidget,
+    );
+    // A number is not a string, so the message never reaches the widget:
+    // the agent gets an error back instead.
+    expect(
+      findings.map((f) => f.mutation),
+      isNot(contains('`label` as a number')),
+    );
+  });
+
+  testWidgets('an example the schema rejects is reported as such', (
     tester,
   ) async {
-    expect(
-      () => genUiFuzz(catalog: Catalog([sturdy]), pump: tester.pumpWidget),
-      throwsA(isA<ArgumentError>()),
+    final drifted = GenUiComponent(
+      name: 'Drifted',
+      schema: GenUiSchemas.component(
+        description: 'Its example lost a required property.',
+        properties: {'label': GenUiSchemas.string()},
+        required: ['label'],
+      ),
+      examples: ['[{"id": "root", "component": "Drifted"}]'],
+      builder: (context, node, props, buildChild) => const SizedBox(),
     );
+    final findings = await genUiFuzz(
+      catalog: catalogOf([drifted]),
+      pump: tester.pumpWidget,
+    );
+    expect(findings, hasLength(1));
+    expect(findings.single.kind, GenUiFuzzKind.rejected);
+    expect(genUiFuzzSummary(findings), contains('its example was rejected'));
   });
 
   test('the summary groups by component', () {
@@ -209,25 +225,16 @@ class _Brand extends ThemeExtension<_Brand> {
 
 /// A sturdy component that reads its app's theme extension, and only works
 /// inside an app that has it.
-final CatalogItem branded = CatalogItem(
+final GenUiComponent branded = GenUiComponent(
   name: 'Branded',
-  dataSchema: S.object(
+  schema: GenUiSchemas.component(
     description: 'A label on the brand colour.',
-    properties: {'label': A2uiSchemas.stringReference()},
+    properties: {'label': GenUiSchemas.string()},
     required: ['label'],
   ),
-  exampleData: [
-    () => '[{"id": "root", "component": "Branded", "label": "hello"}]',
-  ],
-  widgetBuilder: (ctx) {
-    final data = ctx.data as JsonMap;
-    return GenUiBindings(
-      dataContext: ctx.dataContext,
-      bindings: {'label': GenUiBinding.string(data['label'])},
-      builder: (context, v) => ColoredBox(
-        color: Theme.of(context).extension<_Brand>()!.color,
-        child: Text(v.string('label') ?? ''),
-      ),
-    );
-  },
+  examples: ['[{"id": "root", "component": "Branded", "label": "hello"}]'],
+  builder: (context, node, props, buildChild) => ColoredBox(
+    color: Theme.of(context).extension<_Brand>()!.color,
+    child: Text(props.string('label') ?? ''),
+  ),
 );

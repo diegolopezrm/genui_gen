@@ -1,10 +1,11 @@
-import 'dart:async';
 import 'dart:convert';
 
+import 'package:a2ui_core/a2ui_core.dart';
+import 'package:a2ui_flutter/a2ui_flutter.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/semantics.dart';
-import 'package:genui/genui.dart';
 
 import 'semantics.dart';
 import 'surface_graph.dart';
@@ -20,9 +21,9 @@ import 'tracing/trace.dart';
 ///
 /// ```dart
 /// GenUiInspector(
-///   controller: controller,
+///   processor: processor,
 ///   recorder: recorder,
-///   child: GenUiConversation(...),
+///   child: MyConversation(...),
 /// )
 /// ```
 ///
@@ -36,20 +37,20 @@ class GenUiInspector extends StatefulWidget {
   /// Creates an inspector over [child].
   const GenUiInspector({
     super.key,
-    required this.controller,
+    required this.processor,
     required this.child,
     this.recorder,
     this.enabled = kDebugMode,
     this.open = false,
   });
 
-  /// The controller whose surfaces the panel reports on.
-  final SurfaceController controller;
+  /// The processor whose surfaces the panel reports on.
+  final MessageProcessor<ComponentImplementation> processor;
 
   /// The app, rendered under the panel.
   final Widget child;
 
-  /// A recorder on the same controller, for the Messages tab.
+  /// A recorder on the same processor, for the Messages tab.
   ///
   /// Without one the panel shows the surfaces as they are now, which is most
   /// of the story but not how they got there.
@@ -82,11 +83,10 @@ const TextStyle _mono = TextStyle(
 );
 
 class _GenUiInspectorState extends State<GenUiInspector> {
-  StreamSubscription<SurfaceUpdate>? _updates;
-  final Map<String, SurfaceDefinition> _definitions =
-      <String, SurfaceDefinition>{};
+  final Map<String, SurfaceModel<ComponentImplementation>> _surfaces =
+      <String, SurfaceModel<ComponentImplementation>>{};
   final Map<String, Object?> _data = <String, Object?>{};
-  final Map<String, VoidCallback> _dataListeners = <String, VoidCallback>{};
+  final Map<String, _Watch> _watches = <String, _Watch>{};
 
   String? _surfaceId;
   _Tab _tab = _Tab.tree;
@@ -109,8 +109,8 @@ class _GenUiInspectorState extends State<GenUiInspector> {
   @override
   void didUpdateWidget(GenUiInspector old) {
     super.didUpdateWidget(old);
-    if (old.controller != widget.controller || old.enabled != widget.enabled) {
-      _detach();
+    if (old.processor != widget.processor || old.enabled != widget.enabled) {
+      _detach(old.processor);
       if (widget.enabled) _attach();
     }
     if (old.recorder != widget.recorder) {
@@ -122,74 +122,112 @@ class _GenUiInspectorState extends State<GenUiInspector> {
 
   @override
   void dispose() {
-    _detach();
+    _detach(widget.processor);
     super.dispose();
   }
 
   void _attach() {
-    _updates = widget.controller.surfaceUpdates.listen(_onSurfaceUpdate);
+    final SurfaceGroupModel<ComponentImplementation> group =
+        widget.processor.groupModel;
+    group.onSurfaceCreated.addListener(_onSurfaceCreated);
+    group.onSurfaceDeleted.addListener(_onSurfaceDeleted);
+    for (final SurfaceModel<ComponentImplementation> surface
+        in group.allSurfaces) {
+      _watch(surface);
+    }
+    _pickSurface();
     widget.recorder?.changes.addListener(_onTrace);
     _onTrace();
   }
 
-  void _detach() {
-    _updates?.cancel();
-    _updates = null;
+  void _detach(MessageProcessor<ComponentImplementation> processor) {
+    final SurfaceGroupModel<ComponentImplementation> group =
+        processor.groupModel;
+    group.onSurfaceCreated.removeListener(_onSurfaceCreated);
+    group.onSurfaceDeleted.removeListener(_onSurfaceDeleted);
     widget.recorder?.changes.removeListener(_onTrace);
-    for (final MapEntry<String, VoidCallback> entry in _dataListeners.entries) {
-      _rootOf(entry.key)?.removeListener(entry.value);
+    for (final _Watch watch in _watches.values) {
+      watch.cancel();
     }
-    _dataListeners.clear();
+    _watches.clear();
+    _surfaces.clear();
+    _data.clear();
     _semanticsHandle?.dispose();
     _semanticsHandle = null;
   }
 
-  void _onSurfaceUpdate(SurfaceUpdate update) {
-    switch (update) {
-      case SurfaceAdded(:final definition) ||
-          ComponentsUpdated(:final definition):
-        _definitions[definition.surfaceId] = definition;
-        _watchData(definition.surfaceId);
-      case SurfaceRemoved(:final surfaceId):
-        _definitions.remove(surfaceId);
-        _data.remove(surfaceId);
-        final VoidCallback? listener = _dataListeners.remove(surfaceId);
-        if (listener != null) _rootOf(surfaceId)?.removeListener(listener);
-    }
-    _surfaceId ??= _definitions.keys.firstOrNull;
-    if (!_definitions.containsKey(_surfaceId)) {
-      _surfaceId = _definitions.keys.firstOrNull;
-    }
-    if (mounted) setState(() {});
+  void _onSurfaceCreated(SurfaceModel<ComponentImplementation> surface) {
+    _watch(surface);
+    _changed();
   }
 
-  /// The data model root of [surfaceId], or `null` when the surface is gone.
-  ///
-  /// `contextFor` throws once a surface has been removed, and a removal and a
-  /// rebuild of the panel can land in either order.
-  ValueListenable<Object?>? _rootOf(String surfaceId) {
-    try {
-      return widget.controller
-          .contextFor(surfaceId)
-          .dataModel
-          .subscribe<Object?>(DataPath(''));
-    } on StateError {
-      return null;
+  void _onSurfaceDeleted(String surfaceId) {
+    _surfaces.remove(surfaceId);
+    _data.remove(surfaceId);
+    _watches.remove(surfaceId)?.cancel();
+    _changed();
+  }
+
+  /// Follows [surface]: its components, which the tree is read from, and its
+  /// data model, which the Data tab shows.
+  void _watch(SurfaceModel<ComponentImplementation> surface) {
+    if (_watches.containsKey(surface.id)) return;
+    _surfaces[surface.id] = surface;
+    final SurfaceComponentsModel components = surface.componentsModel;
+    final Map<ComponentModel, void Function(ComponentModel)> updates =
+        <ComponentModel, void Function(ComponentModel)>{};
+    void onUpdated(ComponentModel _) => _changed();
+    void follow(ComponentModel component) {
+      component.onUpdated.addListener(onUpdated);
+      updates[component] = onUpdated;
+    }
+
+    void onCreated(ComponentModel component) {
+      follow(component);
+      _changed();
+    }
+
+    void onDeleted(String _) => _changed();
+    components.values.forEach(follow);
+    components.onCreated.addListener(onCreated);
+    components.onDeleted.addListener(onDeleted);
+
+    final ReadonlySignal<Object?> root = surface.dataModel.watch<Object?>('/');
+    final void Function() unsubscribe = root.subscribe((Object? value) {
+      _data[surface.id] = value;
+      _changed();
+    });
+
+    _watches[surface.id] = _Watch(root, () {
+      unsubscribe();
+      components.onCreated.removeListener(onCreated);
+      components.onDeleted.removeListener(onDeleted);
+      for (final MapEntry<ComponentModel, void Function(ComponentModel)> entry
+          in updates.entries) {
+        entry.key.onUpdated.removeListener(entry.value);
+      }
+    });
+  }
+
+  void _pickSurface() {
+    if (!_surfaces.containsKey(_surfaceId)) {
+      _surfaceId = _surfaces.keys.firstOrNull;
     }
   }
 
-  void _watchData(String surfaceId) {
-    if (_dataListeners.containsKey(surfaceId)) return;
-    final ValueListenable<Object?>? root = _rootOf(surfaceId);
-    if (root == null) return;
-    void listener() {
-      _data[surfaceId] = root.value;
-      if (mounted) setState(() {});
+  /// Rebuilds the panel, after the current frame when one is being built:
+  /// a surface changes while a2ui_flutter renders it.
+  void _changed() {
+    _pickSurface();
+    if (!mounted) return;
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() {});
+      });
+    } else {
+      setState(() {});
     }
-
-    root.addListener(listener);
-    _dataListeners[surfaceId] = listener;
-    _data[surfaceId] = root.value;
   }
 
   void _onTrace() {
@@ -269,7 +307,7 @@ class _GenUiInspectorState extends State<GenUiInspector> {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
             child: Text(
-              'genui ${_definitions.length}',
+              'a2ui ${_surfaces.length}',
               style: _mono.copyWith(color: _accent),
             ),
           ),
@@ -333,7 +371,7 @@ class _GenUiInspectorState extends State<GenUiInspector> {
               onTap: () => _select(tab),
             ),
           const Spacer(),
-          if (_definitions.length > 1) _surfacePicker(),
+          if (_surfaces.length > 1) _surfacePicker(),
           if (_tab == _Tab.semantics)
             _IconText(label: 'reload', onTap: _readSemantics),
           _IconText(label: 'close', onTap: () => setState(() => _open = false)),
@@ -351,7 +389,7 @@ class _GenUiInspectorState extends State<GenUiInspector> {
       underline: const SizedBox.shrink(),
       style: _mono.copyWith(color: _dim),
       items: <DropdownMenuItem<String>>[
-        for (final String id in _definitions.keys)
+        for (final String id in _surfaces.keys)
           DropdownMenuItem<String>(value: id, child: Text(id)),
       ],
       onChanged: (String? id) => setState(() {
@@ -365,11 +403,12 @@ class _GenUiInspectorState extends State<GenUiInspector> {
     if (_tab == _Tab.messages) return _messages();
     if (_tab == _Tab.semantics) return _semanticsList();
 
-    final SurfaceDefinition? definition = _definitions[_surfaceId];
-    if (definition == null) {
+    final SurfaceModel<ComponentImplementation>? surface =
+        _surfaces[_surfaceId];
+    if (surface == null) {
       return _empty('No surface yet. It appears here as soon as one arrives.');
     }
-    final GenUiSurfaceGraph graph = GenUiSurfaceGraph.of(definition);
+    final GenUiSurfaceGraph graph = GenUiSurfaceGraph.of(surface);
     return _tab == _Tab.tree ? _tree(graph) : _dataList(graph);
   }
 
@@ -390,7 +429,7 @@ class _GenUiInspectorState extends State<GenUiInspector> {
         for (final String id in ids)
           _ComponentRow(
             id: id,
-            component: graph.definition.components[id]!,
+            component: graph.surface.componentsModel.get(id)!,
             depth: graph.depthOf(id) ?? 0,
             reached: !graph.unreachable.contains(id),
             cyclic: graph.cyclic.contains(id),
@@ -404,7 +443,7 @@ class _GenUiInspectorState extends State<GenUiInspector> {
   }
 
   Widget _dataList(GenUiSurfaceGraph graph) {
-    final _Entries entries = _entriesOf(_data[graph.definition.surfaceId]);
+    final _Entries entries = _entriesOf(_data[graph.surface.id]);
 
     // A binding resolves to a family of paths when it sits inside a template,
     // so each one is matched against the data rather than looked up.
@@ -634,7 +673,7 @@ class _ComponentRow extends StatelessWidget {
   });
 
   final String id;
-  final Component component;
+  final ComponentModel component;
   final int depth;
   final bool reached;
   final bool cyclic;
@@ -839,4 +878,13 @@ class _StepRow extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A followed surface: its data model's root signal, held so the data
+/// model's weak reference to it stays alive, and how to stop following.
+class _Watch {
+  _Watch(this.root, this.cancel);
+
+  final ReadonlySignal<Object?> root;
+  final void Function() cancel;
 }

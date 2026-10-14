@@ -10,17 +10,20 @@ Map<String, Object?> catalogWith({
   String catalogId = 'dev.dlsoft.test',
   String description = 'A product card.',
 }) => genUiCatalogJson(
-  Catalog([
-    CatalogItem(
-      name: 'ProductCard',
-      dataSchema: S.object(
-        description: description,
-        properties: {'title': S.string(), ...properties},
-        required: required,
+  CatalogImplementation(
+    id: catalogId,
+    components: [
+      ComponentImplementation(
+        name: 'ProductCard',
+        schema: S.object(
+          description: description,
+          properties: {'title': S.string(), ...properties},
+          required: required,
+        ),
+        builder: (context, node, props, buildChild) => const SizedBox.shrink(),
       ),
-      widgetBuilder: (ctx) => const SizedBox.shrink(),
-    ),
-  ], catalogId: catalogId),
+    ],
+  ),
 );
 
 void main() {
@@ -117,13 +120,17 @@ void main() {
 
   test('a component that disappears is breaking', () {
     final before = genUiCatalogJson(
-      Catalog([
-        CatalogItem(
-          name: 'Gone',
-          dataSchema: S.object(description: 'A component.', properties: {}),
-          widgetBuilder: (ctx) => const SizedBox.shrink(),
-        ),
-      ], catalogId: 'dev.dlsoft.test'),
+      CatalogImplementation(
+        id: 'dev.dlsoft.test',
+        components: [
+          ComponentImplementation(
+            name: 'Gone',
+            schema: S.object(description: 'A component.', properties: {}),
+            builder: (context, node, props, buildChild) =>
+                const SizedBox.shrink(),
+          ),
+        ],
+      ),
     );
 
     final changes = genUiCatalogDiff(before, catalogWith());
@@ -199,6 +206,27 @@ void main() {
       ),
       isEmpty,
     );
+  });
+
+  test('genui and a2ui_core name a shared definition the same', () {
+    // genui points into `common_types.json`; a2ui_core's catalog document
+    // carries the definitions in its own `$defs` and points there.
+    final changes = genUiCatalogDiff(
+      catalogWith(
+        properties: {
+          'price': S.combined(
+            $ref:
+                'https://a2ui.org/specification/v0_9/common_types.json'
+                r'#/$defs/DynamicNumber',
+          ),
+        },
+      ),
+      catalogWith(
+        properties: {'price': S.combined($ref: r'#/$defs/DynamicNumber')},
+      ),
+    );
+
+    expect(changes, isEmpty);
   });
 
   test('a reference to any other definition still compares by name', () {

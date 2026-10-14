@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:a2ui_core/a2ui_core.dart' as core;
-import 'package:genui/genui.dart';
 
 /// The format version written into every trace.
 ///
@@ -46,10 +45,11 @@ final class GenUiMessageStep extends GenUiTraceStep {
   const GenUiMessageStep(super.at, this.message);
 
   /// The raw message, in the shape `a2ui_core` reads and writes.
-  final JsonMap message;
+  final Map<String, Object?> message;
 
   /// The message, parsed.
-  core.A2uiMessage decode() => core.A2uiMessage.fromJson(message);
+  core.AgentToRendererMessage decode() =>
+      core.AgentToRendererMessage.fromJson(message);
 
   @override
   Map<String, Object?> toJson() => <String, Object?>{
@@ -92,7 +92,8 @@ final class GenUiEventStep extends GenUiTraceStep {
   /// Creates a [GenUiEventStep].
   const GenUiEventStep(super.at, this.event);
 
-  /// The interaction payload, decoded.
+  /// The message as the app sent it to the agent: an `action` or an `error`
+  /// envelope, as JSON.
   final Object? event;
 
   @override

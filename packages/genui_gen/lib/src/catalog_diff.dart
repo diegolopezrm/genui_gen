@@ -308,29 +308,42 @@ const Map<String, String> _plainCommonTypes = <String, String>{
 };
 
 const String _commonTypeDefs = r'common_types.json#/$defs/';
+const String _localDefs = r'#/$defs/';
+
+/// The name of the shared definition [ref] points at, or `null` when it
+/// points anywhere else.
+///
+/// genui points into `common_types.json`; a2ui_core's catalog document carries
+/// the shared definitions in its own `$defs` and points there. Both name the
+/// same definition, so both reduce to its name.
+String? _commonTypeName(String ref) {
+  final int at = ref.indexOf(_commonTypeDefs);
+  if (at >= 0) return ref.substring(at + _commonTypeDefs.length);
+  if (ref.startsWith(_localDefs)) return ref.substring(_localDefs.length);
+  return null;
+}
 
 /// What a property accepts, reduced to something two versions can be compared
-/// by: its type, or the set of shapes a `oneOf` offers.
+/// by: its type, or the set of shapes a `oneOf` or an `anyOf` offers.
 String? _shape(Map<String, Object?> property) {
   if (property['type'] case final Object type) return '$type';
   if (property[r'$ref'] case final Object ref) {
     final String target = '$ref';
-    final int at = target.indexOf(_commonTypeDefs);
-    if (at >= 0) {
-      final String name = target.substring(at + _commonTypeDefs.length);
-      if (_plainCommonTypes[name] case final String type) return type;
-    }
-    return target;
+    final String? name = _commonTypeName(target);
+    if (name == null) return target;
+    return _plainCommonTypes[name] ?? name;
   }
-  if (property['oneOf'] case final List branches) {
-    final shapes = <String>[
-      for (final branch in branches)
-        if (branch is Map)
-          _shape(branch.cast<String, Object?>()) ?? 'object'
-        else
-          '$branch',
-    ]..sort();
-    return 'oneOf(${shapes.join('|')})';
+  for (final keyword in const ['oneOf', 'anyOf']) {
+    if (property[keyword] case final List branches) {
+      final shapes = <String>[
+        for (final branch in branches)
+          if (branch is Map)
+            _shape(branch.cast<String, Object?>()) ?? 'object'
+          else
+            '$branch',
+      ]..sort();
+      return 'oneOf(${shapes.join('|')})';
+    }
   }
   if (property['const'] != null) return 'const';
   return null;

@@ -1,25 +1,22 @@
-import 'dart:async';
-import 'dart:convert';
-
-import 'package:a2ui_core/a2ui_core.dart' as core;
+import 'package:a2ui_core/a2ui_core.dart';
+import 'package:a2ui_flutter/a2ui_flutter.dart';
 import 'package:flutter/foundation.dart';
-import 'package:genui/genui.dart';
 
 import 'trace.dart';
 
 /// Records a session so it can be replayed later.
 ///
-/// Attach it to the controller and send the agent's messages through it
-/// instead of straight to the controller:
+/// Attach it to the app's [MessageProcessor] and send the agent's messages
+/// through it instead of straight to the processor:
 ///
 /// ```dart
 /// final recorder = GenUiTraceRecorder.attach(
-///   controller,
-///   catalogId: catalog.catalogId,
+///   processor,
+///   catalogId: catalog.id,
 ///   redact: const ['/user/email'],
 /// );
 ///
-/// transport.messages.listen(recorder.handleMessage);
+/// transport.messages.listen(recorder.processMessages);
 /// ...
 /// await File('bug-4821.a2ui-trace').writeAsString(recorder.build().encode());
 /// ```
@@ -29,29 +26,34 @@ import 'trace.dart';
 /// back. That is everything the renderer saw, which is what makes the replay
 /// faithful rather than approximate.
 ///
-/// What it cannot keep: anything a catalog item reads from outside the data
+/// What it cannot keep: anything a component reads from outside the data
 /// model. A component that asks the clock or the network for something renders
 /// from that, not from the trace, and replays differently. Keep those behind a
 /// function the catalog declares, and the trace covers them too.
-class GenUiTraceRecorder implements A2uiMessageSink {
-  /// Creates a recorder attached to [controller].
+class GenUiTraceRecorder {
+  /// Creates a recorder attached to [processor].
   ///
   /// [redact] lists JSON Pointer paths whose values never reach the file.
   /// Recording a session records what the user typed, so a field holding an
   /// email or a card number has to be named here before the first recording,
   /// not after the first leak.
   GenUiTraceRecorder.attach(
-    this.controller, {
+    this.processor, {
     this.catalogId,
     List<String> redact = const <String>[],
     Map<String, Object?> notes = const <String, Object?>{},
   }) : _redact = redact.map(_segmentsOf).toList(),
        _notes = notes {
-    _submissions = controller.onSubmit.listen(_recordSubmission);
+    final SurfaceGroupModel<ComponentImplementation> group =
+        processor.groupModel;
+    group.onAction.addListener(_recordAction);
+    group.onSurfaceCreated.addListener(_watch);
+    group.onSurfaceDeleted.addListener(_forget);
+    group.allSurfaces.forEach(_watch);
   }
 
-  /// The controller messages are forwarded to.
-  final SurfaceController controller;
+  /// The processor the messages are handed to.
+  final MessageProcessor<ComponentImplementation> processor;
 
   /// The catalog the session runs against, written into the trace.
   final String? catalogId;
@@ -60,7 +62,7 @@ class GenUiTraceRecorder implements A2uiMessageSink {
   final Map<String, Object?> _notes;
   final List<GenUiTraceStep> _steps = <GenUiTraceStep>[];
   final Stopwatch _clock = Stopwatch()..start();
-  final Map<String, VoidCallback> _dataListeners = <String, VoidCallback>{};
+  final Map<String, _Watched> _watched = <String, _Watched>{};
   final _Changes _changes = _Changes();
 
   /// Fires whenever a step is recorded.
@@ -69,95 +71,120 @@ class GenUiTraceRecorder implements A2uiMessageSink {
   /// showing the session as it happens needs to know when to take another one.
   Listenable get changes => _changes;
 
-  late final StreamSubscription<ChatMessage> _submissions;
-
-  /// Records [message] and hands it to the controller.
-  @override
-  void handleMessage(core.A2uiMessage message) {
-    // A copy, taken now. The controller can adopt an updateDataModel's value
-    // by reference and write into it as the person types, at which point the
-    // message object is no longer what the agent sent. Recording it by
-    // reference would record the person's input as the agent's, and past
-    // [redact].
-    final JsonMap json = _redactedMessage(_copy(message.toJson())! as JsonMap);
-    _steps.add(GenUiMessageStep(_clock.elapsed, json));
-    _changes.notify();
-    controller.handleMessage(message);
-
-    // A surface can only be watched once it exists, which is after the
-    // controller has handled the message that creates it.
-    if ((json['createSurface'] as Map?)?['surfaceId'] case final String id) {
-      _watchData(id);
+  /// Records [payload] and hands it to the processor.
+  ///
+  /// [payload] is whatever [MessageProcessor.processMessages] takes: decoded
+  /// JSON, a parsed message or a list of either. Each message is recorded
+  /// before it is processed, so a message the processor rejects is in the
+  /// trace too, as what the agent sent; the rejection is thrown as it would
+  /// have been.
+  void processMessages(Object? payload) {
+    for (final Map<String, Object?> json in _messagesOf(payload)) {
+      // A copy, taken now: the data model can adopt an updateDataModel's
+      // value and write into it as the person types, at which point the
+      // message is no longer what the agent sent.
+      _steps.add(
+        GenUiMessageStep(
+          _clock.elapsed,
+          _redactedMessage(_copy(json)! as Map<String, Object?>),
+        ),
+      );
     }
+    _changes.notify();
+    processor.processMessages(payload);
   }
 
-  /// The session so far.
+  /// The trace so far.
   GenUiTrace build() => GenUiTrace(
     steps: List<GenUiTraceStep>.unmodifiable(_steps),
     catalogId: catalogId,
     notes: _notes,
   );
 
-  /// Stops recording and releases what it was listening to.
-  ///
-  /// The controller is left alone: the recorder was given it, not created by
-  /// it.
+  /// Stops recording and releases what the recorder listens to.
   void dispose() {
-    _submissions.cancel();
-    for (final entry in _dataListeners.entries) {
-      _rootOf(entry.key).removeListener(entry.value);
+    final SurfaceGroupModel<ComponentImplementation> group =
+        processor.groupModel;
+    group.onAction.removeListener(_recordAction);
+    group.onSurfaceCreated.removeListener(_watch);
+    group.onSurfaceDeleted.removeListener(_forget);
+    for (final _Watched watched in _watched.values) {
+      watched.cancel();
     }
-    _dataListeners.clear();
+    _watched.clear();
     _clock.stop();
     _changes.dispose();
   }
 
-  ValueListenable<Object?> _rootOf(String surfaceId) => controller
-      .contextFor(surfaceId)
-      .dataModel
-      .subscribe<Object?>(DataPath(''));
-
-  void _watchData(String surfaceId) {
-    if (_dataListeners.containsKey(surfaceId)) return;
-    final ValueListenable<Object?> root = _rootOf(surfaceId);
-    void listener() {
-      _steps.add(
-        GenUiDataStep(_clock.elapsed, surfaceId, _redacted(root.value)),
-      );
-      _changes.notify();
-    }
-
-    root.addListener(listener);
-    _dataListeners[surfaceId] = listener;
-    // The surface may already hold data: `updateDataModel` can arrive in the
-    // same batch as `createSurface`, before there was anything to listen with.
-    if (root.value != null) listener();
-  }
-
-  void _recordSubmission(ChatMessage message) {
-    for (final part in message.parts) {
-      if (part is! DataPart) continue;
-      if (part.mimeType != UiPartConstants.interactionMimeType) continue;
-      Object? decoded;
-      try {
-        decoded = jsonDecode(utf8.decode(part.bytes));
-      } on FormatException {
-        // A part that is not the JSON it claims to be is worth keeping as the
-        // text it was: it is evidence about a bug, not a value to parse.
-        decoded = utf8.decode(part.bytes, allowMalformed: true);
+  void _watch(SurfaceModel<ComponentImplementation> surface) {
+    if (_watched.containsKey(surface.id)) return;
+    final ReadonlySignal<Object?> root = surface.dataModel.watch<Object?>('/');
+    var first = true;
+    final void Function() unsubscribe = root.subscribe((Object? data) {
+      // A surface may already hold data when it is first watched:
+      // `updateDataModel` can arrive in the same batch as `createSurface`.
+      // An empty model is not worth a step.
+      final bool empty = data == null || (data is Map && data.isEmpty);
+      if (first && empty) {
+        first = false;
+        return;
       }
-      _steps.add(GenUiEventStep(_clock.elapsed, _redacted(decoded)));
+      first = false;
+      _steps.add(GenUiDataStep(_clock.elapsed, surface.id, _snapshot(data)));
       _changes.notify();
+    });
+    void onError(A2uiClientError error) => _recordEvent(
+      ErrorMessage(
+        version: A2uiProtocolVersion.v0_9.jsonValue,
+        error: error,
+      ).toJson(),
+    );
+    surface.onError.addListener(onError);
+    _watched[surface.id] = _Watched(root, () {
+      unsubscribe();
+      surface.onError.removeListener(onError);
+    });
+  }
+
+  void _forget(String surfaceId) => _watched.remove(surfaceId)?.cancel();
+
+  void _recordAction(A2uiClientAction action) => _recordEvent(
+    ActionMessage(
+      version: A2uiProtocolVersion.v0_9.jsonValue,
+      action: action,
+    ).toJson(),
+  );
+
+  void _recordEvent(Map<String, Object?> message) {
+    _steps.add(GenUiEventStep(_clock.elapsed, _redacted(_copy(message))));
+    _changes.notify();
+  }
+
+  /// [value], copied so later writes to the data model cannot change it, and
+  /// with the redacted paths blanked.
+  Object? _snapshot(Object? value) => _redacted(_copy(value));
+
+  /// The decoded JSON of each message in [payload].
+  static Iterable<Map<String, Object?>> _messagesOf(Object? payload) sync* {
+    switch (payload) {
+      case AgentToRendererMessagePayload(:final messages):
+        for (final AgentToRendererMessage message in messages) {
+          yield message.toJson();
+        }
+      case final AgentToRendererMessage message:
+        yield message.toJson();
+      case final List<Object?> list:
+        for (final Object? item in list) {
+          yield* _messagesOf(item);
+        }
+      case final Map<Object?, Object?> map when map.containsKey('messages'):
+        yield* _messagesOf(map['messages']);
+      case final Map<Object?, Object?> map:
+        yield map.cast<String, Object?>();
     }
   }
 
-  /// [json] with every redacted path blanked in what an updateDataModel
-  /// writes.
-  ///
-  /// An agent can put personal data in the data model as easily as the
-  /// person can, from a tool that looked up their email for instance, and a
-  /// path named in [redact] never reaches the file whoever wrote it.
-  JsonMap _redactedMessage(JsonMap json) {
+  Map<String, Object?> _redactedMessage(Map<String, Object?> json) {
     if (_redact.isEmpty) return json;
     final Object? update = json['updateDataModel'];
     if (update is! Map<String, Object?>) return json;
@@ -183,13 +210,12 @@ class GenUiTraceRecorder implements A2uiMessageSink {
   }
 
   /// [value] with every redacted path replaced.
+  /// [value], already a copy, with the redacted paths blanked.
   Object? _redacted(Object? value) {
-    if (_redact.isEmpty) return value;
-    final Object? copy = _copy(value);
     for (final path in _redact) {
-      _blank(copy, path);
+      _blank(value, path);
     }
-    return copy;
+    return value;
   }
 
   static Object? _copy(Object? value) => switch (value) {
@@ -238,4 +264,13 @@ class GenUiTraceRecorder implements A2uiMessageSink {
 /// nothing rebuilds from the recorder, only from [GenUiTraceRecorder.changes].
 class _Changes extends ChangeNotifier {
   void notify() => notifyListeners();
+}
+
+/// A watched surface: its data model's root signal, held so the data model's
+/// weak reference to it stays alive, and how to stop watching.
+class _Watched {
+  _Watched(this.root, this.cancel);
+
+  final ReadonlySignal<Object?> root;
+  final void Function() cancel;
 }
