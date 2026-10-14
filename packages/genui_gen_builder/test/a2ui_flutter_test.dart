@@ -209,6 +209,10 @@ class Toggle extends StatelessWidget {
 }
 ''');
       expect(out, contains('bind it to a data path if you need to read'));
+      // The example binds what the widget writes, since a literal there would
+      // be a control the user cannot change, and the agent copies examples.
+      expect(out, contains('"value":{"path":"/value"}'));
+      expect(out, contains('"size":{"path":"/size"}'));
       expect(
         out,
         contains(

@@ -31,7 +31,10 @@ EmittedCode emitComponentImplementation(WidgetSpec spec) {
     ..writeln('final GenUiComponent ${spec.variableName} = GenUiComponent(')
     ..writeln('  name: ${dartString(spec.catalogName)},')
     ..writeln('  schema: ${_schema(spec, symbols)},')
-    ..writeln('  examples: [${exampleLiteral(buildExampleJson(spec))}],')
+    ..writeln(
+      '  examples: '
+      '[${exampleLiteral(buildExampleJson(spec, bindWritten: true))}],',
+    )
     ..writeln('  builder: ${_builder(spec, symbols)},')
     ..write(');');
   return EmittedCode(out.toString(), symbols);

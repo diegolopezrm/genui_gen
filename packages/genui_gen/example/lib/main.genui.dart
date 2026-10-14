@@ -41,6 +41,9 @@ final GenUiComponent productCardCatalogItem = GenUiComponent(
     "title": "Quarterly report",
     "price": 19.99,
     "imageUrl": "https://picsum.photos/seed/genui_gen/400/225",
+    "favourite": {
+      "path": "/favourite"
+    },
     "onTap": {
       "event": {
         "name": "onTap"
