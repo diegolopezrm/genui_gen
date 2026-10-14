@@ -5,28 +5,26 @@ import 'src/harness_a2ui.dart';
 
 void main() {
   group('on a2ui_flutter', () {
-    test(
-      'a genui_gen built on a2ui_flutter gets ComponentImplementations',
-      () async {
-        final out = await generateA2ui('''
+    test('a genui_gen built on a2ui_flutter gets GenUiComponents', () async {
+      final out = await generateA2ui('''
 @GenUiWidget(description: 'Empty.')
 class Empty extends StatelessWidget {
   const Empty({super.key});
 }
 ''');
-        expect(
-          out,
-          contains(
-            'final ComponentImplementation emptyCatalogItem = '
-            "ComponentImplementation(name: 'Empty', "
-            "schema: GenUiSchemas.component(description: 'Empty.'), "
-            'builder: (context, node, props, buildChild) => Empty())',
-          ),
-        );
-        expect(out, isNot(contains('CatalogItem(')));
-        expect(out, isNot(contains('exampleData')));
-      },
-    );
+      expect(
+        out,
+        contains(
+          'final GenUiComponent emptyCatalogItem = '
+          "GenUiComponent(name: 'Empty', "
+          "schema: GenUiSchemas.component(description: 'Empty.'), "
+          'examples: [r\'\'\' [{"id":"root","component":"Empty"}]\'\'\'], '
+          'builder: (context, node, props, buildChild) => Empty())',
+        ),
+      );
+      expect(out, isNot(contains('CatalogItem(')));
+      expect(out, isNot(contains('exampleData')));
+    });
 
     test('the same widget still gets a CatalogItem on genui', () async {
       final out = await generate('''
@@ -503,7 +501,7 @@ import 'package:genui_gen/genui_gen.dart' show GenUiWidget;
         ),
         failsWith([
           "import 'package:genui_gen/genui_gen.dart';",
-          'ComponentImplementation',
+          'GenUiComponent',
           'GenUiSchemas',
         ]),
       );

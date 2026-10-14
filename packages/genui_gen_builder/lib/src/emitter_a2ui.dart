@@ -13,26 +13,25 @@
 library;
 
 import 'emitter.dart';
+import 'example.dart';
 import 'spec.dart';
 import 'strings.dart';
 
-/// Emits the `final ComponentImplementation <name>CatalogItem = ...;`
-/// declaration for [spec].
+/// Emits the `final GenUiComponent <name>CatalogItem = ...;` declaration for
+/// [spec].
 ///
-/// The variable keeps the name it has on genui, so an app that moves across
+/// A `GenUiComponent` is a2ui_flutter's `ComponentImplementation` with the
+/// examples the generator wrote, which a2ui_flutter has no field for. The
+/// variable keeps the name it has on genui, so an app that moves across
 /// renames nothing it wrote by hand.
 EmittedCode emitComponentImplementation(WidgetSpec spec) {
-  final symbols = <String>{'ComponentImplementation', 'GenUiSchemas'};
+  final symbols = <String>{'GenUiComponent', 'GenUiSchemas'};
   final out = StringBuffer()
-    ..writeln(
-      '/// Generated [ComponentImplementation] for [${spec.className}].',
-    )
-    ..writeln(
-      'final ComponentImplementation ${spec.variableName} = '
-      'ComponentImplementation(',
-    )
+    ..writeln('/// Generated [GenUiComponent] for [${spec.className}].')
+    ..writeln('final GenUiComponent ${spec.variableName} = GenUiComponent(')
     ..writeln('  name: ${dartString(spec.catalogName)},')
     ..writeln('  schema: ${_schema(spec, symbols)},')
+    ..writeln('  examples: [${exampleLiteral(buildExampleJson(spec))}],')
     ..writeln('  builder: ${_builder(spec, symbols)},')
     ..write(');');
   return EmittedCode(out.toString(), symbols);

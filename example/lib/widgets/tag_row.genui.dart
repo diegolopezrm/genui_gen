@@ -10,8 +10,8 @@ part of 'tag_row.dart';
 // GenUiGenerator
 // **************************************************************************
 
-/// Generated [ComponentImplementation] for [TagRow].
-final ComponentImplementation tagRowCatalogItem = ComponentImplementation(
+/// Generated [GenUiComponent] for [TagRow].
+final GenUiComponent tagRowCatalogItem = GenUiComponent(
   name: 'TagRow',
   schema: GenUiSchemas.component(
     description:
@@ -30,6 +30,19 @@ final ComponentImplementation tagRowCatalogItem = ComponentImplementation(
     },
     required: ['tags'],
   ),
+  examples: [
+    r'''
+[
+  {
+    "id": "root",
+    "component": "TagRow",
+    "tags": [
+      "Alpha",
+      "Beta"
+    ]
+  }
+]''',
+  ],
   builder: (context, node, props, buildChild) => TagRow(
     tags: genUiAsStringList(props.value('tags')) ?? const <String>[],
     selectedIndex: props.number('selectedIndex')?.toInt() ?? 0,

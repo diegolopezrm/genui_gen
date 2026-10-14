@@ -10,8 +10,8 @@ part of 'metrics_table.dart';
 // GenUiGenerator
 // **************************************************************************
 
-/// Generated [ComponentImplementation] for [MetricsTable].
-final ComponentImplementation metricsTableCatalogItem = ComponentImplementation(
+/// Generated [GenUiComponent] for [MetricsTable].
+final GenUiComponent metricsTableCatalogItem = GenUiComponent(
   name: 'MetricsTable',
   schema: GenUiSchemas.component(
     description:
@@ -31,6 +31,28 @@ final ComponentImplementation metricsTableCatalogItem = ComponentImplementation(
     },
     required: ['title', 'rows'],
   ),
+  examples: [
+    r'''
+[
+  {
+    "id": "root",
+    "component": "MetricsTable",
+    "title": "Quarterly report",
+    "rows": [
+      {
+        "label": "Sample label 1",
+        "value": 42.5,
+        "trend": "up"
+      },
+      {
+        "label": "Sample label 2",
+        "value": 43.5,
+        "trend": "down"
+      }
+    ]
+  }
+]''',
+  ],
   builder: (context, node, props, buildChild) => MetricsTable(
     title: props.string('title') ?? '',
     rows:

@@ -10,8 +10,8 @@ part of 'task_list.dart';
 // GenUiGenerator
 // **************************************************************************
 
-/// Generated [ComponentImplementation] for [TaskList].
-final ComponentImplementation taskListCatalogItem = ComponentImplementation(
+/// Generated [GenUiComponent] for [TaskList].
+final GenUiComponent taskListCatalogItem = GenUiComponent(
   name: 'TaskList',
   schema: GenUiSchemas.component(
     description: 'A titled list of rows, one per item in the data.',
@@ -24,6 +24,30 @@ final ComponentImplementation taskListCatalogItem = ComponentImplementation(
     },
     required: ['title', 'rows'],
   ),
+  examples: [
+    r'''
+[
+  {
+    "id": "root",
+    "component": "TaskList",
+    "title": "Quarterly report",
+    "rows": [
+      "child_rows_1",
+      "child_rows_2"
+    ]
+  },
+  {
+    "id": "child_rows_1",
+    "component": "Text",
+    "text": "Sample rows 1"
+  },
+  {
+    "id": "child_rows_2",
+    "component": "Text",
+    "text": "Sample rows 2"
+  }
+]''',
+  ],
   builder: (context, node, props, buildChild) => TaskList(
     title: props.string('title') ?? '',
     rows: props.children('rows').map(buildChild).toList(),

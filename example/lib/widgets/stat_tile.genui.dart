@@ -10,8 +10,8 @@ part of 'stat_tile.dart';
 // GenUiGenerator
 // **************************************************************************
 
-/// Generated [ComponentImplementation] for [StatTile].
-final ComponentImplementation statTileCatalogItem = ComponentImplementation(
+/// Generated [GenUiComponent] for [StatTile].
+final GenUiComponent statTileCatalogItem = GenUiComponent(
   name: 'StatTile',
   schema: GenUiSchemas.component(
     description:
@@ -41,6 +41,18 @@ final ComponentImplementation statTileCatalogItem = ComponentImplementation(
     },
     required: ['label', 'value', 'trend'],
   ),
+  examples: [
+    r'''
+[
+  {
+    "id": "root",
+    "component": "StatTile",
+    "label": "Sample label",
+    "value": 42.5,
+    "trend": "up"
+  }
+]''',
+  ],
   builder: (context, node, props, buildChild) => StatTile(
     label: props.string('label') ?? '',
     value: props.number('value') ?? 0,

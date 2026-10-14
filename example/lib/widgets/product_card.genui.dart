@@ -10,8 +10,8 @@ part of 'product_card.dart';
 // GenUiGenerator
 // **************************************************************************
 
-/// Generated [ComponentImplementation] for [ProductCard].
-final ComponentImplementation productCardCatalogItem = ComponentImplementation(
+/// Generated [GenUiComponent] for [ProductCard].
+final GenUiComponent productCardCatalogItem = GenUiComponent(
   name: 'ProductCard',
   schema: GenUiSchemas.component(
     description:
@@ -33,6 +33,23 @@ final ComponentImplementation productCardCatalogItem = ComponentImplementation(
     },
     required: ['title', 'price'],
   ),
+  examples: [
+    r'''
+[
+  {
+    "id": "root",
+    "component": "ProductCard",
+    "title": "Quarterly report",
+    "price": 19.99,
+    "imageUrl": "https://picsum.photos/seed/genui_gen/400/225",
+    "onTap": {
+      "event": {
+        "name": "onTap"
+      }
+    }
+  }
+]''',
+  ],
   builder: (context, node, props, buildChild) => ProductCard(
     title: props.string('title') ?? '',
     price: props.number('price') ?? 0,

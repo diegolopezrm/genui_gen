@@ -53,6 +53,7 @@ const importForSymbol = <String, String>{
   // The a2ui_flutter renderer's types, which genui_gen re-exports the same
   // way once it is built on a2ui_flutter.
   'ComponentImplementation': _genuiGen,
+  'GenUiComponent': _genuiGen,
   'FunctionImplementation': _genuiGen,
   'A2uiReturnType': _genuiGen,
   'GenUiSchemas': _genuiGen,

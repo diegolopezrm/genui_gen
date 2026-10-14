@@ -1,21 +1,20 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint
 // coverage:ignore-file
+// dart format width=80
 
 import 'package:genui_gen/genui_gen.dart';
 
 import 'main.dart';
 
-/// Every [ComponentImplementation] generated in this package,
-/// by name.
+/// Every [GenUiComponent] generated in this package, by name.
 ///
 /// Rebuilt whenever a `@GenUiWidget` is added, renamed or
 /// removed, so a catalog composed from it cannot fall behind
 /// the widgets it is meant to describe.
-final List<ComponentImplementation> genUiCatalogItems =
-    <ComponentImplementation>[
-      productCardCatalogItem,
-    ];
+final List<GenUiComponent> genUiCatalogItems = <GenUiComponent>[
+  productCardCatalogItem,
+];
 
 /// Every [FunctionImplementation] generated in this package,
 /// by name.
