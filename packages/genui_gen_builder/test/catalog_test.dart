@@ -46,6 +46,7 @@ String part(List<String> names) => [
 ].join('\n');
 
 void main() {
+  a2uiMain();
   test('collects every item in the package', () async {
     final out = await aggregate({
       'a|lib/widgets/card.genui.dart': part(['productCardCatalogItem']),
@@ -222,6 +223,78 @@ void main() {
           ),
         ),
       );
+    });
+  });
+}
+
+String a2uiPart(List<String> names, {List<String> functions = const []}) => [
+  '// GENERATED CODE - DO NOT MODIFY BY HAND',
+  for (final name in names)
+    'final ComponentImplementation $name = ComponentImplementation();',
+  for (final name in functions)
+    'final FunctionImplementation $name = GenUiClientFunction();',
+].join('\n');
+
+void a2uiMain() {
+  group('on a2ui_flutter', () {
+    test('collects components and functions with their own types', () async {
+      final out = normalize(
+        (await aggregate(
+          {
+            'a|lib/card.genui.dart': a2uiPart(
+              ['productCardCatalogItem'],
+              functions: ['twiceGenUiFunction'],
+            ),
+          },
+          options: {'catalog_id': 'com.example.shop'},
+        ))!,
+      );
+      expect(out, contains("import 'package:genui_gen/genui_gen.dart';"));
+      expect(
+        out,
+        contains(
+          'final List<ComponentImplementation> genUiCatalogItems = '
+          '<ComponentImplementation>[productCardCatalogItem]',
+        ),
+      );
+      expect(
+        out,
+        contains(
+          'final List<FunctionImplementation> genUiCatalogFunctions = '
+          '<FunctionImplementation>[twiceGenUiFunction]',
+        ),
+      );
+      expect(
+        out,
+        contains(
+          'final CatalogImplementation genUiCatalog = CatalogImplementation('
+          "id: 'com.example.shop', components: genUiCatalogItems, "
+          'functions: genUiCatalogFunctions)',
+        ),
+      );
+      expect(out, isNot(contains('CatalogItem>')));
+    });
+
+    test('without an id there is no catalog, and the build says so', () async {
+      final warnings = <String>[];
+      final out = normalize(
+        (await aggregate({
+          'a|lib/card.genui.dart': a2uiPart(['productCardCatalogItem']),
+        }, warnings: warnings))!,
+      );
+      expect(out, contains('genUiCatalogItems'));
+      expect(out, isNot(contains('genUiCatalog =')));
+      expect(warnings, anyElement(contains('needs an id')));
+    });
+
+    test('refuses parts generated for different renderers', () async {
+      final errors = <String>[];
+      final out = await aggregate({
+        'a|lib/card.genui.dart': a2uiPart(['productCardCatalogItem']),
+        'a|lib/tile.genui.dart': part(['statTileCatalogItem']),
+      }, errors: errors);
+      expect(out, isNull);
+      expect(errors, anyElement(contains('cannot put them in one catalog')));
     });
   });
 }

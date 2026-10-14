@@ -4,8 +4,10 @@ import 'package:build/build.dart';
 import 'package:source_gen/source_gen.dart';
 
 import 'emitter.dart';
+import 'emitter_a2ui.dart';
 import 'generator.dart' show analyseDataReference;
 import 'imports.dart';
+import 'renderer.dart';
 import 'spec.dart';
 import 'strings.dart';
 import 'type_mapping.dart';
@@ -76,7 +78,10 @@ class GenUiFunctionGenerator extends GeneratorForAnnotation<Object> {
       );
     }
     final spec = buildFunctionSpec(element, annotation);
-    final code = emitFunction(spec);
+    final code = switch (rendererOf(annotation)) {
+      Renderer.genui => emitFunction(spec),
+      Renderer.a2uiFlutter => emitFunctionImplementation(spec),
+    };
     checkImports(element.library, code.symbols, element);
     return code.source;
   }

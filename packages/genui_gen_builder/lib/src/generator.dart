@@ -7,7 +7,9 @@ import 'package:build/build.dart';
 import 'package:source_gen/source_gen.dart';
 
 import 'emitter.dart';
+import 'emitter_a2ui.dart';
 import 'imports.dart';
+import 'renderer.dart';
 import 'spec.dart';
 import 'strings.dart';
 import 'type_mapping.dart';
@@ -105,9 +107,89 @@ class GenUiGenerator extends GeneratorForAnnotation<Object> {
       );
     }
     final spec = buildWidgetSpec(element, annotation);
-    final code = emitCatalogItem(spec);
+    final EmittedCode code;
+    switch (rendererOf(annotation)) {
+      case Renderer.genui:
+        code = emitCatalogItem(spec);
+      case Renderer.a2uiFlutter:
+        checkA2uiFlutterNames(spec, element);
+        code = emitComponentImplementation(spec);
+    }
     checkImports(element.library, code.symbols, element);
     return code.source;
+  }
+}
+
+/// Property names a component may not use on a2ui_flutter.
+///
+/// `id` and `component` are the envelope of every component, and a catalog
+/// document drops them from a component's own properties. `accessibility` and
+/// `weight` are the properties every basic component takes, which the
+/// generated schema adds for the same reason; a basic `Row` reads `weight` off
+/// its children as their flex, whatever the child meant by it.
+const _a2uiReservedProperties = {'id', 'component', 'accessibility', 'weight'};
+
+/// The keys a2ui_core writes into a component's properties when it evaluates
+/// its `checks`, which a property of the same name would be overwritten by.
+const _a2uiCheckProperties = {
+  'checks',
+  'isValid',
+  'validationErrors',
+  'validationResults',
+  'validationPending',
+};
+
+/// Rejects the names that a2ui_core reads a meaning into.
+///
+/// On genui the builder resolves every property itself, so a name means only
+/// what the widget says. a2ui_core resolves a component against its schema
+/// before the builder runs, and it recognises some shapes by their property
+/// names: an object with an `event` or a `functionCall` property is an action,
+/// and an array of objects with a `condition` and a `message` is a list of
+/// checks. A `@GenUiData` class with those fields, as the property itself,
+/// would reach the widget as a closure or as rules rather than as data.
+///
+/// Only the property's own shape is read that way. A data class nested inside
+/// it is part of a value a2ui_core resolves as a whole, so its fields keep
+/// any name genui allows.
+void checkA2uiFlutterNames(WidgetSpec spec, Element element) {
+  final bool checkable = spec.checkProp != null;
+  for (final prop in spec.schemaProps) {
+    final name = prop.schemaName;
+    if (_a2uiReservedProperties.contains(name) ||
+        (checkable && _a2uiCheckProperties.contains(name))) {
+      throw InvalidGenerationSourceError(
+        '`${spec.className}.${prop.dartName}` would use the property name '
+        '`$name`, which a2ui_flutter reserves for every component. Rename the '
+        "wire key with @GenUiProp(name: '<other>').",
+        element: element,
+      );
+    }
+    final data = prop.data;
+    if (data == null) continue;
+    final names = {for (final field in data.fields) field.schemaName};
+    if (prop.kind == PropKind.data) {
+      for (final key in const ['event', 'functionCall']) {
+        if (!names.contains(key)) continue;
+        throw InvalidGenerationSourceError(
+          '`${data.className}`, the type of `${spec.className}.'
+          '${prop.dartName}`, has a field with the wire key `$key`. '
+          'a2ui_core reads an object with that property as an action, so the '
+          'widget would receive a closure instead of the object. Rename the '
+          "wire key with @GenUiProp(name: '<other>').",
+          element: element,
+        );
+      }
+    } else if (names.contains('condition') && names.contains('message')) {
+      throw InvalidGenerationSourceError(
+        '`${data.className}`, listed by `${spec.className}.${prop.dartName}`, '
+        'has fields with the wire keys `condition` and `message`. a2ui_core '
+        'reads a list of objects with both as validation checks, so the '
+        'widget would never receive the list. Rename one of them with '
+        "@GenUiProp(name: '<other>').",
+        element: element,
+      );
+    }
   }
 }
 

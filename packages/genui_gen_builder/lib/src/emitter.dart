@@ -36,7 +36,7 @@ EmittedCode emitCatalogItem(WidgetSpec spec) {
   }
   out.writeln('  dataSchema: ${_schema(spec, symbols)},');
   out.writeln(
-    '  exampleData: [() => ${_exampleLiteral(buildExampleJson(spec))}],',
+    '  exampleData: [() => ${exampleLiteral(buildExampleJson(spec))}],',
   );
   out.writeln('  widgetBuilder: ${_widgetBuilder(spec, symbols)},');
   out.write(');');
@@ -48,7 +48,7 @@ EmittedCode emitCatalogItem(WidgetSpec spec) {
 ///
 /// Falls back to a single-line escaped literal in the unlikely event that the
 /// JSON contains a triple quote, which a raw string cannot express.
-String _exampleLiteral(String json) {
+String exampleLiteral(String json) {
   if (json.contains("'''")) return dartString(json);
   return "r'''\n$json'''";
 }
@@ -120,7 +120,7 @@ String _objectSchema(DataSpec data, String? description, Set<String> symbols) {
 /// Without it the model has no way to know that binding the property to a path
 /// is what makes the user's answer readable: the callback itself is not in the
 /// schema, because the model does not supply it.
-const _writeBackNote =
+const writeBackNote =
     'The component writes the value the user chooses back to this property, so '
     'bind it to a data path if you need to read the result.';
 
@@ -128,7 +128,7 @@ const _writeBackNote =
 ///
 /// Plain `S.*` rather than a reference form: the binding applies to the map as
 /// a whole, the way it does for a list, so an individual value is a literal.
-String _mapValueSchema(PropSpec prop, Set<String> symbols) {
+String mapValueSchema(PropSpec prop, Set<String> symbols) {
   symbols.add('S');
   return switch (prop.mapValueKind) {
     null => 'true',
@@ -155,17 +155,17 @@ String _mapTypeArguments(PropSpec prop) => switch (prop.mapValueKind) {
 };
 
 /// The full Dart type, for a type argument such as `genUiMissingField<...>`.
-String _mapDartType(PropSpec prop) => 'Map${_mapTypeArguments(prop)}';
+String mapDartType(PropSpec prop) => 'Map${_mapTypeArguments(prop)}';
 
 /// An empty map of that type, for a fallback.
-String _mapEmptyLiteral(PropSpec prop) => 'const ${_mapTypeArguments(prop)}{}';
+String mapEmptyLiteral(PropSpec prop) => 'const ${_mapTypeArguments(prop)}{}';
 
 /// Reads a map out of [source], coercing its values.
 ///
 /// An entry the model got wrong is dropped rather than defaulted: a map is a
 /// set of keys the model chose, so a key it could not express is better
 /// absent than present and wrong.
-String _mapExpression(PropSpec prop, Set<String> symbols, String source) {
+String mapExpression(PropSpec prop, Set<String> symbols, String source) {
   switch (prop.mapValueKind) {
     case null:
       symbols.add('genUiAsObject');
@@ -212,7 +212,7 @@ String _propertySchema(
 }) {
   final text = [
     if (prop.description != null) prop.description!,
-    if (isWritten) _writeBackNote,
+    if (isWritten) writeBackNote,
   ].join(' ');
   final description = text.isEmpty
       ? ''
@@ -264,7 +264,7 @@ String _propertySchema(
       final mapArgs = [
         if (description.isNotEmpty) description,
         'oneOf: [S.object(additionalProperties: '
-            '${_mapValueSchema(prop, symbols)}), '
+            '${mapValueSchema(prop, symbols)}), '
             'A2uiSchemas.dataBindingSchema(), A2uiSchemas.functionCall()]',
       ].join(', ');
       return 'S.combined($mapArgs)';
@@ -416,7 +416,7 @@ String _missingFieldHelper(WidgetSpec spec, Set<String> symbols) {
 /// Anything that is not a single literal, a (dotted) identifier or a plain
 /// `const` expression is wrapped in parentheses: `kFlag ? 1 : 2` after `??`
 /// would otherwise parse as `(x ?? kFlag) ? 1 : 2`.
-String _defaultExpression(PropSpec prop) {
+String defaultExpression(PropSpec prop) {
   final code = prop.defaultValueCode!;
   if (_atomicDefault.hasMatch(code)) return code;
   return '($code)';
@@ -492,7 +492,7 @@ String _argument(PropSpec prop, Set<String> symbols, {bool isWritten = false}) {
       return '$value ?? missing<$type>($key, $fallback)';
     }
     if (prop.defaultValueCode != null) {
-      return '$value ?? ${_defaultExpression(prop)}';
+      return '$value ?? ${defaultExpression(prop)}';
     }
     return value;
   }
@@ -569,9 +569,9 @@ String _argument(PropSpec prop, Set<String> symbols, {bool isWritten = false}) {
       );
     case PropKind.map:
       return withFallback(
-        _mapExpression(prop, symbols, 'v.object($key)'),
-        _mapDartType(prop),
-        _mapEmptyLiteral(prop),
+        mapExpression(prop, symbols, 'v.object($key)'),
+        mapDartType(prop),
+        mapEmptyLiteral(prop),
       );
     case PropKind.data:
       final decoder = prop.data!.decoderName;
@@ -590,7 +590,7 @@ String _argument(PropSpec prop, Set<String> symbols, {bool isWritten = false}) {
       }
       final fallback = prop.defaultValueCode == null
           ? 'null'
-          : _defaultExpression(prop);
+          : defaultExpression(prop);
       return 'switch (v.object($key)) { '
           'final Map<String, Object?> json => '
           '$decoder(json, missingIn($key)), '
@@ -612,7 +612,7 @@ String _argument(PropSpec prop, Set<String> symbols, {bool isWritten = false}) {
       } else {
         fallback = prop.defaultValueCode == null
             ? 'null'
-            : _defaultExpression(prop);
+            : defaultExpression(prop);
       }
       return '$local is String ? ctx.buildChild($local) : $fallback';
     case PropKind.widgetList:
@@ -624,7 +624,7 @@ String _argument(PropSpec prop, Set<String> symbols, {bool isWritten = false}) {
       } else {
         fallback = prop.defaultValueCode == null
             ? 'null'
-            : _defaultExpression(prop);
+            : defaultExpression(prop);
       }
       if (prop.isTemplate) {
         symbols.add('genUiTemplateChildren');
@@ -794,7 +794,7 @@ String _fieldSchema(PropSpec field, Set<String> symbols) {
       symbols.add('S');
       final mapArgs = [
         if (description.isNotEmpty) description,
-        'additionalProperties: ${_mapValueSchema(field, symbols)}',
+        'additionalProperties: ${mapValueSchema(field, symbols)}',
       ].join(', ');
       return 'S.object($mapArgs)';
     case PropKind.data:
@@ -818,10 +818,10 @@ String _fieldSchema(PropSpec field, Set<String> symbols) {
 String _decodeArguments(DataSpec spec, Set<String> symbols) {
   final out = StringBuffer();
   for (final field in spec.fields.where((f) => !f.isNamed)) {
-    out.write('${_decodeArgument(field, symbols)}, ');
+    out.write('${decodeArgument(field, symbols)}, ');
   }
   for (final field in spec.fields.where((f) => f.isNamed)) {
-    out.write('${field.dartName}: ${_decodeArgument(field, symbols)}, ');
+    out.write('${field.dartName}: ${decodeArgument(field, symbols)}, ');
   }
   return out.toString();
 }
@@ -837,7 +837,7 @@ String _decodeArguments(DataSpec spec, Set<String> symbols) {
 /// Required fields fall back to the same neutral values the widget builder
 /// uses and report through `onMissing`, fields with a default fall back to
 /// that default, and everything else stays nullable.
-String _decodeArgument(PropSpec field, Set<String> symbols) {
+String decodeArgument(PropSpec field, Set<String> symbols) {
   final key = dartString(field.schemaName);
   final raw = 'json[$key]';
 
@@ -854,14 +854,14 @@ String _decodeArgument(PropSpec field, Set<String> symbols) {
       return '$value ?? ${reportMissing(type, fallback)}';
     }
     if (field.defaultValueCode != null) {
-      return '$value ?? ${_defaultExpression(field)}';
+      return '$value ?? ${defaultExpression(field)}';
     }
     return value;
   }
 
   String orElse(String type, String requiredFallback) {
     if (field.isSchemaRequired) return reportMissing(type, requiredFallback);
-    if (field.defaultValueCode != null) return _defaultExpression(field);
+    if (field.defaultValueCode != null) return defaultExpression(field);
     return 'null';
   }
 
@@ -930,9 +930,9 @@ String _decodeArgument(PropSpec field, Set<String> symbols) {
       );
     case PropKind.map:
       return withFallback(
-        _mapExpression(field, symbols, raw),
-        _mapDartType(field),
-        _mapEmptyLiteral(field),
+        mapExpression(field, symbols, raw),
+        mapDartType(field),
+        mapEmptyLiteral(field),
       );
     case PropKind.data:
       symbols.addAll(['genUiAsObject', 'genUiNestedField']);
@@ -1011,7 +1011,7 @@ EmittedCode emitFunction(FunctionSpec spec) {
       ..writeln('    const GenUiMissingFieldReporter? onMissing = null;')
       ..writeln('    return ${spec.dartName}(');
     for (final arg in spec.args) {
-      final value = _decodeArgument(arg, symbols);
+      final value = decodeArgument(arg, symbols);
       out.writeln(
         arg.isNamed ? '      ${arg.dartName}: $value,' : '      $value,',
       );
