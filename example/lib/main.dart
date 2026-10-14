@@ -1,5 +1,7 @@
+import 'package:a2ui_core/a2ui_core.dart';
+import 'package:a2ui_flutter/a2ui_flutter.dart';
+import 'package:a2ui_flutter/basic_catalog.dart';
 import 'package:flutter/material.dart';
-import 'package:genui/genui.dart';
 import 'package:genui_gen/tracing.dart';
 
 import 'genui_catalog.g.dart';
@@ -11,20 +13,27 @@ void main() {
   runApp(const GenUiGenExampleApp());
 }
 
-/// The catalog handed to genui: every generated item in this app, plus genui's
-/// basic catalog so the generated examples can reference core components such
-/// as `Text`.
+/// The catalog the surfaces are built against: every generated component in
+/// this app, next to the basic catalog's, so the agent can compose them with
+/// core components such as `Text`.
 ///
 /// `genUiCatalog` comes from `genui_catalog.g.dart`, which the builder
 /// rewrites whenever a `@GenUiWidget` is added or removed, and carries the
-/// `catalog_id` set in `build.yaml`. Adding a widget is one file; nothing here
+/// `catalog_id` set in `build.yaml` and the instructions that show the agent
+/// an example of each component. Adding a widget is one file; nothing here
 /// has to be touched.
-final Catalog exampleCatalog = genUiCatalog.copyWith(
-  newItems: BasicCatalogItems.asCatalog().items.toList(),
-  // The functions too, not just the items. A catalog holds both, and the
-  // fourteen basic ones are what a `checks` rule calls: without them
+final CatalogImplementation exampleCatalog = CatalogImplementation(
+  id: genUiCatalog.id,
+  components: [...BasicComponents.all, ...genUiCatalogItems],
+  // The functions too, not just the components. A catalog holds both, and the
+  // basic ones are what a `checks` rule calls: without them
   // `{"call": "required"}` names a function nobody registered.
-  newFunctions: BasicCatalogItems.asCatalog().functions.toList(),
+  functions: [
+    ...BasicCatalog.v0_9().functions.values,
+    ...genUiCatalogFunctions,
+  ],
+  themeSchema: BasicComponents.api.themeSchema,
+  instructions: genUiCatalog.instructions,
 );
 
 /// The session recorded in the Session tab, for the Trace tab to replay.

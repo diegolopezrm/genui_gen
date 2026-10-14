@@ -3,108 +3,19 @@
 // next to the generated one.
 
 import 'package:a2ui_core/a2ui_core.dart';
-import 'package:a2ui_flutter/a2ui_flutter.dart';
-import 'package:a2ui_flutter/basic_catalog.dart';
 import 'package:example/genui_catalog.g.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genui_gen/genui_gen.dart' show genUiCatalogJson;
 
-const String _surfaceId = 'main';
-
-/// The generated components and functions under the generated catalog's id,
-/// with the basic ones an agent composes them with.
-final CatalogImplementation _catalog = CatalogImplementation(
-  id: genUiCatalog.id,
-  components: [...BasicComponents.all, ...genUiCatalogItems],
-  functions: [
-    ...BasicCatalog.v0_9().functions.values,
-    ...genUiCatalogFunctions,
-  ],
-  themeSchema: BasicComponents.api.themeSchema,
-);
-
-Map<String, Object?> _message(String kind, Map<String, Object?> body) => {
-  'version': 'v0.9',
-  kind: {'surfaceId': _surfaceId, ...body},
-};
-
-Map<String, Object?> _components(List<Map<String, Object?>> components) =>
-    _message('updateComponents', {'components': components});
-
-Map<String, Object?> _data(Object? value, {String path = '/'}) =>
-    _message('updateDataModel', {'path': path, 'value': value});
-
-/// One surface rendered from the messages sent to it.
-class _Surface {
-  _Surface(this._tester);
-
-  final WidgetTester _tester;
-
-  final MessageProcessor<ComponentImplementation> processor =
-      MessageProcessor<ComponentImplementation>(
-        catalogs: [_catalog],
-        defaultVersion: A2uiProtocolVersion.v0_9,
-      );
-
-  final List<A2uiClientAction> actions = [];
-  final List<A2uiClientError> errors = [];
-
-  SurfaceModel<ComponentImplementation> get model =>
-      processor.groupModel.getSurface(_surfaceId)!;
-
-  Object? data(String path) => model.dataModel.get(path);
-
-  void process(List<Map<String, Object?>> messages) =>
-      processor.processMessages(
-        AgentToRendererMessagePayload.fromJson(
-          messages,
-          protocolVersion: A2uiProtocolVersion.v0_9,
-        ),
-      );
-
-  Future<void> send(List<Map<String, Object?>> messages) async {
-    process(messages);
-    await _tester.pump();
-  }
-
-  static Future<_Surface> pump(
-    WidgetTester tester,
-    List<Map<String, Object?>> components, {
-    Object? data,
-  }) async {
-    final surface = _Surface(tester);
-    final SurfaceGroupModel<ComponentImplementation> group =
-        surface.processor.groupModel;
-    group.onAction.addListener(surface.actions.add);
-    group.onSurfaceCreated.addListener(
-      (model) => model.onError.addListener(surface.errors.add),
-    );
-    addTearDown(group.dispose);
-    surface.process([
-      _message('createSurface', {'catalogId': _catalog.id}),
-      if (data != null) _data(data),
-      _components(components),
-    ]);
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: SingleChildScrollView(
-            child: A2uiSurface(surface: surface.model),
-          ),
-        ),
-      ),
-    );
-    return surface;
-  }
-}
+import 'support/surface.dart';
 
 void main() {
   unknownPropertyMain();
   testWidgets('a panel renders its children and sends its close event', (
     tester,
   ) async {
-    final surface = await _Surface.pump(
+    final surface = await ExampleSurface.pump(
       tester,
       [
         {
@@ -129,7 +40,7 @@ void main() {
         },
         {'id': 'okLabel', 'component': 'Text', 'text': 'OK'},
       ],
-      data: {'title': 'Settings'},
+      initialData: {'title': 'Settings'},
     );
 
     expect(find.text('Settings'), findsOneWidget);
@@ -144,14 +55,14 @@ void main() {
       ['panel_closed', 'confirmed'],
     );
 
-    await surface.send([_data('Profile', path: '/title')]);
+    await surface.send([data('Profile', path: '/title')]);
     expect(find.text('Profile'), findsOneWidget);
   });
 
   testWidgets('a bound switch writes back, and a literal one is read-only', (
     tester,
   ) async {
-    final surface = await _Surface.pump(
+    final surface = await ExampleSurface.pump(
       tester,
       [
         {
@@ -172,7 +83,7 @@ void main() {
           'enabled': true,
         },
       ],
-      data: {
+      initialData: {
         'prefs': {'notify': false},
       },
     );
@@ -191,7 +102,7 @@ void main() {
 
     await tester.tap(find.text('Notifications'));
     await tester.pump();
-    expect(surface.data('/prefs/notify'), isTrue);
+    expect(surface.read('/prefs/notify'), isTrue);
     expect(switchOf('Notifications').value, isTrue);
     expect(surface.errors, isEmpty);
   });
@@ -199,7 +110,7 @@ void main() {
   testWidgets('a field shows the message of the check that fails', (
     tester,
   ) async {
-    final surface = await _Surface.pump(
+    final surface = await ExampleSurface.pump(
       tester,
       [
         {
@@ -220,18 +131,18 @@ void main() {
           ],
         },
       ],
-      data: {'name': ''},
+      initialData: {'name': ''},
     );
 
     expect(find.text('Tell us your name.'), findsOneWidget);
     await tester.enterText(find.byType(TextFormField), 'Ada');
     await tester.pump();
-    expect(surface.data('/name'), 'Ada');
+    expect(surface.read('/name'), 'Ada');
     expect(find.text('Tell us your name.'), findsNothing);
   });
 
   testWidgets('a template list grows with the data', (tester) async {
-    final surface = await _Surface.pump(
+    final surface = await ExampleSurface.pump(
       tester,
       [
         {
@@ -246,7 +157,7 @@ void main() {
           'text': {'path': 'name'},
         },
       ],
-      data: {
+      initialData: {
         'tasks': [
           {'name': 'Write the test'},
         ],
@@ -257,20 +168,20 @@ void main() {
     expect(find.text('Nothing here yet.'), findsNothing);
 
     await surface.send([
-      _data([
+      data([
         {'name': 'Write the test'},
         {'name': 'Ship it'},
       ], path: '/tasks'),
     ]);
     expect(find.text('Ship it'), findsOneWidget);
 
-    await surface.send([_data(<Object?>[], path: '/tasks')]);
+    await surface.send([data(<Object?>[], path: '/tasks')]);
     expect(find.text('Nothing here yet.'), findsOneWidget);
   });
 
   testWidgets('data objects decode, and a bound one missing a field is '
       'reported to the agent', (tester) async {
-    final surface = await _Surface.pump(
+    final surface = await ExampleSurface.pump(
       tester,
       [
         {
@@ -293,7 +204,7 @@ void main() {
           'rows': {'path': '/metrics'},
         },
       ],
-      data: {
+      initialData: {
         'metrics': [
           {'value': 3, 'trend': 'down'},
         ],
@@ -307,7 +218,7 @@ void main() {
     expect(surface.errors.single.path, '/rows/label');
 
     // Reported once, however often the component rebuilds.
-    await surface.send([_data('x', path: '/unrelated')]);
+    await surface.send([data('x', path: '/unrelated')]);
     await tester.pump();
     expect(surface.errors, hasLength(1));
   });
@@ -315,7 +226,7 @@ void main() {
   testWidgets('generated functions compute what the agent binds', (
     tester,
   ) async {
-    await _Surface.pump(
+    await ExampleSurface.pump(
       tester,
       [
         {
@@ -345,7 +256,7 @@ void main() {
           },
         },
       ],
-      data: {'person': 'Ada Lovelace'},
+      initialData: {'person': 'Ada Lovelace'},
     );
 
     expect(find.text('Ada'), findsOneWidget);
@@ -355,12 +266,11 @@ void main() {
   testWidgets('a component missing a required property is rejected', (
     tester,
   ) async {
-    final surface = _Surface(tester);
-    addTearDown(surface.processor.groupModel.dispose);
+    final processor = exampleProcessor();
     expect(
-      () => surface.process([
-        _message('createSurface', {'catalogId': _catalog.id}),
-        _components([
+      () => processor.processMessages([
+        createSurface(),
+        components([
           {'id': 'root', 'component': 'ProductCard', 'price': 3},
         ]),
       ]),
@@ -389,12 +299,11 @@ void unknownPropertyMain() {
   testWidgets('a property the widget does not take is rejected', (
     tester,
   ) async {
-    final surface = _Surface(tester);
-    addTearDown(surface.processor.groupModel.dispose);
+    final processor = exampleProcessor();
     expect(
-      () => surface.process([
-        _message('createSurface', {'catalogId': _catalog.id}),
-        _components([
+      () => processor.processMessages([
+        createSurface(),
+        components([
           {
             'id': 'root',
             'component': 'ProductCard',

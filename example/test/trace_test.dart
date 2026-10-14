@@ -1,71 +1,58 @@
 // A session with this app's own widgets, recorded and replayed.
 //
-// The point of a trace is the bug you cannot reproduce: the screen the model
+// The point of a trace is the bug you cannot reproduce: the screen the agent
 // composed once, from a context that will not come back. This records one,
 // writes it, reads it back and replays it, which is the whole loop a bug
 // report goes through.
 
-import 'package:a2ui_core/a2ui_core.dart' as core;
+import 'package:a2ui_flutter/a2ui_flutter.dart';
 import 'package:example/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:genui/genui.dart';
 import 'package:genui_gen/tracing.dart';
 
-const _surfaceId = 'settings';
+import 'support/surface.dart';
 
-List<JsonMap> get _components => <JsonMap>[
-  {
-    'id': 'root',
-    'component': 'PreferenceRow',
-    'label': 'Weekly report',
-    'enabled': {'path': '/notify'},
-    'detail': 'Sent every Monday',
-  },
-];
+const _surface = 'settings';
 
 void main() {
   testWidgets('a session with this catalog replays as it happened', (
     tester,
   ) async {
-    final controller = SurfaceController(catalogs: [exampleCatalog]);
-    addTearDown(controller.dispose);
+    final processor = exampleProcessor();
     final recorder = GenUiTraceRecorder.attach(
-      controller,
-      catalogId: exampleCatalog.catalogId,
+      processor,
+      catalogId: exampleCatalog.id,
       notes: const {'report': 'the switch would not stay on'},
     );
     addTearDown(recorder.dispose);
 
-    recorder.handleMessage(
-      core.UpdateComponentsMessage(
-        surfaceId: _surfaceId,
-        components: _components,
-      ),
-    );
-    recorder.handleMessage(
-      core.CreateSurfaceMessage(
-        surfaceId: _surfaceId,
-        catalogId: exampleCatalog.catalogId!,
-      ),
-    );
-    recorder.handleMessage(
-      core.UpdateDataModelMessage(
-        surfaceId: _surfaceId,
-        value: {'notify': false},
-      ),
-    );
+    recorder.processMessages([
+      createSurface(surface: _surface),
+      components([
+        {
+          'id': 'root',
+          'component': 'PreferenceRow',
+          'label': 'Weekly report',
+          'enabled': {'path': '/notify'},
+          'detail': 'Sent every Monday',
+        },
+      ], surface: _surface),
+      data({'notify': false}, surface: _surface),
+    ]);
 
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: Surface(surfaceContext: controller.contextFor(_surfaceId)),
+          body: A2uiSurface(
+            surface: processor.groupModel.getSurface(_surface)!,
+          ),
         ),
       ),
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byType(SwitchListTile));
+    await tester.tap(find.byType(Switch));
     await tester.pumpAndSettle();
 
     // The file a user would attach to a bug report.
@@ -87,9 +74,7 @@ void main() {
     expect(find.text('Weekly report'), findsOneWidget);
     expect(find.text('Sent every Monday'), findsOneWidget);
     // The user flipped it, and the replay is flipped too, without the agent.
-    expect(
-      tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
-      isTrue,
-    );
+    expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
+    expect(player.rejections, isEmpty);
   });
 }

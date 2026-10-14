@@ -4,60 +4,30 @@
 // per entry, and new entries arriving in the data model add rows without the
 // agent composing anything again.
 
-import 'package:a2ui_core/a2ui_core.dart' as core;
-import 'package:example/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:genui/genui.dart';
 
-Future<SurfaceController> pumpTaskList(
+import 'support/surface.dart';
+
+Future<ExampleSurface> pumpTaskList(
   WidgetTester tester, {
   required Object rows,
-  JsonMap? data,
-}) async {
-  final controller = SurfaceController(catalogs: [exampleCatalog]);
-  addTearDown(controller.dispose);
-
-  controller.handleMessage(
-    core.UpdateComponentsMessage(
-      surfaceId: 's',
-      components: [
-        {'id': 'root', 'component': 'TaskList', 'title': 'Today', 'rows': rows},
-        {
-          'id': 'task_row',
-          'component': 'Text',
-          'text': {'path': 'label'},
-        },
-      ],
-    ),
-  );
-  controller.handleMessage(
-    core.CreateSurfaceMessage(
-      surfaceId: 's',
-      catalogId: exampleCatalog.catalogId!,
-    ),
-  );
-  if (data != null) {
-    controller.handleMessage(
-      core.UpdateDataModelMessage(surfaceId: 's', value: data),
-    );
-  }
-
-  await tester.pumpWidget(
-    MaterialApp(
-      home: Scaffold(body: Surface(surfaceContext: controller.contextFor('s'))),
-    ),
-  );
-  await tester.pumpAndSettle();
-  return controller;
-}
+  JsonMap? initialData,
+}) => ExampleSurface.pump(tester, [
+  {'id': 'root', 'component': 'TaskList', 'title': 'Today', 'rows': rows},
+  {
+    'id': 'task_row',
+    'component': 'Text',
+    'text': {'path': 'label'},
+  },
+], initialData: initialData);
 
 void main() {
   testWidgets('one row per entry in the data model', (tester) async {
     await pumpTaskList(
       tester,
       rows: {'componentId': 'task_row', 'path': '/tasks'},
-      data: {
+      initialData: {
         'tasks': [
           {'label': 'Call the dentist'},
           {'label': 'Renew the passport'},
@@ -71,27 +41,22 @@ void main() {
   });
 
   testWidgets('a new entry adds a row, with no new surface', (tester) async {
-    final controller = await pumpTaskList(
+    final ExampleSurface surface = await pumpTaskList(
       tester,
       rows: {'componentId': 'task_row', 'path': '/tasks'},
-      data: {
+      initialData: {
         'tasks': [
           {'label': 'Call the dentist'},
         ],
       },
     );
 
-    controller.handleMessage(
-      core.UpdateDataModelMessage(
-        surfaceId: 's',
-        value: {
-          'tasks': [
-            {'label': 'Call the dentist'},
-            {'label': 'Buy milk'},
-          ],
-        },
-      ),
-    );
+    await surface.send([
+      data([
+        {'label': 'Call the dentist'},
+        {'label': 'Buy milk'},
+      ], path: '/tasks'),
+    ]);
     await tester.pumpAndSettle();
 
     expect(find.text('Buy milk'), findsOneWidget);
@@ -108,7 +73,7 @@ void main() {
     await pumpTaskList(
       tester,
       rows: {'componentId': 'task_row', 'path': '/tasks'},
-      data: {'tasks': <Object?>[]},
+      initialData: {'tasks': <Object?>[]},
     );
 
     expect(find.text('Nothing here yet.'), findsOneWidget);

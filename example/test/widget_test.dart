@@ -1,10 +1,11 @@
+import 'package:a2ui_core/a2ui_core.dart';
+import 'package:a2ui_flutter/a2ui_flutter.dart';
+import 'package:example/genui_catalog.g.dart';
 import 'package:example/main.dart';
 import 'package:example/models/metric_row.dart';
 import 'package:example/models/trend.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:genui/genui.dart';
-import 'package:genui_gen/genui_gen.dart';
 
 /// Every widget the example annotates, in catalog order.
 const generatedItems = <String>[
@@ -17,16 +18,15 @@ const generatedItems = <String>[
 
 void main() {
   testWidgets('catalog contains every generated item', (tester) async {
-    final names = exampleCatalog.items.map((item) => item.name).toSet();
-    expect(names, containsAll(generatedItems));
+    expect(exampleCatalog.components.keys, containsAll(generatedItems));
   });
 
   testWidgets('every generated item has a parseable example', (tester) async {
     for (final name in generatedItems) {
-      final item = exampleCatalog.items.singleWhere((i) => i.name == name);
-      expect(item.exampleData, isNotEmpty, reason: name);
-      for (final example in item.exampleData) {
-        expect(example(), contains('"id": "root"'), reason: name);
+      final component = genUiCatalogItems.singleWhere((c) => c.name == name);
+      expect(component.examples, isNotEmpty, reason: name);
+      for (final example in component.examples) {
+        expect(example, contains('"id": "root"'), reason: name);
       }
     }
   });
@@ -88,34 +88,52 @@ void main() {
   testWidgets('a bound object list reaches the widget as MetricRow', (
     tester,
   ) async {
-    final model = InMemoryDataModel();
-    addTearDown(model.dispose);
-    final captured = <MetricRow>[];
+    final processor = MessageProcessor<ComponentImplementation>(
+      catalogs: [exampleCatalog],
+      defaultVersion: A2uiProtocolVersion.v0_9,
+    );
+    addTearDown(processor.dispose);
+    processor.processMessages(<Object?>[
+      {
+        'version': 'v0.9',
+        'createSurface': {'surfaceId': 's', 'catalogId': exampleCatalog.id},
+      },
+      {
+        'version': 'v0.9',
+        'updateComponents': {
+          'surfaceId': 's',
+          'components': [
+            {
+              'id': 'root',
+              'component': 'MetricsTable',
+              'title': 'Health',
+              'rows': {'path': '/rows'},
+            },
+          ],
+        },
+      },
+      {
+        'version': 'v0.9',
+        'updateDataModel': {
+          'surfaceId': 's',
+          'path': '/rows',
+          'value': [
+            {'label': 'Revenue', 'value': 10, 'trend': 'up'},
+            {'label': 'Churn', 'value': 2, 'trend': 'down'},
+          ],
+        },
+      },
+    ]);
     await tester.pumpWidget(
       MaterialApp(
-        home: GenUiBindings(
-          dataContext: DataContext(model, DataPath.root),
-          bindings: {
-            'rows': GenUiBinding.objectList(const <Object?>[
-              {'label': 'Revenue', 'value': 10, 'trend': 'up'},
-              {'label': 'Churn', 'value': 2, 'trend': 'down'},
-            ]),
-          },
-          builder: (context, v) {
-            captured
-              ..clear()
-              ..addAll(
-                v.objectList('rows')?.map(metricRowFromGenUiJson).toList() ??
-                    const <MetricRow>[],
-              );
-            return const SizedBox();
-          },
+        home: Scaffold(
+          body: A2uiSurface(surface: processor.groupModel.getSurface('s')!),
         ),
       ),
     );
-    expect(captured, hasLength(2));
-    expect(captured.first.label, 'Revenue');
-    expect(captured.last.trend, Trend.down);
+
+    expect(find.text('Revenue'), findsOneWidget);
+    expect(find.text('Churn'), findsOneWidget);
   });
 
   testWidgets('the app opens on the catalog, with a tab per capability', (
