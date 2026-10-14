@@ -16,6 +16,7 @@ import 'package:glob/glob.dart';
 import 'package:source_gen/source_gen.dart';
 
 import 'generator.dart' show generatedPartExtension;
+import 'renderer.dart';
 import 'spec.dart' show lowerCamel;
 import 'strings.dart' show generatedFileHeader;
 
@@ -78,6 +79,7 @@ class CatalogAggregatingBuilder implements Builder {
   Future<void> build(BuildStep buildStep) async {
     final items = <_Item>[];
     final functions = <_Item>[];
+    final renderers = <Renderer, String>{};
     final assets = await buildStep
         .findAssets(Glob('lib/**$generatedPartExtension'))
         .toList();
@@ -89,6 +91,8 @@ class CatalogAggregatingBuilder implements Builder {
       final relative = asset.path.substring('lib/'.length);
       final libraryImport =
           '${relative.substring(0, relative.length - generatedPartExtension.length)}.dart';
+      final Renderer? renderer = _rendererOf(source);
+      if (renderer != null) renderers.putIfAbsent(renderer, () => asset.path);
       for (final name in _catalogItemNames(source)) {
         if (name.startsWith('_')) {
           // Reachable: `@GenUiWidget(name: 'Public')` on a private class passes
@@ -113,6 +117,17 @@ class CatalogAggregatingBuilder implements Builder {
     // that looks like a mistake.
     if (items.isEmpty && functions.isEmpty) return;
 
+    if (renderers.length > 1) {
+      throw InvalidGenerationSourceError(
+        '`${renderers[Renderer.genui]}` was generated for genui and '
+        '`${renderers[Renderer.a2uiFlutter]}` for a2ui_flutter, so '
+        '`$aggregateFileName` cannot put them in one catalog. Run '
+        '`dart run build_runner build --delete-conflicting-outputs` to '
+        'regenerate every part against the genui_gen this package resolves.',
+      );
+    }
+    final Renderer renderer = renderers.keys.firstOrNull ?? Renderer.genui;
+
     _checkForClashes(items);
     _checkForClashes(functions);
     items.sort((a, b) => a.variableName.compareTo(b.variableName));
@@ -120,7 +135,10 @@ class CatalogAggregatingBuilder implements Builder {
 
     await buildStep.writeAsString(
       AssetId(buildStep.inputId.package, 'lib/$aggregateFileName'),
-      _emit(items, functions),
+      switch (renderer) {
+        Renderer.genui => _emit(items, functions),
+        Renderer.a2uiFlutter => _emitA2ui(items, functions),
+      },
     );
   }
 
@@ -197,17 +215,127 @@ class CatalogAggregatingBuilder implements Builder {
     return out.toString();
   }
 
+  /// The aggregate for a2ui_flutter: the components, the functions and, when
+  /// the build names one, the catalog.
+  ///
+  /// The lists keep the names they have on genui, so an app that moves across
+  /// changes the types it composes them into and nothing else.
+  String _emitA2ui(List<_Item> items, List<_Item> functions) {
+    final imports = {
+      for (final item in items) item.libraryImport,
+      for (final function in functions) function.libraryImport,
+    }.toList()..sort();
+    final out = StringBuffer()
+      ..write(generatedFileHeader)
+      ..writeln()
+      ..writeln("import 'package:genui_gen/genui_gen.dart';")
+      ..writeln();
+    for (final import in imports) {
+      out.writeln("import '$import';");
+    }
+    out
+      ..writeln()
+      ..writeln(
+        '/// Every [ComponentImplementation] generated in this package,',
+      )
+      ..writeln('/// by name.')
+      ..writeln('///')
+      ..writeln('/// Rebuilt whenever a `@GenUiWidget` is added, renamed or')
+      ..writeln('/// removed, so a catalog composed from it cannot fall behind')
+      ..writeln('/// the widgets it is meant to describe.')
+      ..writeln('final List<ComponentImplementation> $aggregateVariableName =');
+    _writeList(out, 'ComponentImplementation', items);
+    out
+      ..writeln()
+      ..writeln('/// Every [FunctionImplementation] generated in this package,')
+      ..writeln('/// by name.')
+      ..writeln('///')
+      ..writeln('/// These are the other half of a catalog: what the agent')
+      ..writeln('/// computes a value with, through the `{"call": ...}` form')
+      ..writeln('/// any dynamic property accepts.')
+      ..writeln(
+        'final List<FunctionImplementation> $aggregateFunctionsVariableName =',
+      );
+    _writeList(out, 'FunctionImplementation', functions);
+
+    final id = catalogId;
+    if (id == null) {
+      // A catalog cannot be built without an id on a2ui_core, unlike genui,
+      // so there is no catalog to emit; the lists still are.
+      log.warning(
+        'No `$catalogIdOption` build option is set, so $aggregateFileName '
+        'declares the generated components and functions but no '
+        '`$aggregateCatalogVariableName`: an a2ui_flutter catalog needs an '
+        'id. Set one under genui_gen_builder:genui_catalog in build.yaml.',
+      );
+      return out.toString();
+    }
+    _checkCatalogId(id);
+    out
+      ..writeln()
+      ..writeln('/// Every generated component and function of this package,')
+      ..writeln('/// as a catalog ready to hand to a `MessageProcessor`.')
+      ..writeln('///')
+      ..writeln(
+        '/// A v0.9 surface draws on one catalog, so an agent that also',
+      )
+      ..writeln('/// uses the basic components needs them in the same one:')
+      ..writeln('///')
+      ..writeln('/// ```dart')
+      ..writeln('/// final catalog = CatalogImplementation(')
+      ..writeln('///   id: $aggregateCatalogVariableName.id,')
+      ..writeln(
+        '///   components: [...BasicComponents.all, '
+        '...$aggregateVariableName],',
+      )
+      ..writeln('///   functions: [')
+      ..writeln('///     ...BasicCatalog.v0_9().functions.values,')
+      ..writeln('///     ...$aggregateFunctionsVariableName,')
+      ..writeln('///   ],')
+      ..writeln('///   themeSchema: BasicComponents.api.themeSchema,')
+      ..writeln('/// );')
+      ..writeln('/// ```')
+      ..writeln(
+        'final CatalogImplementation $aggregateCatalogVariableName = '
+        'CatalogImplementation(',
+      )
+      ..writeln("  id: '$id',")
+      ..writeln('  components: $aggregateVariableName,')
+      ..writeln('  functions: $aggregateFunctionsVariableName,')
+      ..writeln(');');
+    return out.toString();
+  }
+
+  /// Writes the right-hand side of a list declaration whose name is already
+  /// written, the way `dart format` lays it out once the line is too long,
+  /// since the aggregate is not formatted after it is written.
+  void _writeList(StringBuffer out, String type, List<_Item> items) {
+    if (items.isEmpty) {
+      out.writeln('    <$type>[];');
+      return;
+    }
+    out.writeln('    <$type>[');
+    for (final item in items) {
+      out.writeln('      ${item.variableName},');
+    }
+    out.writeln('    ];');
+  }
+
+  /// Rejects an id that would not survive being written into a string.
+  void _checkCatalogId(String id) {
+    if (_catalogIdPattern.hasMatch(id)) return;
+    throw InvalidGenerationSourceError(
+      'The `$catalogIdOption` build option is `$id`, which is not a usable '
+      'catalog id. Use reverse-domain notation such as '
+      '`com.example.my_catalog`, or the URL the catalog is published at.',
+    );
+  }
+
   /// Appends the assembled [Catalog], so that the app has something to hand to
   /// genui rather than a list it still has to wrap by hand.
   void _writeCatalog(StringBuffer out) {
     final id = catalogId;
-    if (id != null && !_catalogIdPattern.hasMatch(id)) {
-      throw InvalidGenerationSourceError(
-        'The `$catalogIdOption` build option is `$id`, which is not a usable '
-        'catalog id. Use reverse-domain notation such as '
-        '`com.example.my_catalog`, or the URL the catalog is published at.',
-      );
-    }
+    if (id != null) _checkCatalogId(id);
     out
       ..writeln()
       ..writeln('/// Every generated [CatalogItem] of this package, as a')
@@ -301,4 +429,26 @@ Iterable<String> _catalogFunctionNames(String source) sync* {
       if (name.endsWith('GenUiFunction')) yield name;
     }
   }
+}
+
+/// The renderer the generated part [source] was written for, or `null` when
+/// it declares no component and no function.
+///
+/// Read off the declared type of the generated variables, which this package
+/// writes itself: a genui part declares `CatalogItem`s and `ClientFunction`s,
+/// an a2ui_flutter part `ComponentImplementation`s and
+/// `FunctionImplementation`s. The type is read as source text rather than
+/// through `NamedType`, for the reason given on [_catalogItemNames].
+Renderer? _rendererOf(String source) {
+  final unit = parseString(content: source, throwIfDiagnostics: false).unit;
+  for (final declaration in unit.declarations) {
+    if (declaration is! TopLevelVariableDeclaration) continue;
+    switch (declaration.variables.type?.toSource()) {
+      case 'CatalogItem' || 'ClientFunction':
+        return Renderer.genui;
+      case 'ComponentImplementation' || 'FunctionImplementation':
+        return Renderer.a2uiFlutter;
+    }
+  }
+  return null;
 }

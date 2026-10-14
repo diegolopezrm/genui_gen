@@ -50,6 +50,14 @@ const importForSymbol = <String, String>{
   'genUiAsBoolMap': _genuiGen,
   'genUiMissingField': _genuiGen,
   'genUiNestedField': _genuiGen,
+  // The a2ui_flutter renderer's types, which genui_gen re-exports the same
+  // way once it is built on a2ui_flutter.
+  'ComponentImplementation': _genuiGen,
+  'FunctionImplementation': _genuiGen,
+  'A2uiReturnType': _genuiGen,
+  'GenUiSchemas': _genuiGen,
+  'genUiWriter': _genuiGen,
+  'genUiMissingIn': _genuiGen,
   'SizedBox': _flutter,
   'Widget': _flutter,
 };
