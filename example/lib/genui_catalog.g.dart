@@ -14,49 +14,56 @@ import 'widgets/stat_tile.dart';
 import 'widgets/tag_row.dart';
 import 'widgets/task_list.dart';
 
-/// Every [CatalogItem] generated in this package, by name.
+/// Every [ComponentImplementation] generated in this package,
+/// by name.
 ///
 /// Rebuilt whenever a `@GenUiWidget` is added, renamed or
 /// removed, so a catalog composed from it cannot fall behind
 /// the widgets it is meant to describe.
-final List<CatalogItem> genUiCatalogItems = <CatalogItem>[
-  labeledFieldCatalogItem,
-  metricsTableCatalogItem,
-  panelCatalogItem,
-  preferenceRowCatalogItem,
-  productCardCatalogItem,
-  statTileCatalogItem,
-  tagRowCatalogItem,
-  taskListCatalogItem,
-];
+final List<ComponentImplementation> genUiCatalogItems =
+    <ComponentImplementation>[
+      labeledFieldCatalogItem,
+      metricsTableCatalogItem,
+      panelCatalogItem,
+      preferenceRowCatalogItem,
+      productCardCatalogItem,
+      statTileCatalogItem,
+      tagRowCatalogItem,
+      taskListCatalogItem,
+    ];
 
-/// Every [ClientFunction] generated in this package, by
-/// name.
+/// Every [FunctionImplementation] generated in this package,
+/// by name.
 ///
-/// These are the other half of a catalog: what the model
+/// These are the other half of a catalog: what the agent
 /// computes a value with, through the `{"call": ...}` form
-/// any bound property accepts.
-final List<ClientFunction> genUiCatalogFunctions = <ClientFunction>[
-  describeMetricGenUiFunction,
-  formatPriceGenUiFunction,
-  shortenNameGenUiFunction,
-];
+/// any dynamic property accepts.
+final List<FunctionImplementation> genUiCatalogFunctions =
+    <FunctionImplementation>[
+      describeMetricGenUiFunction,
+      formatPriceGenUiFunction,
+      shortenNameGenUiFunction,
+    ];
 
-/// Every generated [CatalogItem] of this package, as a
-/// [Catalog] ready to hand to genui.
+/// Every generated component and function of this package,
+/// as a catalog ready to hand to a `MessageProcessor`.
 ///
-/// Compose it with any other catalog through
-/// [Catalog.copyWith], for instance to add genui's own
-/// basic components:
+/// A v0.9 surface draws on one catalog, so an agent that also
+/// uses the basic components needs them in the same one:
 ///
 /// ```dart
-/// final catalog = genUiCatalog.copyWith(
-///   newItems: BasicCatalogItems.asCatalog().items.toList(),
-///   newFunctions: BasicCatalogItems.asCatalog().functions.toList(),
+/// final catalog = CatalogImplementation(
+///   id: genUiCatalog.id,
+///   components: [...BasicComponents.all, ...genUiCatalogItems],
+///   functions: [
+///     ...BasicCatalog.v0_9().functions.values,
+///     ...genUiCatalogFunctions,
+///   ],
+///   themeSchema: BasicComponents.api.themeSchema,
 /// );
 /// ```
-final Catalog genUiCatalog = Catalog(
-  genUiCatalogItems,
+final CatalogImplementation genUiCatalog = CatalogImplementation(
+  id: 'dev.dlsoft.genui_gen.example',
+  components: genUiCatalogItems,
   functions: genUiCatalogFunctions,
-  catalogId: 'dev.dlsoft.genui_gen.example',
 );

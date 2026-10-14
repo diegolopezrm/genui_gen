@@ -10,67 +10,31 @@ part of 'labeled_field.dart';
 // GenUiGenerator
 // **************************************************************************
 
-/// Generated [CatalogItem] for [LabeledField].
-final CatalogItem labeledFieldCatalogItem = CatalogItem(
+/// Generated [ComponentImplementation] for [LabeledField].
+final ComponentImplementation labeledFieldCatalogItem = ComponentImplementation(
   name: 'LabeledField',
-  dataSchema: S.object(
+  schema: GenUiSchemas.component(
     description:
         'A labelled text input. Bind `value` to a data path and the '
         'field writes what the user types there. Attach `checks` and '
         'the message of the first failing rule is shown under the '
         'field.',
     properties: {
-      'label': A2uiSchemas.stringReference(
-        description: 'The caption above the field.',
-      ),
-      'value': A2uiSchemas.stringReference(
+      'label': GenUiSchemas.string(description: 'The caption above the field.'),
+      'value': GenUiSchemas.string(
         description:
             'What the field currently holds. The component writes the '
             'value the user chooses back to this property, so bind it to '
             'a data path if you need to read the result.',
       ),
-      'checks': A2uiSchemas.checkable(),
+      'checks': GenUiSchemas.checks(),
     },
     required: ['label', 'value'],
   ),
-  exampleData: [
-    () => r'''
-[
-  {
-    "id": "root",
-    "component": "LabeledField",
-    "label": "Sample label",
-    "value": "Sample value"
-  }
-]''',
-  ],
-  widgetBuilder: (ctx) {
-    final data = ctx.data as JsonMap;
-    T missing<T>(String property, T fallback) {
-      genUiReportMissing(ctx, 'LabeledField', property);
-      return fallback;
-    }
-
-    return GenUiChecks(
-      dataContext: ctx.dataContext,
-      checks: data['checks'],
-      builder: (context, checked) => GenUiBindings(
-        dataContext: ctx.dataContext,
-        bindings: {
-          'label': GenUiBinding.string(data['label']),
-          'value': GenUiBinding.string(
-            genUiWriteReference(ctx, data['value'], 'value'),
-          ),
-        },
-        builder: (context, v) => LabeledField(
-          label: v.string('label') ?? missing<String>('label', ''),
-          value:
-              (v.string('value') ?? genUiAsString(data['value'])) ??
-              missing<String>('value', ''),
-          onChanged: genUiValueWriter<String>(ctx, data['value'], 'value'),
-          error: checked.message,
-        ),
-      ),
-    );
-  },
+  builder: (context, node, props, buildChild) => LabeledField(
+    label: props.string('label') ?? '',
+    value: props.string('value') ?? '',
+    onChanged: genUiWriter<String>(context, props, 'value'),
+    error: props.validationErrors.firstOrNull,
+  ),
 );

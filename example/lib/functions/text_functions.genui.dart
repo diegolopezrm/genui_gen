@@ -11,7 +11,7 @@ part of 'text_functions.dart';
 // **************************************************************************
 
 /// Generated catalog function for [shortenName].
-final ClientFunction shortenNameGenUiFunction = GenUiClientFunction(
+final FunctionImplementation shortenNameGenUiFunction = GenUiClientFunction(
   name: 'shortenName',
   description:
       'Shortens a full name for display. Use it when a surface has '
@@ -19,14 +19,14 @@ final ClientFunction shortenNameGenUiFunction = GenUiClientFunction(
       'or an avatar.',
   argumentSchema: S.object(
     properties: {
-      'name': A2uiSchemas.stringReference(),
-      'style': A2uiSchemas.stringReference(
+      'name': GenUiSchemas.string(),
+      'style': GenUiSchemas.string(
         enumValues: ['initials', 'firstOnly', 'lastFirst'],
       ),
     },
     required: ['name'],
   ),
-  returnType: ClientFunctionReturnType.string,
+  returnType: A2uiReturnType.string,
   body: (args, context) {
     final json = args;
     const GenUiMissingFieldReporter? onMissing = null;
@@ -41,19 +41,19 @@ final ClientFunction shortenNameGenUiFunction = GenUiClientFunction(
 );
 
 /// Generated catalog function for [formatPrice].
-final ClientFunction formatPriceGenUiFunction = GenUiClientFunction(
+final FunctionImplementation formatPriceGenUiFunction = GenUiClientFunction(
   name: 'formatPrice',
   description:
       'Formats a number of cents as a price string, so the agent '
       'never has to do currency arithmetic itself.',
   argumentSchema: S.object(
     properties: {
-      'cents': A2uiSchemas.numberReference(),
-      'currency': A2uiSchemas.stringReference(),
+      'cents': GenUiSchemas.number(),
+      'currency': GenUiSchemas.string(),
     },
     required: ['cents'],
   ),
-  returnType: ClientFunctionReturnType.string,
+  returnType: A2uiReturnType.string,
   body: (args, context) {
     final json = args;
     const GenUiMissingFieldReporter? onMissing = null;
@@ -67,24 +67,16 @@ final ClientFunction formatPriceGenUiFunction = GenUiClientFunction(
 );
 
 /// Generated catalog function for [describeMetric].
-final ClientFunction describeMetricGenUiFunction = GenUiClientFunction(
+final FunctionImplementation describeMetricGenUiFunction = GenUiClientFunction(
   name: 'describeMetric',
   description:
       'Describes one metric in a sentence, for a tooltip or a '
       'summary line. Takes the same row object the tables take.',
   argumentSchema: S.object(
-    properties: {
-      'row': S.combined(
-        oneOf: [
-          metricRowGenUiSchema,
-          A2uiSchemas.dataBindingSchema(),
-          A2uiSchemas.functionCall(),
-        ],
-      ),
-    },
+    properties: {'row': GenUiSchemas.object(literal: metricRowGenUiSchema)},
     required: ['row'],
   ),
-  returnType: ClientFunctionReturnType.string,
+  returnType: A2uiReturnType.string,
   body: (args, context) {
     final json = args;
     const GenUiMissingFieldReporter? onMissing = null;

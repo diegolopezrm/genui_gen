@@ -10,28 +10,28 @@ part of 'stat_tile.dart';
 // GenUiGenerator
 // **************************************************************************
 
-/// Generated [CatalogItem] for [StatTile].
-final CatalogItem statTileCatalogItem = CatalogItem(
+/// Generated [ComponentImplementation] for [StatTile].
+final ComponentImplementation statTileCatalogItem = ComponentImplementation(
   name: 'StatTile',
-  dataSchema: S.object(
+  schema: GenUiSchemas.component(
     description:
         'A compact tile that shows one numeric metric (a KPI) with a '
         'label and a trend indicator: up, down or flat. Use it to '
         'summarize a statistic such as revenue, active users or '
         'conversion rate.',
     properties: {
-      'label': A2uiSchemas.stringReference(
+      'label': GenUiSchemas.string(
         description:
             'A short caption naming the metric, e.g. "Monthly revenue".',
       ),
-      'value': A2uiSchemas.numberReference(
+      'value': GenUiSchemas.number(
         description: 'The current numeric value of the metric.',
       ),
-      'trend': A2uiSchemas.stringReference(
+      'trend': GenUiSchemas.string(
         description: 'Whether the metric went up, down or stayed flat.',
         enumValues: ['up', 'down', 'flat'],
       ),
-      'history': A2uiSchemas.listOrReference(
+      'history': GenUiSchemas.list(
         description:
             'Recent values of the metric, oldest first, drawn as a '
             'sparkline under the number. Leave it out for a tile with no '
@@ -41,43 +41,15 @@ final CatalogItem statTileCatalogItem = CatalogItem(
     },
     required: ['label', 'value', 'trend'],
   ),
-  exampleData: [
-    () => r'''
-[
-  {
-    "id": "root",
-    "component": "StatTile",
-    "label": "Sample label",
-    "value": 42.5,
-    "trend": "up"
-  }
-]''',
-  ],
-  widgetBuilder: (ctx) {
-    final data = ctx.data as JsonMap;
-    T missing<T>(String property, T fallback) {
-      genUiReportMissing(ctx, 'StatTile', property);
-      return fallback;
-    }
-
-    return GenUiBindings(
-      dataContext: ctx.dataContext,
-      bindings: {
-        'label': GenUiBinding.string(data['label']),
-        'value': GenUiBinding.number(data['value']),
-        'trend': GenUiBinding.string(data['trend']),
-        'history': GenUiBinding.numberList(data['history']),
-      },
-      builder: (context, v) => StatTile(
-        label: v.string('label') ?? missing<String>('label', ''),
-        value: (v.number('value') ?? missing<num>('value', 0)).toDouble(),
-        trend:
-            Trend.values.asNameMap()[v.string('trend')] ??
-            missing<Trend>('trend', Trend.values.first),
-        history:
-            v.numberList('history')?.map((n) => n.toDouble()).toList() ??
-            const <double>[],
-      ),
-    );
-  },
+  builder: (context, node, props, buildChild) => StatTile(
+    label: props.string('label') ?? '',
+    value: props.number('value') ?? 0,
+    trend:
+        Trend.values.asNameMap()[props.string('trend')] ?? Trend.values.first,
+    history:
+        genUiAsNumList(
+          props.value('history'),
+        )?.map((n) => n.toDouble()).toList() ??
+        const <double>[],
+  ),
 );
