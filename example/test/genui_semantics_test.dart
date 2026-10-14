@@ -12,27 +12,32 @@
 
 import 'dart:io';
 
+import 'package:example/genui_catalog.g.dart';
 import 'package:example/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:genui_gen/genui_gen.dart';
 import 'package:genui_gen/testing.dart';
 
 void main() {
   testWidgets('the catalog exposes what it exposed before', (tester) async {
     final recorded = <String, List<GenUiSemanticNode>>{};
 
-    for (final item in exampleCatalog.items) {
+    for (final GenUiComponent component in genUiCatalogItems) {
       final SemanticsHandle handle = tester.ensureSemantics();
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: GenUiExampleSurface(catalog: exampleCatalog, item: item),
+            body: GenUiExampleSurface(
+              catalog: exampleCatalog,
+              component: component,
+            ),
           ),
         ),
       );
       await tester.pumpAndSettle();
 
-      recorded[item.name] = genUiRenderedSemantics();
+      recorded[component.name] = genUiRenderedSemantics();
       handle.dispose();
     }
 

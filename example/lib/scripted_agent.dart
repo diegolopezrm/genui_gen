@@ -1,5 +1,5 @@
-import 'package:a2ui_core/a2ui_core.dart' as core;
-import 'package:genui/genui.dart';
+/// A decoded JSON object.
+typedef JsonMap = Map<String, Object?>;
 
 /// A stand-in for the agent, so the example runs with no key and no network.
 ///
@@ -219,25 +219,27 @@ class ScriptedTurn {
   /// The data model the surface binds to.
   final Map<String, Object?> data;
 
-  /// The messages an agent would send for this turn.
+  /// The messages an agent would send for this turn, as the JSON it would
+  /// send them in.
   ///
-  /// The data model is seeded with a mutable copy on purpose. These turns are
-  /// `const`, so their maps are immutable, and a data model seeded from one
-  /// drops every write made through it: the control writes, the write fails,
-  /// and nothing changes on screen. A real agent's payload arrives decoded
-  /// from JSON and is mutable already, so this is a cost of scripting one.
-  List<core.A2uiMessage> messages(
-    String surfaceId,
-    String catalogId,
-  ) => <core.A2uiMessage>[
-    core.UpdateComponentsMessage(surfaceId: surfaceId, components: components),
-    core.CreateSurfaceMessage(surfaceId: surfaceId, catalogId: catalogId),
+  /// Copied whole, so nothing the session does reaches these `const` maps.
+  List<JsonMap> messages(String surfaceId, String catalogId) => <JsonMap>[
+    _message('createSurface', surfaceId, {'catalogId': catalogId}),
+    _message('updateComponents', surfaceId, {
+      'components': _mutable(components),
+    }),
     if (data.isNotEmpty)
-      core.UpdateDataModelMessage(
-        surfaceId: surfaceId,
-        value: _mutable(data) as Map<String, Object?>,
-      ),
+      _message('updateDataModel', surfaceId, {
+        'path': '/',
+        'value': _mutable(data),
+      }),
   ];
+
+  static JsonMap _message(String kind, String surfaceId, JsonMap body) =>
+      <String, Object?>{
+        'version': 'v0.9',
+        kind: <String, Object?>{'surfaceId': surfaceId, ...body},
+      };
 }
 
 /// A deep, modifiable copy of a value that may have come from a `const` map.

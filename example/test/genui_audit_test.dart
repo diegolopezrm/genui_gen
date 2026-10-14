@@ -1,30 +1,123 @@
 // What this catalog gives a person using a screen reader, and what it does
 // not.
 //
-// The findings below are real and are genui's, not this package's: they are
-// listed rather than hidden so that the list fails when one of them is fixed
-// upstream, or when a new one appears in a widget of this app.
+// The app's own components are audited from their generated examples. The
+// basic components carry no examples in a2ui_flutter, so a few are written
+// out here, and what they expose today is listed rather than hidden: the list
+// fails when one of them is fixed upstream, or when a new finding appears.
 
+import 'package:example/genui_catalog.g.dart';
 import 'package:example/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:genui_gen/genui_gen.dart';
 import 'package:genui_gen/testing.dart';
 
+import 'support/surface.dart';
+
+/// Basic components as an agent composes them, each with the label or
+/// description it would give.
+const Map<String, List<JsonMap>> _basics = {
+  'Button': [
+    {
+      'id': 'root',
+      'component': 'Button',
+      'child': 'label',
+      'action': {
+        'event': {'name': 'go'},
+      },
+    },
+    {'id': 'label', 'component': 'Text', 'text': 'Go'},
+  ],
+  'CheckBox': [
+    {
+      'id': 'root',
+      'component': 'CheckBox',
+      'label': 'Notify me',
+      'value': {'path': '/on'},
+    },
+  ],
+  'TextField': [
+    {
+      'id': 'root',
+      'component': 'TextField',
+      'label': 'Name',
+      'value': {'path': '/name'},
+    },
+  ],
+  'Slider': [
+    {
+      'id': 'root',
+      'component': 'Slider',
+      'label': 'Volume',
+      'value': {'path': '/volume'},
+      'min': 0,
+      'max': 100,
+    },
+  ],
+  'Image': [
+    {
+      'id': 'root',
+      'component': 'Image',
+      'url': 'https://example.com/cat.png',
+      'description': 'A cat asleep on a keyboard',
+    },
+  ],
+  'Icon': [
+    {'id': 'root', 'component': 'Icon', 'name': 'home'},
+  ],
+  'Divider': [
+    {'id': 'root', 'component': 'Divider'},
+  ],
+};
+
+/// What the basic components fail today, in the order the audit reports it.
+///
+/// An image that fails to load, which every network image does in a test,
+/// shows a broken-image icon with nothing on it: the description the agent
+/// gave never reaches assistive technology.
+const List<String> _knownBasic = <String>['Image: exposesNothing'];
+
 void main() {
-  testWidgets('the catalog is as accessible as it was', (tester) async {
+  testWidgets('the generated components announce what they show', (
+    tester,
+  ) async {
     final recorded = <String, List<GenUiSemanticNode>>{};
 
-    for (final item in exampleCatalog.items) {
+    for (final GenUiComponent component in genUiCatalogItems) {
       final SemanticsHandle handle = tester.ensureSemantics();
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: GenUiExampleSurface(catalog: exampleCatalog, item: item),
+            body: GenUiExampleSurface(
+              catalog: exampleCatalog,
+              component: component,
+            ),
           ),
         ),
       );
       await tester.pumpAndSettle();
-      recorded[item.name] = genUiRenderedSemantics();
+      recorded[component.name] = genUiRenderedSemantics();
+      handle.dispose();
+    }
+
+    final findings = genUiSemanticsAudit(recorded);
+    expect(findings.map((finding) => finding.toString()), isEmpty);
+  });
+
+  testWidgets('the basic components, as a2ui_flutter draws them today', (
+    tester,
+  ) async {
+    final recorded = <String, List<GenUiSemanticNode>>{};
+
+    for (final MapEntry<String, List<JsonMap>> basic in _basics.entries) {
+      final SemanticsHandle handle = tester.ensureSemantics();
+      await ExampleSurface.pump(
+        tester,
+        basic.value,
+        initialData: {'on': false, 'name': '', 'volume': 40},
+      );
+      recorded[basic.key] = genUiRenderedSemantics();
       handle.dispose();
     }
 
@@ -33,22 +126,15 @@ void main() {
       // Decoration. A divider and an icon with nothing to say are correct.
       allowEmpty: const {'Divider', 'Icon'},
     );
-
     printOnFailure(findings.join('\n'));
-    expect(findings.map((finding) => finding.toString()).toList(), _known);
+    expect(findings.map((finding) => finding.toString()).toList(), _knownBasic);
+
+    // Not an unnamed control, so the audit passes it, but named by its value:
+    // a screen reader says "40, 40%" and reads "Volume" as a separate line.
+    // When this fails, the slider carries its label and the line can go.
+    final GenUiSemanticNode slider = recorded['Slider']!.singleWhere(
+      (node) => node.role == 'slider',
+    );
+    expect(slider.name, '40');
   });
 }
-
-/// The state of the basic catalog today, in the order the audit reports it.
-///
-/// Every one of these is genui's: an audio player whose play button and two
-/// sliders announce nothing, an image that reaches assistive technology as
-/// nothing at all (a2ui-project/a2ui#2740), and the basic slider, which has a
-/// `label` property the catalog never passes on.
-const List<String> _known = <String>[
-  'AudioPlayer: unnamedControl (button)',
-  'AudioPlayer: unnamedControl (slider)',
-  'AudioPlayer: unnamedControl (slider)',
-  'Image: exposesNothing',
-  'Slider: unnamedControl (slider)',
-];

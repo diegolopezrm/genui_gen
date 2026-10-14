@@ -1,527 +1,417 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://a2ui.org/specification/v0_9/catalog.json",
-  "title": "genui_gen example catalog",
-  "description": "The widgets this example app renders for an agent.",
   "catalogId": "dev.dlsoft.genui_gen.example",
+  "instructions": "An example of each of these components, as the `components` of an `updateComponents` message, with `root` first.\n\n### LabeledField\n\n```json\n[{\"id\":\"root\",\"component\":\"LabeledField\",\"label\":\"Sample label\",\"value\":{\"path\":\"/value\"}}]\n```\n\n### MetricsTable\n\n```json\n[{\"id\":\"root\",\"component\":\"MetricsTable\",\"title\":\"Quarterly report\",\"rows\":[{\"label\":\"Sample label 1\",\"value\":42.5,\"trend\":\"up\"},{\"label\":\"Sample label 2\",\"value\":43.5,\"trend\":\"down\"}]}]\n```\n\n### Panel\n\n```json\n[{\"id\":\"root\",\"component\":\"Panel\",\"title\":\"Quarterly report\",\"child\":\"child_child\",\"actions\":[\"child_actions_1\",\"child_actions_2\"],\"onClose\":{\"event\":{\"name\":\"panel_closed\"}}},{\"id\":\"child_child\",\"component\":\"Text\",\"text\":\"Sample child\"},{\"id\":\"child_actions_1\",\"component\":\"Text\",\"text\":\"Sample actions 1\"},{\"id\":\"child_actions_2\",\"component\":\"Text\",\"text\":\"Sample actions 2\"}]\n```\n\n### PreferenceRow\n\n```json\n[{\"id\":\"root\",\"component\":\"PreferenceRow\",\"label\":\"Sample label\",\"enabled\":{\"path\":\"/enabled\"}}]\n```\n\n### ProductCard\n\n```json\n[{\"id\":\"root\",\"component\":\"ProductCard\",\"title\":\"Quarterly report\",\"price\":19.99,\"imageUrl\":\"https://picsum.photos/seed/genui_gen/400/225\",\"onTap\":{\"event\":{\"name\":\"onTap\"}}}]\n```\n\n### StatTile\n\n```json\n[{\"id\":\"root\",\"component\":\"StatTile\",\"label\":\"Sample label\",\"value\":42.5,\"trend\":\"up\"}]\n```\n\n### TagRow\n\n```json\n[{\"id\":\"root\",\"component\":\"TagRow\",\"tags\":[\"Alpha\",\"Beta\"]}]\n```\n\n### TaskList\n\n```json\n[{\"id\":\"root\",\"component\":\"TaskList\",\"title\":\"Quarterly report\",\"rows\":[\"child_rows_1\",\"child_rows_2\"]},{\"id\":\"child_rows_1\",\"component\":\"Text\",\"text\":\"Sample rows 1\"},{\"id\":\"child_rows_2\",\"component\":\"Text\",\"text\":\"Sample rows 2\"}]\n```\n",
   "components": {
     "LabeledField": {
       "type": "object",
-      "allOf": [
-        {
-          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+      "description": "A labelled text input. Bind `value` to a data path and the field writes what the user types there. Attach `checks` and the message of the first failing rule is shown under the field.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/ComponentId"
         },
-        {
-          "$ref": "#/$defs/CatalogComponentCommon"
+        "component": {
+          "const": "LabeledField"
         },
-        {
-          "type": "object",
-          "properties": {
-            "component": {
-              "type": "string",
-              "enum": [
-                "LabeledField"
-              ]
-            },
-            "label": {
-              "description": "The caption above the field.",
-              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString"
-            },
-            "value": {
-              "description": "What the field currently holds. The component writes the value the user chooses back to this property, so bind it to a data path if you need to read the result.",
-              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString"
-            },
-            "checks": {
-              "type": "array",
-              "description": "Validation rules for this component.",
-              "items": {
-                "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/CheckRule"
-              }
-            }
-          },
-          "required": [
-            "component",
-            "label",
-            "value"
-          ]
+        "label": {
+          "description": "The caption above the field.",
+          "$ref": "#/$defs/DynamicString"
+        },
+        "value": {
+          "description": "What the field currently holds. The component writes the value the user chooses back to this property, so bind it to a data path if you need to read the result.",
+          "$ref": "#/$defs/DynamicString"
+        },
+        "checks": {
+          "type": "array",
+          "description": "Validation rules for this component. Each one is a condition and the message shown while the condition is false.",
+          "items": {
+            "$ref": "#/$defs/CheckRule"
+          }
+        },
+        "accessibility": {
+          "$ref": "#/$defs/AccessibilityAttributes"
+        },
+        "weight": {
+          "type": "number",
+          "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
         }
+      },
+      "required": [
+        "id",
+        "label",
+        "value",
+        "component"
       ],
-      "unevaluatedProperties": false
+      "additionalProperties": false
     },
     "MetricsTable": {
       "type": "object",
-      "allOf": [
-        {
-          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+      "description": "A titled table of metrics. Each row has a label, a numeric value, a trend (up, down or flat) and an optional note. Use it to compare several KPIs at once, for example a quarterly summary or the health of a set of services.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/ComponentId"
         },
-        {
-          "$ref": "#/$defs/CatalogComponentCommon"
+        "component": {
+          "const": "MetricsTable"
         },
-        {
-          "type": "object",
-          "properties": {
-            "component": {
-              "type": "string",
-              "enum": [
-                "MetricsTable"
-              ]
-            },
-            "title": {
-              "description": "The heading shown above the table, e.g. \"Q3 performance\".",
-              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString"
-            },
-            "rows": {
-              "description": "The rows of the table, in display order.",
-              "oneOf": [
-                {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "description": "One row of a metrics table: a labelled metric with its current value, the direction it is moving in and an optional short note explaining the number.",
-                    "properties": {
-                      "label": {
-                        "type": "string",
-                        "description": "A short caption naming the metric, e.g. \"Monthly revenue\"."
-                      },
-                      "value": {
-                        "type": "number",
-                        "description": "The current numeric value of the metric."
-                      },
-                      "trend": {
-                        "type": "string",
-                        "description": "Whether the metric went up, down or stayed flat.",
-                        "enum": [
-                          "up",
-                          "down",
-                          "flat"
-                        ]
-                      },
-                      "note": {
-                        "type": "string",
-                        "description": "An optional one-line comment about this row, e.g. \"vs. last quarter\"."
-                      }
-                    },
-                    "required": [
-                      "label",
-                      "value",
-                      "trend"
+        "title": {
+          "description": "The heading shown above the table, e.g. \"Q3 performance\".",
+          "$ref": "#/$defs/DynamicString"
+        },
+        "rows": {
+          "description": "The rows of the table, in display order.",
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "description": "One row of a metrics table: a labelled metric with its current value, the direction it is moving in and an optional short note explaining the number.",
+                "properties": {
+                  "label": {
+                    "type": "string",
+                    "description": "A short caption naming the metric, e.g. \"Monthly revenue\"."
+                  },
+                  "value": {
+                    "type": "number",
+                    "description": "The current numeric value of the metric."
+                  },
+                  "trend": {
+                    "type": "string",
+                    "description": "Whether the metric went up, down or stayed flat.",
+                    "enum": [
+                      "up",
+                      "down",
+                      "flat"
                     ]
+                  },
+                  "note": {
+                    "type": "string",
+                    "description": "An optional one-line comment about this row, e.g. \"vs. last quarter\"."
                   }
                 },
-                {
-                  "type": "object",
-                  "description": "A path to a list.",
-                  "properties": {
-                    "path": {
-                      "type": "string",
-                      "description": "A relative or absolute path in the data model."
-                    }
-                  },
-                  "required": [
-                    "path"
-                  ]
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "call": {
-                      "type": "string",
-                      "description": "The name of the function to call."
-                    },
-                    "args": {
-                      "type": "object",
-                      "description": "Arguments to pass to the function.",
-                      "additionalProperties": true
-                    }
-                  },
-                  "required": [
-                    "call"
-                  ]
-                }
-              ]
+                "required": [
+                  "label",
+                  "value",
+                  "trend"
+                ]
+              }
+            },
+            {
+              "description": "A JSON Pointer path to a value in the data model.",
+              "$ref": "#/$defs/DataBinding"
+            },
+            {
+              "description": "Invokes a named function on the client.",
+              "$ref": "#/$defs/FunctionCall"
             }
-          },
-          "required": [
-            "component",
-            "title",
-            "rows"
           ]
+        },
+        "accessibility": {
+          "$ref": "#/$defs/AccessibilityAttributes"
+        },
+        "weight": {
+          "type": "number",
+          "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
         }
+      },
+      "required": [
+        "id",
+        "title",
+        "rows",
+        "component"
       ],
-      "unevaluatedProperties": false
+      "additionalProperties": false
     },
     "Panel": {
       "type": "object",
-      "allOf": [
-        {
-          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+      "description": "A titled panel that wraps any other component. It has a header with the title and a close button, a body and an optional row of action components (typically buttons) along the bottom edge. Use it to group related content under a heading.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/ComponentId"
         },
-        {
-          "$ref": "#/$defs/CatalogComponentCommon"
+        "component": {
+          "const": "Panel"
         },
-        {
-          "type": "object",
-          "properties": {
-            "component": {
-              "type": "string",
-              "enum": [
-                "Panel"
-              ]
-            },
-            "title": {
-              "description": "The heading shown at the top of the panel.",
-              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString"
-            },
-            "child": {
-              "type": "string",
-              "description": "The component rendered as the body of the panel."
-            },
-            "actions": {
-              "type": "array",
-              "description": "Components laid out along the bottom edge, usually buttons.",
-              "items": {
-                "type": "string",
-                "description": "The ID of a component."
+        "title": {
+          "description": "The heading shown at the top of the panel.",
+          "$ref": "#/$defs/DynamicString"
+        },
+        "child": {
+          "description": "The component rendered as the body of the panel.",
+          "$ref": "#/$defs/ComponentId"
+        },
+        "actions": {
+          "type": "array",
+          "description": "Components laid out along the bottom edge, usually buttons.",
+          "items": {
+            "description": "The unique identifier for a component.",
+            "$ref": "#/$defs/ComponentId"
+          }
+        },
+        "onClose": {
+          "description": "Fired when the user presses the close button in the header.",
+          "$ref": "#/$defs/Action"
+        },
+        "meta": {
+          "description": "Extra labelled details, shown under the title. The keys are the agent's to choose: this is for whatever it decided was worth attaching to this particular panel, which is exactly the case a fixed set of properties cannot express.",
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
               }
             },
-            "onClose": {
-              "description": "Fired when the user presses the close button in the header.",
-              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/Action"
+            {
+              "description": "A JSON Pointer path to a value in the data model.",
+              "$ref": "#/$defs/DataBinding"
             },
-            "meta": {
-              "description": "Extra labelled details, shown under the title. The keys are the agent's to choose: this is for whatever it decided was worth attaching to this particular panel, which is exactly the case a fixed set of properties cannot express.",
-              "oneOf": [
-                {
-                  "type": "object",
-                  "additionalProperties": {
-                    "type": "string"
-                  }
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "path": {
-                      "type": "string",
-                      "description": "A relative or absolute path in the data model."
-                    }
-                  },
-                  "required": [
-                    "path"
-                  ]
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "call": {
-                      "type": "string",
-                      "description": "The name of the function to call."
-                    },
-                    "args": {
-                      "type": "object",
-                      "description": "Arguments to pass to the function.",
-                      "additionalProperties": true
-                    }
-                  },
-                  "required": [
-                    "call"
-                  ]
-                }
-              ]
+            {
+              "description": "Invokes a named function on the client.",
+              "$ref": "#/$defs/FunctionCall"
             }
-          },
-          "required": [
-            "component",
-            "title",
-            "child"
           ]
+        },
+        "accessibility": {
+          "$ref": "#/$defs/AccessibilityAttributes"
+        },
+        "weight": {
+          "type": "number",
+          "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
         }
+      },
+      "required": [
+        "id",
+        "title",
+        "child",
+        "component"
       ],
-      "unevaluatedProperties": false
+      "additionalProperties": false
     },
     "PreferenceRow": {
       "type": "object",
-      "allOf": [
-        {
-          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+      "description": "One preference the user can turn on or off, with a label and an optional line of explanation. Use it when you need the user to answer yes or no and you want to read the answer back: bind `enabled` to a data path, and the switch writes the new state there.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/ComponentId"
         },
-        {
-          "$ref": "#/$defs/CatalogComponentCommon"
+        "component": {
+          "const": "PreferenceRow"
         },
-        {
-          "type": "object",
-          "properties": {
-            "component": {
-              "type": "string",
-              "enum": [
-                "PreferenceRow"
-              ]
-            },
-            "label": {
-              "description": "A short caption naming the preference, e.g. \"Weekly summary\".",
-              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString"
-            },
-            "enabled": {
-              "description": "Whether the preference is currently on. The component writes the value the user chooses back to this property, so bind it to a data path if you need to read the result.",
-              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicBoolean"
-            },
-            "detail": {
-              "description": "One line of explanation shown under the label.",
-              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString"
-            }
-          },
-          "required": [
-            "component",
-            "label",
-            "enabled"
-          ]
+        "label": {
+          "description": "A short caption naming the preference, e.g. \"Weekly summary\".",
+          "$ref": "#/$defs/DynamicString"
+        },
+        "enabled": {
+          "description": "Whether the preference is currently on. The component writes the value the user chooses back to this property, so bind it to a data path if you need to read the result.",
+          "$ref": "#/$defs/DynamicBoolean"
+        },
+        "detail": {
+          "description": "One line of explanation shown under the label.",
+          "$ref": "#/$defs/DynamicString"
+        },
+        "accessibility": {
+          "$ref": "#/$defs/AccessibilityAttributes"
+        },
+        "weight": {
+          "type": "number",
+          "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
         }
+      },
+      "required": [
+        "id",
+        "label",
+        "enabled",
+        "component"
       ],
-      "unevaluatedProperties": false
+      "additionalProperties": false
     },
     "ProductCard": {
       "type": "object",
-      "allOf": [
-        {
-          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+      "description": "A card that presents a single product with its name, price in USD and an optional image. Use it to show one item of a catalog or a search result. Tapping the card fires its onTap action.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/ComponentId"
         },
-        {
-          "$ref": "#/$defs/CatalogComponentCommon"
+        "component": {
+          "const": "ProductCard"
         },
-        {
-          "type": "object",
-          "properties": {
-            "component": {
-              "type": "string",
-              "enum": [
-                "ProductCard"
-              ]
-            },
-            "title": {
-              "description": "The product name shown as the card headline.",
-              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString"
-            },
-            "price": {
-              "description": "The product price in USD.",
-              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicNumber"
-            },
-            "imageUrl": {
-              "description": "An optional URL of an image shown above the title.",
-              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString"
-            },
-            "onTap": {
-              "description": "Fired when the user taps the card.",
-              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/Action"
-            }
-          },
-          "required": [
-            "component",
-            "title",
-            "price"
-          ]
+        "title": {
+          "description": "The product name shown as the card headline.",
+          "$ref": "#/$defs/DynamicString"
+        },
+        "price": {
+          "description": "The product price in USD.",
+          "$ref": "#/$defs/DynamicNumber"
+        },
+        "imageUrl": {
+          "description": "An optional URL of an image shown above the title.",
+          "$ref": "#/$defs/DynamicString"
+        },
+        "onTap": {
+          "description": "Fired when the user taps the card.",
+          "$ref": "#/$defs/Action"
+        },
+        "accessibility": {
+          "$ref": "#/$defs/AccessibilityAttributes"
+        },
+        "weight": {
+          "type": "number",
+          "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
         }
+      },
+      "required": [
+        "id",
+        "title",
+        "price",
+        "component"
       ],
-      "unevaluatedProperties": false
+      "additionalProperties": false
     },
     "StatTile": {
       "type": "object",
-      "allOf": [
-        {
-          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+      "description": "A compact tile that shows one numeric metric (a KPI) with a label and a trend indicator: up, down or flat. Use it to summarize a statistic such as revenue, active users or conversion rate.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/ComponentId"
         },
-        {
-          "$ref": "#/$defs/CatalogComponentCommon"
+        "component": {
+          "const": "StatTile"
         },
-        {
-          "type": "object",
-          "properties": {
-            "component": {
+        "label": {
+          "description": "A short caption naming the metric, e.g. \"Monthly revenue\".",
+          "$ref": "#/$defs/DynamicString"
+        },
+        "value": {
+          "description": "The current numeric value of the metric.",
+          "$ref": "#/$defs/DynamicNumber"
+        },
+        "trend": {
+          "description": "Whether the metric went up, down or stayed flat.",
+          "anyOf": [
+            {
               "type": "string",
               "enum": [
-                "StatTile"
+                "up",
+                "down",
+                "flat"
               ]
             },
-            "label": {
-              "description": "A short caption naming the metric, e.g. \"Monthly revenue\".",
-              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString"
+            {
+              "description": "A JSON Pointer path to a value in the data model.",
+              "$ref": "#/$defs/DataBinding"
             },
-            "value": {
-              "description": "The current numeric value of the metric.",
-              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicNumber"
-            },
-            "trend": {
-              "description": "Whether the metric went up, down or stayed flat.",
-              "allOf": [
-                {
-                  "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString"
-                },
-                {
-                  "anyOf": [
-                    {
-                      "type": "string",
-                      "enum": [
-                        "up",
-                        "down",
-                        "flat"
-                      ]
-                    },
-                    {
-                      "type": "object"
-                    }
-                  ]
-                }
-              ]
-            },
-            "history": {
-              "description": "Recent values of the metric, oldest first, drawn as a sparkline under the number. Leave it out for a tile with no history.",
-              "oneOf": [
-                {
-                  "type": "array",
-                  "items": {
-                    "type": "number"
-                  }
-                },
-                {
-                  "type": "object",
-                  "description": "A path to a list.",
-                  "properties": {
-                    "path": {
-                      "type": "string",
-                      "description": "A relative or absolute path in the data model."
-                    }
-                  },
-                  "required": [
-                    "path"
-                  ]
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "call": {
-                      "type": "string",
-                      "description": "The name of the function to call."
-                    },
-                    "args": {
-                      "type": "object",
-                      "description": "Arguments to pass to the function.",
-                      "additionalProperties": true
-                    }
-                  },
-                  "required": [
-                    "call"
-                  ]
-                }
-              ]
+            {
+              "description": "Invokes a named function on the client.",
+              "$ref": "#/$defs/FunctionCall"
             }
-          },
-          "required": [
-            "component",
-            "label",
-            "value",
-            "trend"
           ]
+        },
+        "history": {
+          "description": "Recent values of the metric, oldest first, drawn as a sparkline under the number. Leave it out for a tile with no history.",
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "description": "A JSON Pointer path to a value in the data model.",
+              "$ref": "#/$defs/DataBinding"
+            },
+            {
+              "description": "Invokes a named function on the client.",
+              "$ref": "#/$defs/FunctionCall"
+            }
+          ]
+        },
+        "accessibility": {
+          "$ref": "#/$defs/AccessibilityAttributes"
+        },
+        "weight": {
+          "type": "number",
+          "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
         }
+      },
+      "required": [
+        "id",
+        "label",
+        "value",
+        "trend",
+        "component"
       ],
-      "unevaluatedProperties": false
+      "additionalProperties": false
     },
     "TagRow": {
       "type": "object",
-      "allOf": [
-        {
-          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+      "description": "A row of short text tags rendered as chips. Exactly one tag is highlighted as selected. Use it to show categories, filters or keywords attached to an item.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/ComponentId"
         },
-        {
-          "$ref": "#/$defs/CatalogComponentCommon"
+        "component": {
+          "const": "TagRow"
         },
-        {
-          "type": "object",
-          "properties": {
-            "component": {
-              "type": "string",
-              "enum": [
-                "TagRow"
-              ]
-            },
-            "tags": {
-              "description": "The tags to display, one chip each, in order.",
-              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicStringList"
-            },
-            "selectedIndex": {
-              "description": "The zero-based index of the highlighted tag. Defaults to the first one.",
-              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicNumber"
-            }
-          },
-          "required": [
-            "component",
-            "tags"
-          ]
+        "tags": {
+          "description": "The tags to display, one chip each, in order.",
+          "$ref": "#/$defs/DynamicStringList"
+        },
+        "selectedIndex": {
+          "description": "The zero-based index of the highlighted tag. Defaults to the first one.",
+          "$ref": "#/$defs/DynamicNumber"
+        },
+        "accessibility": {
+          "$ref": "#/$defs/AccessibilityAttributes"
+        },
+        "weight": {
+          "type": "number",
+          "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
         }
+      },
+      "required": [
+        "id",
+        "tags",
+        "component"
       ],
-      "unevaluatedProperties": false
+      "additionalProperties": false
     },
     "TaskList": {
       "type": "object",
-      "allOf": [
-        {
-          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+      "description": "A titled list of rows, one per item in the data.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/ComponentId"
         },
-        {
-          "$ref": "#/$defs/CatalogComponentCommon"
+        "component": {
+          "const": "TaskList"
         },
-        {
-          "type": "object",
-          "properties": {
-            "component": {
-              "type": "string",
-              "enum": [
-                "TaskList"
-              ]
-            },
-            "title": {
-              "description": "The heading above the list.",
-              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString"
-            },
-            "rows": {
-              "description": "One row per task.",
-              "oneOf": [
-                {
-                  "type": "array",
-                  "items": {
-                    "type": "string",
-                    "description": "Component ID"
-                  }
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "componentId": {
-                      "type": "string",
-                      "description": "The ID of a component."
-                    },
-                    "path": {
-                      "type": "string",
-                      "description": "A relative or absolute path in the data model."
-                    }
-                  },
-                  "required": [
-                    "componentId",
-                    "path"
-                  ]
-                }
-              ]
-            },
-            "emptyLabel": {
-              "description": "Shown when there are no rows.",
-              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString"
-            }
-          },
-          "required": [
-            "component",
-            "title",
-            "rows"
-          ]
+        "title": {
+          "description": "The heading above the list.",
+          "$ref": "#/$defs/DynamicString"
+        },
+        "rows": {
+          "description": "One row per task.",
+          "$ref": "#/$defs/ChildList"
+        },
+        "emptyLabel": {
+          "description": "Shown when there are no rows.",
+          "$ref": "#/$defs/DynamicString"
+        },
+        "accessibility": {
+          "$ref": "#/$defs/AccessibilityAttributes"
+        },
+        "weight": {
+          "type": "number",
+          "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
         }
+      },
+      "required": [
+        "id",
+        "title",
+        "rows",
+        "component"
       ],
-      "unevaluatedProperties": false
+      "additionalProperties": false
     }
   },
   "functions": {
@@ -536,7 +426,7 @@
           "type": "object",
           "properties": {
             "row": {
-              "oneOf": [
+              "anyOf": [
                 {
                   "type": "object",
                   "description": "One row of a metrics table: a labelled metric with its current value, the direction it is moving in and an optional short note explaining the number.",
@@ -570,33 +460,12 @@
                   ]
                 },
                 {
-                  "type": "object",
-                  "properties": {
-                    "path": {
-                      "type": "string",
-                      "description": "A relative or absolute path in the data model."
-                    }
-                  },
-                  "required": [
-                    "path"
-                  ]
+                  "description": "A JSON Pointer path to a value in the data model.",
+                  "$ref": "#/$defs/DataBinding"
                 },
                 {
-                  "type": "object",
-                  "properties": {
-                    "call": {
-                      "type": "string",
-                      "description": "The name of the function to call."
-                    },
-                    "args": {
-                      "type": "object",
-                      "description": "Arguments to pass to the function.",
-                      "additionalProperties": true
-                    }
-                  },
-                  "required": [
-                    "call"
-                  ]
+                  "description": "Invokes a named function on the client.",
+                  "$ref": "#/$defs/FunctionCall"
                 }
               ]
             }
@@ -626,10 +495,12 @@
           "type": "object",
           "properties": {
             "cents": {
-              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicNumber"
+              "description": "A number value",
+              "$ref": "#/$defs/DynamicNumber"
             },
             "currency": {
-              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString"
+              "description": "Represents a string that can be static, bound, or computed.",
+              "$ref": "#/$defs/DynamicString"
             }
           },
           "required": [
@@ -657,27 +528,26 @@
           "type": "object",
           "properties": {
             "name": {
-              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString"
+              "description": "Represents a string that can be static, bound, or computed.",
+              "$ref": "#/$defs/DynamicString"
             },
             "style": {
-              "allOf": [
+              "anyOf": [
                 {
-                  "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString"
+                  "type": "string",
+                  "enum": [
+                    "initials",
+                    "firstOnly",
+                    "lastFirst"
+                  ]
                 },
                 {
-                  "anyOf": [
-                    {
-                      "type": "string",
-                      "enum": [
-                        "initials",
-                        "firstOnly",
-                        "lastFirst"
-                      ]
-                    },
-                    {
-                      "type": "object"
-                    }
-                  ]
+                  "description": "A JSON Pointer path to a value in the data model.",
+                  "$ref": "#/$defs/DataBinding"
+                },
+                {
+                  "description": "Invokes a named function on the client.",
+                  "$ref": "#/$defs/FunctionCall"
                 }
               ]
             }
@@ -698,38 +568,6 @@
     }
   },
   "$defs": {
-    "CatalogComponentCommon": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "A unique identifier for this component instance within the surface. This ID is used to refer to the component in layout children arrays or event handlers."
-        }
-      },
-      "required": [
-        "id"
-      ]
-    },
-    "theme": {
-      "type": "object",
-      "properties": {
-        "primaryColor": {
-          "type": "string",
-          "description": "The primary brand color used for highlights (e.g., primary buttons, active borders). Renderers may generate variants of this color for different contexts. Format: Hexadecimal code (e.g., '#00BFFF').",
-          "pattern": "^#[0-9a-fA-F]{6}$"
-        },
-        "iconUrl": {
-          "type": "string",
-          "format": "uri",
-          "description": "A URL for an image that identifies the agent or tool associated with the surface."
-        },
-        "agentDisplayName": {
-          "type": "string",
-          "description": "Text to be displayed next to the surface to identify the agent or tool that created it."
-        }
-      },
-      "additionalProperties": true
-    },
     "anyComponent": {
       "oneOf": [
         {
@@ -773,6 +611,308 @@
           "$ref": "#/functions/shortenName"
         }
       ]
+    },
+    "ComponentId": {
+      "type": "string",
+      "description": "The unique identifier for a component, used for both definitions and references within the same surface."
+    },
+    "DynamicString": {
+      "description": "Represents a string",
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/$defs/DataBinding"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/FunctionCall"
+            },
+            {
+              "properties": {
+                "returnType": {
+                  "const": "string"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "CheckRule": {
+      "type": "object",
+      "description": "A single validation rule applied to an input component.",
+      "properties": {
+        "condition": {
+          "$ref": "#/$defs/DynamicBoolean"
+        },
+        "message": {
+          "type": "string",
+          "description": "The error message to display if the check fails."
+        }
+      },
+      "required": [
+        "condition",
+        "message"
+      ],
+      "additionalProperties": false
+    },
+    "AccessibilityAttributes": {
+      "type": "object",
+      "description": "Attributes to enhance accessibility when using assistive technologies like screen readers.",
+      "properties": {
+        "label": {
+          "$ref": "#/$defs/DynamicString",
+          "description": "A short string, typically 1 to 3 words, used by assistive technologies to convey the purpose or intent of an element. For example, an input field might have an accessible label of 'User ID' or a button might be labeled 'Submit'."
+        },
+        "description": {
+          "$ref": "#/$defs/DynamicString",
+          "description": "Additional information provided by assistive technologies about an element such as instructions, format requirements, or result of an action. For example, a mute button might have a label of 'Mute' and a description of 'Silences notifications about this conversation'."
+        }
+      }
+    },
+    "DataBinding": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "A JSON Pointer path to a value in the data model."
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "additionalProperties": false
+    },
+    "FunctionCall": {
+      "type": "object",
+      "description": "Invokes a named function on the client.",
+      "properties": {
+        "call": {
+          "type": "string",
+          "description": "The name of the function to call."
+        },
+        "args": {
+          "type": "object",
+          "description": "Arguments passed to the function.",
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/DynamicValue"
+              },
+              {
+                "type": "object",
+                "description": "A literal object argument (e.g. configuration)."
+              }
+            ]
+          }
+        },
+        "returnType": {
+          "type": "string",
+          "description": "The expected return type of the function call.",
+          "enum": [
+            "string",
+            "number",
+            "boolean",
+            "array",
+            "object",
+            "any",
+            "void"
+          ],
+          "default": "boolean"
+        }
+      },
+      "required": [
+        "call"
+      ],
+      "oneOf": [
+        {
+          "$ref": "catalog.json#/$defs/anyFunction"
+        }
+      ]
+    },
+    "Action": {
+      "description": "Defines an interaction handler that can either trigger a server-side event or execute a local client-side function.",
+      "oneOf": [
+        {
+          "type": "object",
+          "description": "Triggers a server-side event.",
+          "properties": {
+            "event": {
+              "type": "object",
+              "description": "The event to dispatch to the server.",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "The name of the action to be dispatched to the server."
+                },
+                "context": {
+                  "type": "object",
+                  "description": "A JSON object containing the key-value pairs for the action context. Values can be literals or paths. Use literal values unless the value must be dynamically bound to the data model. Do NOT use paths for static IDs.",
+                  "additionalProperties": {
+                    "$ref": "#/$defs/DynamicValue"
+                  }
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "event"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Executes a local client-side function.",
+          "properties": {
+            "functionCall": {
+              "$ref": "#/$defs/FunctionCall"
+            }
+          },
+          "required": [
+            "functionCall"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "DynamicBoolean": {
+      "description": "A boolean value that can be a literal, a path, or a function call returning a boolean.",
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "$ref": "#/$defs/DataBinding"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/FunctionCall"
+            },
+            {
+              "properties": {
+                "returnType": {
+                  "const": "boolean"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "DynamicNumber": {
+      "description": "Represents a value that can be either a literal number, a path to a number in the data model, or a function call returning a number.",
+      "oneOf": [
+        {
+          "type": "number"
+        },
+        {
+          "$ref": "#/$defs/DataBinding"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/FunctionCall"
+            },
+            {
+              "properties": {
+                "returnType": {
+                  "const": "number"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "DynamicStringList": {
+      "description": "Represents a value that can be either a literal array of strings, a path to a string array in the data model, or a function call returning a string array.",
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "$ref": "#/$defs/DataBinding"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/FunctionCall"
+            },
+            {
+              "properties": {
+                "returnType": {
+                  "const": "array"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "ChildList": {
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ComponentId"
+          },
+          "description": "A static list of child component IDs."
+        },
+        {
+          "type": "object",
+          "description": "A template for generating a dynamic list of children from a data model list. The `componentId` is the component to use as a template.",
+          "properties": {
+            "componentId": {
+              "$ref": "#/$defs/ComponentId"
+            },
+            "path": {
+              "type": "string",
+              "description": "The path to the list of component property objects in the data model."
+            }
+          },
+          "required": [
+            "componentId",
+            "path"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "DynamicValue": {
+      "description": "A value that can be a literal, a path, or a function call returning any type.",
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "array"
+        },
+        {
+          "$ref": "#/$defs/DataBinding"
+        },
+        {
+          "$ref": "#/$defs/FunctionCall"
+        }
+      ]
     }
-  }
+  },
+  "title": "genui_gen example catalog",
+  "description": "The widgets this example app renders for an agent."
 }

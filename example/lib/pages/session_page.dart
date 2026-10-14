@@ -1,5 +1,8 @@
+import 'dart:convert';
+
+import 'package:a2ui_core/a2ui_core.dart';
+import 'package:a2ui_flutter/a2ui_flutter.dart';
 import 'package:flutter/material.dart';
-import 'package:genui/genui.dart';
 import 'package:genui_gen/inspector.dart';
 import 'package:genui_gen/tracing.dart';
 
@@ -22,7 +25,7 @@ class SessionPage extends StatefulWidget {
 class _SessionPageState extends State<SessionPage> {
   static const String _surfaceId = 'session';
 
-  late SurfaceController _controller;
+  late MessageProcessor<ComponentImplementation> _processor;
   late GenUiTraceRecorder _recorder;
   final TextEditingController _prompt = TextEditingController();
   final List<_Entry> _log = <_Entry>[];
@@ -38,27 +41,29 @@ class _SessionPageState extends State<SessionPage> {
   @override
   void dispose() {
     _recorder.dispose();
-    _controller.dispose();
+    _processor.dispose();
     _prompt.dispose();
     super.dispose();
   }
 
   void _start() {
-    _controller = SurfaceController(catalogs: [exampleCatalog]);
+    _processor = MessageProcessor<ComponentImplementation>(
+      catalogs: [exampleCatalog],
+      defaultVersion: A2uiProtocolVersion.v0_9,
+    );
     _recorder = GenUiTraceRecorder.attach(
-      _controller,
-      catalogId: exampleCatalog.catalogId,
+      _processor,
+      catalogId: exampleCatalog.id,
       notes: const {'source': 'genui_gen example, session tab'},
     );
-    _controller.onSubmit.listen(_onSubmit);
+    _processor.groupModel.onAction.addListener(_onAction);
   }
 
-  void _onSubmit(ChatMessage message) {
-    final String text = message.parts.uiInteractionParts
-        .map((part) => part.interaction)
-        .join('\n');
-    if (text.isEmpty) return;
-    setState(() => _log.add(_Entry.fromApp(text)));
+  /// What the app sends back to the agent when the user acts on the surface.
+  void _onAction(A2uiClientAction action) {
+    setState(
+      () => _log.add(_Entry.fromApp(jsonEncode({'action': action.toJson()}))),
+    );
     recordedTrace.value = _recorder.build();
   }
 
@@ -75,9 +80,7 @@ class _SessionPageState extends State<SessionPage> {
       _turn = turn;
     });
 
-    for (final message in turn.messages(surfaceId, exampleCatalog.catalogId!)) {
-      _recorder.handleMessage(message);
-    }
+    _recorder.processMessages(turn.messages(surfaceId, exampleCatalog.id));
     recordedTrace.value = _recorder.build();
     _prompt.clear();
   }
@@ -92,7 +95,7 @@ class _SessionPageState extends State<SessionPage> {
     // this example is built in release mode for the web; a real app leaves it
     // at `kDebugMode` and ships without it.
     return GenUiInspector(
-      controller: _controller,
+      processor: _processor,
       recorder: _recorder,
       enabled: true,
       child: Column(
@@ -115,8 +118,9 @@ class _SessionPageState extends State<SessionPage> {
                     clipBehavior: Clip.antiAlias,
                     child: Padding(
                       padding: const EdgeInsets.all(12),
-                      child: Surface(
-                        surfaceContext: _controller.contextFor(surfaceId!),
+                      child: A2uiSurface(
+                        key: ValueKey(surfaceId),
+                        surface: _processor.groupModel.getSurface(surfaceId!)!,
                       ),
                     ),
                   ),
@@ -153,7 +157,7 @@ class _SessionPageState extends State<SessionPage> {
                     icon: const Icon(Icons.refresh),
                     onPressed: () {
                       _recorder.dispose();
-                      _controller.dispose();
+                      _processor.dispose();
                       setState(() {
                         _log.clear();
                         _turn = null;
