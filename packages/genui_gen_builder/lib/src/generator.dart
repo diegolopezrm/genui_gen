@@ -113,6 +113,14 @@ class GenUiGenerator extends GeneratorForAnnotation<Object> {
         code = emitCatalogItem(spec);
       case Renderer.a2uiFlutter:
         checkA2uiFlutterNames(spec, element);
+        if (spec.isImplicitlyFlexible) {
+          log.warning(
+            '`isImplicitlyFlexible` on `${spec.className}` has no effect on '
+            'a2ui_flutter: a basic Row or Column sizes a child by the '
+            '`weight` the agent gives it, which every generated component '
+            'accepts.',
+          );
+        }
         code = emitComponentImplementation(spec);
     }
     checkImports(element.library, code.symbols, element);
