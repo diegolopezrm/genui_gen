@@ -24,6 +24,7 @@ class GenUiExampleSurface extends StatefulWidget {
     required this.catalog,
     required this.component,
     this.exampleIndex = 0,
+    this.onAction,
   });
 
   /// The catalog the example is composed against.
@@ -38,6 +39,10 @@ class GenUiExampleSurface extends StatefulWidget {
   /// Which of [GenUiComponent.examples] to render, for a component that has
   /// more than one.
   final int exampleIndex;
+
+  /// Called with each action the example sends, such as a button press, which
+  /// an app would hand to the agent.
+  final ValueChanged<A2uiClientAction>? onAction;
 
   @override
   State<GenUiExampleSurface> createState() => _GenUiExampleSurfaceState();
@@ -74,6 +79,11 @@ class _GenUiExampleSurfaceState extends State<GenUiExampleSurface> {
     _processor = MessageProcessor<ComponentImplementation>(
       catalogs: [widget.catalog],
       defaultVersion: A2uiProtocolVersion.v0_9,
+    );
+    // Read when the action arrives, so a rebuilt widget's callback is the one
+    // called.
+    _processor.groupModel.onAction.addListener(
+      (action) => widget.onAction?.call(action),
     );
     final surfaceId = '${widget.component.name}-${widget.exampleIndex}';
     final Object? components = jsonDecode(

@@ -164,8 +164,10 @@ List<GenUiCatalogChange> _componentChanges(
     ...newProperties.keys,
   }) {
     // `component` is the discriminator, written by the generator from the
-    // component's own name. It cannot change without the component changing.
-    if (property == 'component') continue;
+    // component's own name, and `id` is the protocol's. Neither can change
+    // without the component changing. genui leaves `id` to a shared
+    // definition and a2ui_core lists it, so it would otherwise read as new.
+    if (property == 'component' || property == 'id') continue;
     final String where = '$name.$property';
     final Object? oldProperty = oldProperties[property];
     final Object? newProperty = newProperties[property];
@@ -232,7 +234,7 @@ List<GenUiCatalogChange> _componentChanges(
     }
   }
 
-  if (before['description'] != after['description']) {
+  if (_description(before) != _description(after)) {
     changes.add(
       GenUiCatalogChange(
         GenUiCatalogChangeKind.descriptionChanged,
@@ -243,6 +245,11 @@ List<GenUiCatalogChange> _componentChanges(
 
   return changes;
 }
+
+/// A component's description, which genui writes on its own `allOf` branch
+/// and a2ui_core on the component.
+Object? _description(Map<String, Object?> component) =>
+    _own(component)['description'] ?? component['description'];
 
 List<GenUiCatalogChange> _enumChanges(
   String where,
@@ -290,10 +297,33 @@ Set<String> _required(Map<String, Object?> component) => <String>{
     '$name',
 };
 
-Set<String> _enumValues(Map<String, Object?> property) => <String>{
-  for (final value in (property['enum'] as List?) ?? const []) '$value',
-  for (final value in (property['enumValues'] as List?) ?? const []) '$value',
-};
+/// The enum values a property declares, at any depth.
+///
+/// A generated enum property offers its names next to a data binding and a
+/// function call, so they are not at the top. A `$ref` is not followed: a
+/// shared definition's enums, such as a function call's `returnType`, are not
+/// the property's.
+Set<String> _enumValues(Map<String, Object?> property) {
+  final found = <String>{};
+  void walk(Object? node) {
+    if (node is List) {
+      node.forEach(walk);
+      return;
+    }
+    if (node is! Map || node[r'$ref'] != null) return;
+    for (final key in const ['enum', 'enumValues']) {
+      for (final value in (node[key] as List?) ?? const []) {
+        found.add('$value');
+      }
+    }
+    for (final Object? child in node.values) {
+      walk(child);
+    }
+  }
+
+  walk(property);
+  return found;
+}
 
 /// Definitions in A2UI's `common_types.json` that are a JSON type and nothing
 /// more, by name.
@@ -305,6 +335,20 @@ Set<String> _enumValues(Map<String, Object?> property) => <String>{
 /// definitions carry structure of their own and still compare by name.
 const Map<String, String> _plainCommonTypes = <String, String>{
   'ComponentId': 'string',
+  // genui spelled these out where a2ui_core names them.
+  'ChildList': 'oneOf(array|object)',
+  'DynamicStringList': 'oneOf(DataBinding|FunctionCall|array)',
+};
+
+/// The shared definitions a union of a literal, a data binding and a function
+/// call amounts to, by the shape of the union.
+///
+/// a2ui_core writes a dynamic enum, or a dynamic value with a description of
+/// its own, as that union spelled out; genui named the shared definition.
+const Map<String, String> _dynamicUnions = <String, String>{
+  'oneOf(DataBinding|FunctionCall|string)': 'DynamicString',
+  'oneOf(DataBinding|FunctionCall|number)': 'DynamicNumber',
+  'oneOf(DataBinding|FunctionCall|boolean)': 'DynamicBoolean',
 };
 
 const String _commonTypeDefs = r'common_types.json#/$defs/';
@@ -326,7 +370,19 @@ String? _commonTypeName(String ref) {
 /// What a property accepts, reduced to something two versions can be compared
 /// by: its type, or the set of shapes a `oneOf` or an `anyOf` offers.
 String? _shape(Map<String, Object?> property) {
-  if (property['type'] case final Object type) return '$type';
+  if (property['type'] case final Object type) {
+    // genui spells a data binding and a function call out inline, where
+    // a2ui_core points at the shared definitions.
+    if (type == 'object') {
+      if (property['properties'] case final Map props) {
+        if (props.containsKey('path') && !props.containsKey('componentId')) {
+          return 'DataBinding';
+        }
+        if (props.containsKey('call')) return 'FunctionCall';
+      }
+    }
+    return '$type';
+  }
   if (property[r'$ref'] case final Object ref) {
     final String target = '$ref';
     final String? name = _commonTypeName(target);
@@ -342,7 +398,17 @@ String? _shape(Map<String, Object?> property) {
           else
             '$branch',
       ]..sort();
-      return 'oneOf(${shapes.join('|')})';
+      final shape = 'oneOf(${shapes.join('|')})';
+      return _dynamicUnions[shape] ?? shape;
+    }
+  }
+  // genui writes a dynamic enum as the shared definition narrowed by its
+  // names; the definition is the shape.
+  if (property['allOf'] case final List branches) {
+    for (final branch in branches) {
+      if (branch is! Map) continue;
+      final String? shape = _shape(branch.cast<String, Object?>());
+      if (shape != null) return shape;
     }
   }
   if (property['const'] != null) return 'const';
