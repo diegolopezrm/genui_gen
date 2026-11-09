@@ -310,7 +310,13 @@ const Map<String, String> _plainCommonTypes = <String, String>{
 const String _commonTypeDefs = r'common_types.json#/$defs/';
 
 /// What a property accepts, reduced to something two versions can be compared
-/// by: its type, or the set of shapes a `oneOf` offers.
+/// by: its type, or the set of shapes a `oneOf` or an `anyOf` offers.
+///
+/// A definition in `common_types.json` is compared by its name, wherever the
+/// file is hosted: genui pointed at it on a2ui.org, a2ui_core points at it
+/// relative to the catalog. A union is compared by its shapes, whichever
+/// keyword holds them: genui wrote a literal-or-binding property as a `oneOf`,
+/// which a binding can match twice, and this package now writes an `anyOf`.
 String? _shape(Map<String, Object?> property) {
   if (property['type'] case final Object type) return '$type';
   if (property[r'$ref'] case final Object ref) {
@@ -319,10 +325,11 @@ String? _shape(Map<String, Object?> property) {
     if (at >= 0) {
       final String name = target.substring(at + _commonTypeDefs.length);
       if (_plainCommonTypes[name] case final String type) return type;
+      return '$_commonTypeDefs$name';
     }
     return target;
   }
-  if (property['oneOf'] case final List branches) {
+  if ((property['oneOf'] ?? property['anyOf']) case final List branches) {
     final shapes = <String>[
       for (final branch in branches)
         if (branch is Map)

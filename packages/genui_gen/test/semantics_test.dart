@@ -2,14 +2,14 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:genui/genui.dart';
-import 'package:genui_gen/genui_gen.dart' show S;
+import 'package:genui_gen/genui_gen.dart'
+    show CatalogImplementation, CatalogItem, S;
 import 'package:genui_gen/testing.dart';
 
 /// A catalog item whose example renders a labelled button and a line of text.
 final CatalogItem _panel = CatalogItem(
   name: 'Panel',
-  dataSchema: S.object(
+  schema: S.object(
     description: 'A panel.',
     properties: {'title': S.string()},
     required: ['title'],
@@ -20,8 +20,8 @@ final CatalogItem _panel = CatalogItem(
   {"id": "root", "component": "Panel", "title": "Storage"}
 ]''',
   ],
-  widgetBuilder: (ctx) {
-    final title = (ctx.data as JsonMap)['title']! as String;
+  builder: (context, node, props, buildChild) {
+    final title = props.value('title')! as String;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -32,7 +32,10 @@ final CatalogItem _panel = CatalogItem(
   },
 );
 
-final Catalog _catalog = Catalog([_panel], catalogId: 'dev.dlsoft.test');
+final CatalogImplementation _catalog = CatalogImplementation(
+  id: 'dev.dlsoft.test',
+  components: [_panel],
+);
 
 Future<List<GenUiSemanticNode>> record(WidgetTester tester) async {
   final SemanticsHandle handle = tester.ensureSemantics();

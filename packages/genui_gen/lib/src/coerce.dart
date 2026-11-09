@@ -1,13 +1,23 @@
-/// Coercions and reporting helpers used by the generated decoders.
+/// Coercions and reporting helpers used by the generated builders and
+/// decoders.
 ///
-/// A widget property goes through genui's `Bound*` widgets, which coerce
-/// rather than throw: `BoundString` calls `toString()`, `BoundNumber` parses a
-/// numeric string, `BoundBool` accepts `"true"` / `"false"` and treats a
-/// non-zero number as `true`. The values *inside* a `@GenUiData` object never
-/// pass through those widgets, so the same rules are applied here. A model
-/// that sends `"42.5"` where a number is expected therefore degrades the same
-/// way in both places, and a malformed field never throws inside `build`.
+/// These coerce rather than throw, with the rules genui's `Bound*` widgets
+/// applied: a string is read from anything with `toString()`, a number is
+/// parsed from a numeric string, a bool is read from `"true"` / `"false"` and
+/// from a number that is not zero. The generated builder reads every widget
+/// property through them, and the generated decoders every field *inside* a
+/// `@GenUiData` object, so a model that sends `"42.5"` where a number is
+/// expected degrades the same way in both places, and a malformed field never
+/// throws inside `build`.
 library;
+
+/// Rebuilds a `T` from the JSON map the model produced for it.
+///
+/// Generated code declares one of these for every `@GenUiData` class: the
+/// renderer resolves the property to a map (or a list of maps), and the
+/// decoder turns each map into the Dart object the widget constructor
+/// expects.
+typedef GenUiDecoder<T> = T Function(Map<String, Object?> json);
 
 /// Reports one field of a data object that was required but missing or
 /// unusable.

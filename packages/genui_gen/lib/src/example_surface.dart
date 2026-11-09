@@ -1,17 +1,20 @@
 import 'dart:convert';
 
-import 'package:a2ui_core/a2ui_core.dart' as core;
+import 'package:a2ui_core/a2ui_core.dart';
+import 'package:a2ui_flutter/a2ui_flutter.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
-import 'package:genui/genui.dart';
+
+import 'catalog_item.dart';
 
 /// Renders one catalog item's generated example, through a real surface.
 ///
-/// The example is the only sample of a component the package has that the
-/// model also sees: it is what few-shot prompting shows the model and what
-/// `DebugCatalogView` puts on screen. Rendering it through a
-/// [SurfaceController], rather than calling the widget directly, is what makes
-/// a test of it a test of the whole path — schema, bindings, actions and all.
+/// The example is the only sample of a component the package has that is
+/// written the way the model writes it: it is what few-shot prompting shows
+/// the model and what a catalog page puts on screen. Rendering it through a
+/// [MessageProcessor] and an [A2uiSurface], rather than calling the widget
+/// directly, is what makes a test of it a test of the whole path — schema,
+/// bindings, actions and all.
 class GenUiExampleSurface extends StatefulWidget {
   /// Creates a [GenUiExampleSurface].
   const GenUiExampleSurface({
@@ -23,9 +26,10 @@ class GenUiExampleSurface extends StatefulWidget {
 
   /// The catalog the example is composed against.
   ///
-  /// It needs a `catalogId`, since a surface names the catalog it was built
-  /// against; `genUiCatalog` carries the one from `build.yaml`.
-  final Catalog catalog;
+  /// A surface names the catalog it was built against, and the example is
+  /// created against this one's id. It has to hold every component the
+  /// example names, which for a generated example includes the basic `Text`.
+  final CatalogImplementation catalog;
 
   /// The item whose example is rendered.
   final CatalogItem item;
@@ -39,7 +43,7 @@ class GenUiExampleSurface extends StatefulWidget {
 }
 
 class _GenUiExampleSurfaceState extends State<GenUiExampleSurface> {
-  late SurfaceController _controller;
+  late MessageProcessor<ComponentImplementation> _processor;
   late String _surfaceId;
 
   @override
@@ -57,42 +61,57 @@ class _GenUiExampleSurfaceState extends State<GenUiExampleSurface> {
     if (oldWidget.item != widget.item ||
         oldWidget.exampleIndex != widget.exampleIndex ||
         oldWidget.catalog != widget.catalog) {
-      // After the frame, not during it: the widgets the old controller built
+      // After the frame, not during it: the widgets the old processor built
       // are still mounted, and some of them read inherited widgets as they go
       // away.
-      final SurfaceController previous = _controller;
+      final MessageProcessor<ComponentImplementation> previous = _processor;
       SchedulerBinding.instance.addPostFrameCallback((_) => previous.dispose());
       _start();
     }
   }
 
   void _start() {
-    _controller = SurfaceController(catalogs: [widget.catalog]);
+    // An example the catalog rejects is reported on the processor's `onError`
+    // rather than thrown from `initState`, and renders nothing.
+    _processor = MessageProcessor<ComponentImplementation>(
+      catalogs: [widget.catalog],
+      reportErrorsOnly: true,
+    );
     _surfaceId = '${widget.item.name}-${widget.exampleIndex}';
 
-    final String catalogId = widget.catalog.catalogId!;
-    final List<JsonMap> components =
-        (jsonDecode(widget.item.exampleData[widget.exampleIndex]()) as List)
-            .cast<JsonMap>();
+    final String version = A2uiProtocolVersion.v0_9.jsonValue;
+    final List<Object?> components =
+        jsonDecode(widget.item.exampleData[widget.exampleIndex]()) as List;
 
-    _controller.handleMessage(
-      core.UpdateComponentsMessage(
-        surfaceId: _surfaceId,
-        components: components,
-      ),
-    );
-    _controller.handleMessage(
-      core.CreateSurfaceMessage(surfaceId: _surfaceId, catalogId: catalogId),
-    );
+    _processor.processMessages(<Object?>[
+      <String, Object?>{
+        'version': version,
+        'createSurface': <String, Object?>{
+          'surfaceId': _surfaceId,
+          'catalogId': widget.catalog.id,
+        },
+      },
+      <String, Object?>{
+        'version': version,
+        'updateComponents': <String, Object?>{
+          'surfaceId': _surfaceId,
+          'components': components,
+        },
+      },
+    ]);
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _processor.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) =>
-      Surface(surfaceContext: _controller.contextFor(_surfaceId));
+  Widget build(BuildContext context) {
+    final SurfaceModel<ComponentImplementation>? surface = _processor.model
+        .getSurface(_surfaceId);
+    if (surface == null) return const SizedBox.shrink();
+    return A2uiSurface(key: ObjectKey(surface), surface: surface);
+  }
 }

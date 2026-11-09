@@ -15,6 +15,7 @@
 /// // test/genui_semantics_test.dart
 /// import 'dart:io';
 ///
+/// import 'package:a2ui_flutter/v0_9/basic_catalog.dart';
 /// import 'package:flutter/material.dart';
 /// import 'package:flutter_test/flutter_test.dart';
 /// import 'package:genui_gen/testing.dart';
@@ -22,13 +23,18 @@
 ///
 /// void main() {
 ///   testWidgets('the catalog exposes what it did before', (tester) async {
+///     // The examples compose the basic `Text` for child components.
+///     final catalog = basicCatalog().derive(
+///       catalogId: genUiCatalog.id,
+///       addComponents: genUiCatalogItems,
+///     );
 ///     final recorded = <String, List<GenUiSemanticNode>>{};
-///     for (final item in genUiCatalog.items) {
+///     for (final item in genUiCatalogItems) {
 ///       final handle = tester.ensureSemantics();
 ///       await tester.pumpWidget(
 ///         MaterialApp(
 ///           home: Scaffold(
-///             body: GenUiExampleSurface(catalog: genUiCatalog, item: item),
+///             body: GenUiExampleSurface(catalog: catalog, item: item),
 ///           ),
 ///         ),
 ///       );

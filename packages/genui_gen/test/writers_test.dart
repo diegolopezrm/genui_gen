@@ -1,166 +1,164 @@
+import 'package:a2ui_core/a2ui_core.dart';
+import 'package:a2ui_flutter/a2ui_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:genui/genui.dart';
 import 'package:genui_gen/genui_gen.dart';
+
+import 'src/surface.dart';
 
 enum Size { small, large }
 
-/// Pumps a widget that builds a [CatalogItemContext] with a real
-/// [BuildContext] and hands it to [body].
-Future<void> pumpWithContext(
+/// The node and properties the last build of [_switch] saw, so a test can
+/// build writers the way the generated builder does.
+late ComponentNode<ComponentImplementation> _node;
+late ComponentProps _props;
+
+/// A component built the way the generator builds one with a `@GenUiWrites`
+/// parameter: the property is read with [genUiWrittenValue], and the writer
+/// comes from [genUiValueWriter].
+final CatalogItem _switch = CatalogItem(
+  name: 'LabeledSwitch',
+  schema: S.object(
+    properties: {
+      'value': CommonSchemas.dynamicString,
+      'volume': CommonSchemas.dynamicNumber,
+      'size': CommonSchemas.dynamicString,
+    },
+  ),
+  builder: (context, node, props, buildChild) {
+    _node = node;
+    _props = props;
+    return Text(genUiAsString(genUiWrittenValue(node, props, 'value')) ?? '');
+  },
+);
+
+Future<Rendered> render(
   WidgetTester tester, {
-  required DataContext dataContext,
-  required void Function(Object error, StackTrace? stack) reportError,
-  required Widget Function(CatalogItemContext ctx) body,
-  Object data = const <String, Object?>{},
-}) async {
-  await tester.pumpWidget(
-    MaterialApp(
-      home: Scaffold(
-        body: Builder(
-          builder: (context) => body(
-            CatalogItemContext(
-              data: data,
-              id: 'switch-1',
-              type: 'LabeledSwitch',
-              buildChild: (_, [_]) => const SizedBox.shrink(),
-              dispatchEvent: (_) {},
-              buildContext: context,
-              dataContext: dataContext,
-              getComponent: (_) => null,
-              getCatalogItem: (_) => null,
-              surfaceId: 'surface-1',
-              reportError: reportError,
-            ),
-          ),
-        ),
-      ),
-    ),
-  );
-}
+  Map<String, Object?> properties = const {},
+  Map<String, Object?>? data,
+}) => renderSurface(
+  tester,
+  items: [_switch],
+  data: data,
+  components: [
+    {'id': 'switch-1', 'component': 'LabeledSwitch', ...properties},
+    {
+      'id': 'root',
+      'component': 'Column',
+      'children': ['switch-1'],
+    },
+  ],
+);
 
 void main() {
-  late InMemoryDataModel model;
-  late DataContext dataContext;
-  late List<Object> errors;
-
-  setUp(() {
-    model = InMemoryDataModel();
-    dataContext = DataContext(model, DataPath.root);
-    errors = <Object>[];
-  });
-
-  tearDown(() {
-    model.dispose();
-  });
-
-  Future<CatalogItemContext> contextWith(
-    WidgetTester tester, {
-    Object data = const <String, Object?>{},
-  }) async {
-    late CatalogItemContext captured;
-    await pumpWithContext(
-      tester,
-      dataContext: dataContext,
-      reportError: (error, _) => errors.add(error),
-      data: data,
-      body: (ctx) {
-        captured = ctx;
-        return const SizedBox.shrink();
-      },
-    );
-    return captured;
-  }
-
   testWidgets('writes to the path the model bound the property to', (
     tester,
   ) async {
-    final ctx = await contextWith(tester);
-    genUiValueWriter<bool>(ctx, {'path': '/form/notify'}, 'value')(true);
+    final rendered = await render(
+      tester,
+      properties: {
+        'value': {'path': '/form/notify'},
+      },
+    );
+    genUiValueWriter<String>(_node, _props, 'value')('on');
 
-    expect(model.getValue<bool>(DataPath('/form/notify')), isTrue);
-    expect(errors, isEmpty);
+    expect(rendered.surface.dataModel.get('/form/notify'), 'on');
+    expect(rendered.errors, isEmpty);
   });
 
   testWidgets('a literal leaves nowhere to write, so the component owns it', (
     tester,
   ) async {
-    final ctx = await contextWith(tester);
-    genUiValueWriter<String>(ctx, 'a literal', 'value')('typed');
+    final rendered = await render(tester, properties: {'value': 'a literal'});
+    expect(find.text('a literal'), findsOneWidget);
 
-    expect(model.getValue<String>(DataPath('switch-1.value')), 'typed');
-    expect(errors, isEmpty);
+    genUiValueWriter<String>(_node, _props, 'value')('typed');
+    await tester.pump();
+
+    expect(rendered.surface.dataModel.get('/switch-1.value'), 'typed');
+    // And the control shows what it wrote, rather than the literal.
+    expect(find.text('typed'), findsOneWidget);
+    expect(rendered.errors, isEmpty);
   });
 
   testWidgets('a missing property is the same case as a literal', (
     tester,
   ) async {
-    final ctx = await contextWith(tester);
-    genUiValueWriter<num>(ctx, null, 'volume')(7);
+    final rendered = await render(tester);
+    genUiValueWriter<num>(_node, _props, 'volume')(7);
 
-    expect(model.getValue<num>(DataPath('switch-1.volume')), 7);
-  });
-
-  testWidgets('a path that is not a string is not a binding', (tester) async {
-    final ctx = await contextWith(tester);
-    genUiValueWriter<num>(ctx, {'path': 42}, 'volume')(7);
-
-    expect(model.getValue<num>(DataPath('switch-1.volume')), 7);
+    expect(rendered.surface.dataModel.get('/switch-1.volume'), 7);
   });
 
   testWidgets('an enum is written as its name', (tester) async {
-    final ctx = await contextWith(tester);
+    final rendered = await render(
+      tester,
+      properties: {
+        'size': {'path': '/form/size'},
+      },
+    );
     genUiValueWriter<Size>(
-      ctx,
-      {'path': '/form/size'},
+      _node,
+      _props,
       'size',
       encode: (value) => value.name,
     )(Size.large);
 
-    expect(model.getValue<String>(DataPath('/form/size')), 'large');
+    expect(rendered.surface.dataModel.get('/form/size'), 'large');
   });
 
   testWidgets('the same writer can be called more than once', (tester) async {
-    final ctx = await contextWith(tester);
-    final write = genUiValueWriter<String>(ctx, {'path': '/name'}, 'value');
+    final rendered = await render(
+      tester,
+      properties: {
+        'value': {'path': '/name'},
+      },
+    );
+    final write = genUiValueWriter<String>(_node, _props, 'value');
     write('ada');
     write('grace');
 
-    expect(model.getValue<String>(DataPath('/name')), 'grace');
+    expect(rendered.surface.dataModel.get('/name'), 'grace');
   });
 
   testWidgets('genUiWritePath reports where a value would go', (tester) async {
-    final ctx = await contextWith(tester);
+    await render(
+      tester,
+      properties: {
+        'value': {'path': '/a/b'},
+        'size': {'path': ''},
+      },
+    );
 
-    expect(genUiWritePath(ctx, {'path': '/a/b'}, 'value'), '/a/b');
-    expect(genUiWritePath(ctx, 'literal', 'value'), 'switch-1.value');
-    expect(genUiWritePath(ctx, {'path': ''}, 'value'), 'switch-1.value');
+    expect(genUiWritePath(_node, _props, 'value'), '/a/b');
+    expect(genUiWritePath(_node, _props, 'volume'), 'switch-1.volume');
+    // A binding to nothing names no place to write.
+    expect(genUiWritePath(_node, _props, 'size'), 'switch-1.size');
   });
 
   testWidgets('a write the data model refuses is reported, not thrown', (
     tester,
   ) async {
-    model.update(DataPath('/rows'), <Object?>[1, 2]);
-    final ctx = await contextWith(tester);
+    final rendered = await render(
+      tester,
+      data: {
+        'rows': <Object?>[1, 2],
+      },
+      properties: {
+        'value': {'path': '/rows/label'},
+      },
+    );
 
     // `/rows` holds a list, and `label` is not an index into one, so the data
     // model raises rather than inventing a key.
     expect(
-      () =>
-          genUiValueWriter<String>(ctx, {'path': '/rows/label'}, 'value')('x'),
+      () => genUiValueWriter<String>(_node, _props, 'value')('x'),
       returnsNormally,
     );
-    expect(errors, hasLength(1));
-    // The data model's own exception comes from `a2ui_core`, which this
-    // package does not depend on, so it arrives wrapped with its message kept.
-    expect(errors.single, isA<A2uiValidationException>());
-    expect(
-      errors.single.toString(),
-      allOf(
-        contains('switch-1'),
-        contains('/rows/label'),
-        contains('non-numeric segment'),
-      ),
-    );
+    await tester.pump();
+
+    final A2uiRendererError error = rendered.errors.single;
+    expect(error.code, 'DATA_ERROR');
+    expect(error.message, allOf(contains('switch-1'), contains('/rows/label')));
   });
 }

@@ -45,10 +45,11 @@ const genUiWritesChecker = TypeChecker.typeNamedLiterally(
 /// The extension the builder appends to the annotated file name.
 const generatedPartExtension = '.genui.dart';
 
-/// Component names genui's own basic catalog already uses.
+/// Component names the A2UI v0.9 basic catalog already uses.
 ///
-/// From `BasicCatalogItems` in genui 0.10; `Text` is handled separately
-/// because generated examples compose it for child components.
+/// From `BasicComponents` in a2ui_flutter, the same names as
+/// `BasicCatalogItems` in genui 0.10; `Text` is handled separately because
+/// generated examples compose it for child components.
 const _basicCatalogNames = {
   'AudioPlayer',
   'Button',
@@ -233,16 +234,17 @@ WidgetSpec buildWidgetSpec(ClassElement cls, ConstantReader annotation) {
     );
   }
   if (_basicCatalogNames.contains(catalogName)) {
-    // Not an error: a catalog is free to leave the basic items out, and then
-    // the name is available. It is worth saying out loud, though, because
-    // `Catalog.copyWith(newItems: ...)` next to `BasicCatalogItems` gives the
-    // model two components with one name and no indication which it composed.
+    // Not an error: a catalog is free to leave the basic components out, and
+    // then the name is available. It is worth saying out loud, though,
+    // because `basicCatalog().derive(addComponents: ...)` silently replaces
+    // the basic component of that name, and every prompt written against the
+    // basic one then means this one.
     log.warning(
-      'Component name `$catalogName` on `$className` is also a genui basic '
-      'catalog item. Registering both in one catalog leaves the model with '
-      'two components under that name. Rename it with '
-      '@GenUiWidget(name: ...) if the catalog includes '
-      'BasicCatalogItems.asCatalog().',
+      'Component name `$catalogName` on `$className` is also a component of '
+      'the A2UI basic catalog. Adding it to a catalog derived from '
+      'basicCatalog() replaces the basic one, so the model composes this one '
+      'where it meant the other. Rename it with @GenUiWidget(name: ...) if '
+      'the catalog includes the basic components.',
     );
   }
   if (catalogName.startsWith('_')) {
@@ -279,7 +281,6 @@ WidgetSpec buildWidgetSpec(ClassElement cls, ConstantReader annotation) {
     constructorName: constructorName ?? '',
     catalogName: catalogName,
     description: description.trim(),
-    isImplicitlyFlexible: _readBool(annotation, 'isImplicitlyFlexible'),
     props: props,
   );
 }
@@ -358,7 +359,7 @@ DataSpec buildDataSpec(
     if (field.schemaName != 'path' && field.schemaName != 'call') continue;
     throw InvalidGenerationSourceError(
       'Field `$className.${field.dartName}` would use the wire key '
-      '`${field.schemaName}`, which genui reserves. A property value whose '
+      '`${field.schemaName}`, which A2UI reserves. A property value whose '
       'map has a String `path` is resolved as a data binding, and one that '
       'contains `call` as a function call, so an object carrying that key is '
       'never delivered to the widget as a literal. Rename the wire key with '

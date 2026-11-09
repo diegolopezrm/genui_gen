@@ -1,16 +1,19 @@
-import 'package:a2ui_core/a2ui_core.dart' as core;
+import 'package:a2ui_core/a2ui_core.dart';
+import 'package:a2ui_flutter/a2ui_flutter.dart';
+import 'package:a2ui_flutter/v0_9/basic_catalog.dart' as v0_9;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:genui/genui.dart';
 import 'package:genui_gen/testing.dart';
 import 'package:genui_gen/tracing.dart';
 
-Catalog get _catalog =>
-    BasicCatalogItems.asCatalog().copyWith(catalogId: 'dev.dlsoft.trace');
+CatalogImplementation get _catalog =>
+    v0_9.basicCatalog().derive(catalogId: 'dev.dlsoft.trace');
+
+final String _version = A2uiProtocolVersion.v0_9.jsonValue;
 
 /// The session every test records: a surface with a checkbox bound to `/on`
 /// and a button that reports back.
-List<JsonMap> get _components => <JsonMap>[
+List<Map<String, Object?>> get _components => <Map<String, Object?>>[
   {
     'id': 'root',
     'component': 'Column',
@@ -39,10 +42,12 @@ Future<GenUiTrace> recordSession(
   WidgetTester tester, {
   List<String> redact = const <String>[],
 }) async {
-  final controller = SurfaceController(catalogs: [_catalog]);
-  addTearDown(controller.dispose);
+  final processor = MessageProcessor<ComponentImplementation>(
+    catalogs: [_catalog],
+  );
+  addTearDown(processor.dispose);
   final recorder = GenUiTraceRecorder.attach(
-    controller,
+    processor,
     catalogId: 'dev.dlsoft.trace',
     redact: redact,
     notes: const {'report': 'bug-4821'},
@@ -50,13 +55,22 @@ Future<GenUiTrace> recordSession(
   addTearDown(recorder.dispose);
 
   recorder.handleMessage(
-    core.UpdateComponentsMessage(surfaceId: 's', components: _components),
+    CreateSurfaceMessage(
+      version: _version,
+      surfaceId: 's',
+      catalogId: 'dev.dlsoft.trace',
+    ),
   );
   recorder.handleMessage(
-    core.CreateSurfaceMessage(surfaceId: 's', catalogId: 'dev.dlsoft.trace'),
+    UpdateComponentsMessage(
+      version: _version,
+      surfaceId: 's',
+      components: _components,
+    ),
   );
   recorder.handleMessage(
-    core.UpdateDataModelMessage(
+    UpdateDataModelMessage(
+      version: _version,
       surfaceId: 's',
       value: {'on': false, 'user': 'ada@example.com'},
     ),
@@ -64,12 +78,14 @@ Future<GenUiTrace> recordSession(
 
   await tester.pumpWidget(
     MaterialApp(
-      home: Scaffold(body: Surface(surfaceContext: controller.contextFor('s'))),
+      home: Scaffold(
+        body: A2uiSurface(surface: processor.model.getSurface('s')!),
+      ),
     ),
   );
   await tester.pumpAndSettle();
 
-  await tester.tap(find.byType(CheckboxListTile));
+  await tester.tap(find.byType(Checkbox));
   await tester.pumpAndSettle();
   await tester.tap(find.text('Confirm'));
   await tester.pumpAndSettle();
@@ -84,7 +100,8 @@ void main() {
 
       final messages = trace.steps.whereType<GenUiMessageStep>().toList();
       expect(messages, hasLength(3));
-      expect(messages.first.message.keys, contains('updateComponents'));
+      expect(messages.first.message.keys, contains('createSurface'));
+      expect(messages[1].message.keys, contains('updateComponents'));
       expect(trace.surfaceIds, ['s']);
       expect(trace.catalogId, 'dev.dlsoft.trace');
       expect(trace.notes['report'], 'bug-4821');
@@ -152,10 +169,7 @@ void main() {
       expect(find.text('Notify me'), findsOneWidget);
       expect(find.text('Confirm'), findsOneWidget);
       // The user's tick is part of the session, so the replay is ticked too.
-      expect(
-        tester.widget<CheckboxListTile>(find.byType(CheckboxListTile)).value,
-        isTrue,
-      );
+      expect(tester.widget<Checkbox>(find.byType(Checkbox)).value, isTrue);
     });
 
     testWidgets('stops where it is told to', (tester) async {
@@ -163,8 +177,8 @@ void main() {
       final player = GenUiTracePlayer(trace, catalog: _catalog);
       addTearDown(player.dispose);
 
-      // Up to the third message: the surface exists and the agent's data has
-      // arrived, but the user has not touched it yet.
+      // Up to the second message: the surface exists and holds its
+      // components, but the user has not touched it yet.
       player.seek(3);
       await tester.pumpWidget(
         MaterialApp(
@@ -173,18 +187,12 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(
-        tester.widget<CheckboxListTile>(find.byType(CheckboxListTile)).value,
-        isFalse,
-      );
+      expect(tester.widget<Checkbox>(find.byType(Checkbox)).value, isFalse);
 
       player.seekToEnd();
       await tester.pumpAndSettle();
 
-      expect(
-        tester.widget<CheckboxListTile>(find.byType(CheckboxListTile)).value,
-        isTrue,
-      );
+      expect(tester.widget<Checkbox>(find.byType(Checkbox)).value, isTrue);
     });
 
     testWidgets('rewinds by rebuilding, not by guessing', (tester) async {
@@ -208,10 +216,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(player.position, 3);
-      expect(
-        tester.widget<CheckboxListTile>(find.byType(CheckboxListTile)).value,
-        isFalse,
-      );
+      expect(tester.widget<Checkbox>(find.byType(Checkbox)).value, isFalse);
     });
 
     testWidgets('a replayed session can be held to its semantics', (
@@ -244,16 +249,19 @@ void main() {
   });
 
   group('what reaches the file', () {
-    late SurfaceController controller;
+    late MessageProcessor<ComponentImplementation> processor;
     late GenUiTraceRecorder recorder;
 
     void start({List<String> redact = const <String>[]}) {
-      controller = SurfaceController(catalogs: [_catalog]);
-      addTearDown(controller.dispose);
-      recorder = GenUiTraceRecorder.attach(controller, redact: redact);
+      processor = MessageProcessor<ComponentImplementation>(
+        catalogs: [_catalog],
+      );
+      addTearDown(processor.dispose);
+      recorder = GenUiTraceRecorder.attach(processor, redact: redact);
       addTearDown(recorder.dispose);
       recorder.handleMessage(
-        core.CreateSurfaceMessage(
+        CreateSurfaceMessage(
+          version: _version,
           surfaceId: 's',
           catalogId: 'dev.dlsoft.trace',
         ),
@@ -273,14 +281,15 @@ void main() {
     test('a message is kept as the agent sent it, not as it was changed', () {
       start();
       recorder.handleMessage(
-        core.UpdateDataModelMessage(
+        UpdateDataModelMessage(
+          version: _version,
           surfaceId: 's',
           value: <String, Object?>{'note': ''},
         ),
       );
       // The person types. The data model may be holding the very map the
       // message carried.
-      controller.contextFor('s').dataModel.update(DataPath('/note'), 'typed');
+      processor.model.getSurface('s')!.dataModel.set('/note', 'typed');
 
       expect(sentValue()['note'], '');
     });
@@ -288,7 +297,8 @@ void main() {
     test('redact covers what the agent sent, too', () {
       start(redact: const <String>['/user/email']);
       recorder.handleMessage(
-        core.UpdateDataModelMessage(
+        UpdateDataModelMessage(
+          version: _version,
           surfaceId: 's',
           value: <String, Object?>{
             'user': <String, Object?>{
@@ -308,7 +318,8 @@ void main() {
     test('redact follows a message that writes below the root', () {
       start(redact: const <String>['/user/email']);
       recorder.handleMessage(
-        core.UpdateDataModelMessage(
+        UpdateDataModelMessage(
+          version: _version,
           surfaceId: 's',
           path: '/user',
           value: <String, Object?>{'email': 'ada@example.com'},
@@ -321,7 +332,8 @@ void main() {
     test('a message writing inside a redacted path is blanked whole', () {
       start(redact: const <String>['/user']);
       recorder.handleMessage(
-        core.UpdateDataModelMessage(
+        UpdateDataModelMessage(
+          version: _version,
           surfaceId: 's',
           path: '/user/email',
           value: 'ada@example.com',

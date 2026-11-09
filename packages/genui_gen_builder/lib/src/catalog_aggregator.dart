@@ -25,10 +25,11 @@ const aggregateFileName = 'genui_catalog.g.dart';
 /// The variable the emitted file declares.
 const aggregateVariableName = 'genUiCatalogItems';
 
-/// The name of the generated list of `ClientFunction`s.
+/// The name of the generated list of `FunctionImplementation`s.
 const aggregateFunctionsVariableName = 'genUiCatalogFunctions';
 
-/// The assembled [Catalog] the emitted file declares alongside the list.
+/// The assembled catalog the emitted file declares alongside the list, when a
+/// [catalogIdOption] is set.
 const aggregateCatalogVariableName = 'genUiCatalog';
 
 /// The `build.yaml` option that names the emitted catalog.
@@ -61,12 +62,12 @@ final class _Item {
 class CatalogAggregatingBuilder implements Builder {
   const CatalogAggregatingBuilder({this.catalogId});
 
-  /// The id the emitted [Catalog] carries, from the `catalog_id` build option.
+  /// The id the emitted catalog carries, from the `catalog_id` build option.
   ///
-  /// A2UI names a catalog in `createSurface`, and genui's own
-  /// `DebugCatalogView` refuses a catalog without an id, so an app that talks
-  /// to an agent needs one. It cannot be derived here: the id identifies the
-  /// catalog to everything outside this build, which only the author knows.
+  /// A2UI names a catalog in `createSurface`, and an a2ui_core catalog cannot
+  /// exist without an id, so the catalog is only emitted when one is set. It
+  /// cannot be derived here: the id identifies the catalog to everything
+  /// outside this build, which only the author knows.
   final String? catalogId;
 
   @override
@@ -155,7 +156,7 @@ class CatalogAggregatingBuilder implements Builder {
       ..writeln()
       // Only genui_gen, which re-exports the renderer types named below, so
       // the generated catalog follows genui_gen to whichever renderer it is
-      // built on rather than naming genui itself.
+      // built on rather than naming a2ui_flutter itself.
       ..writeln("import 'package:genui_gen/genui_gen.dart';")
       ..writeln();
     for (final import in imports) {
@@ -178,15 +179,15 @@ class CatalogAggregatingBuilder implements Builder {
 
     out
       ..writeln()
-      ..writeln('/// Every [ClientFunction] generated in this package, by')
-      ..writeln('/// name.')
+      ..writeln('/// Every [FunctionImplementation] generated in this')
+      ..writeln('/// package, by name.')
       ..writeln('///')
       ..writeln('/// These are the other half of a catalog: what the model')
       ..writeln('/// computes a value with, through the `{"call": ...}` form')
       ..writeln('/// any bound property accepts.')
       ..writeln(
-        'final List<ClientFunction> $aggregateFunctionsVariableName = '
-        '<ClientFunction>[',
+        'final List<FunctionImplementation> $aggregateFunctionsVariableName = '
+        '<FunctionImplementation>[',
       );
     for (final function in functions) {
       out.writeln('  ${function.variableName},');
@@ -197,8 +198,12 @@ class CatalogAggregatingBuilder implements Builder {
     return out.toString();
   }
 
-  /// Appends the assembled [Catalog], so that the app has something to hand to
-  /// genui rather than a list it still has to wrap by hand.
+  /// Appends the assembled catalog, so that the app has something to hand to
+  /// the renderer rather than a list it still has to wrap by hand.
+  ///
+  /// Without a [catalogId] only the explanation is written: an a2ui_core
+  /// catalog needs an id, and inventing one would name the catalog to every
+  /// agent with something its author never chose.
   void _writeCatalog(StringBuffer out) {
     final id = catalogId;
     if (id != null && !_catalogIdPattern.hasMatch(id)) {
@@ -208,47 +213,56 @@ class CatalogAggregatingBuilder implements Builder {
         '`com.example.my_catalog`, or the URL the catalog is published at.',
       );
     }
+    if (id == null) {
+      out
+        ..writeln()
+        ..writeln(
+          '// `$aggregateCatalogVariableName`, every generated item of this '
+          'package as a',
+        )
+        ..writeln('// `CatalogImplementation`, is not declared, because no')
+        ..writeln(
+          '// `$catalogIdOption` build option was set. A surface names the',
+        )
+        ..writeln(
+          '// catalog it was built against, so set one in `build.yaml`:',
+        )
+        ..writeln('//')
+        ..writeln('//   targets:')
+        ..writeln(r'//     $default:')
+        ..writeln('//       builders:')
+        ..writeln('//         genui_gen_builder:genui_catalog:')
+        ..writeln('//           options:')
+        ..writeln('//             $catalogIdOption: com.example.my_catalog');
+      return;
+    }
     out
       ..writeln()
       ..writeln('/// Every generated [CatalogItem] of this package, as a')
-      ..writeln('/// [Catalog] ready to hand to genui.')
+      ..writeln('/// [CatalogImplementation] ready to hand to the renderer.')
       ..writeln('///')
-      ..writeln('/// Compose it with any other catalog through')
-      ..writeln('/// [Catalog.copyWith], for instance to add genui\'s own')
-      ..writeln('/// basic components:')
+      ..writeln(
+        "/// A v0.9 surface draws on one catalog, so add a2ui_flutter's",
+      )
+      ..writeln('/// basic components by deriving its basic catalog')
+      ..writeln("/// (`package:a2ui_flutter/v0_9/basic_catalog.dart`):")
       ..writeln('///')
       ..writeln('/// ```dart')
-      ..writeln('/// final catalog = $aggregateCatalogVariableName.copyWith(')
-      ..writeln('///   newItems: BasicCatalogItems.asCatalog().items.toList(),')
-      ..writeln(
-        '///   newFunctions: BasicCatalogItems.asCatalog().functions'
-        '.toList(),',
-      )
+      ..writeln('/// final catalog = basicCatalog().derive(')
+      ..writeln('///   catalogId: $aggregateCatalogVariableName.id,')
+      ..writeln('///   addComponents: $aggregateVariableName,')
+      ..writeln('///   addFunctions: $aggregateFunctionsVariableName,')
       ..writeln('/// );')
       ..writeln('/// ```');
-    if (id == null) {
-      out
-        ..writeln('///')
-        ..writeln('/// This catalog has no id, because no `$catalogIdOption`')
-        ..writeln('/// build option was set. A surface names the catalog it')
-        ..writeln('/// was built against, so set one in `build.yaml` before')
-        ..writeln('/// talking to an agent:')
-        ..writeln('///')
-        ..writeln('/// ```yaml')
-        ..writeln('/// targets:')
-        ..writeln(r'///   $default:')
-        ..writeln('///     builders:')
-        ..writeln('///       genui_gen_builder:genui_catalog:')
-        ..writeln('///         options:')
-        ..writeln('///           $catalogIdOption: com.example.my_catalog')
-        ..writeln('/// ```');
-    }
     out
-      ..writeln('final Catalog $aggregateCatalogVariableName = Catalog(')
-      ..writeln('  $aggregateVariableName,')
-      ..writeln('  functions: $aggregateFunctionsVariableName,');
-    if (id != null) out.writeln("  catalogId: '$id',");
-    out.writeln(');');
+      ..writeln(
+        'final CatalogImplementation $aggregateCatalogVariableName = '
+        'CatalogImplementation(',
+      )
+      ..writeln("  id: '$id',")
+      ..writeln('  components: $aggregateVariableName,')
+      ..writeln('  functions: $aggregateFunctionsVariableName,')
+      ..writeln(');');
   }
 }
 

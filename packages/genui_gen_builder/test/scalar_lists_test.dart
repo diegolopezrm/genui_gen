@@ -31,21 +31,28 @@ class Chart extends StatelessWidget {
 ''');
     });
 
-    test('numeric lists become a list-or-reference of numbers', () {
+    test('numeric lists become a literal list, a binding or a call', () {
       expect(
         out,
         contains(
-          "'counts': A2uiSchemas.listOrReference("
-          "description: 'Counts per bucket.', items: S.number())",
+          "'counts': S.combined(description: 'Counts per bucket.', "
+          'anyOf: [S.list(items: S.number()), CommonSchemas.dataBinding, '
+          'CommonSchemas.functionCall])',
         ),
       );
       expect(
         out,
-        contains("'ratios': A2uiSchemas.listOrReference(items: S.number())"),
+        contains(
+          "'ratios': S.combined(anyOf: [S.list(items: S.number()), "
+          'CommonSchemas.dataBinding, CommonSchemas.functionCall])',
+        ),
       );
       expect(
         out,
-        contains("'values': A2uiSchemas.listOrReference(items: S.number())"),
+        contains(
+          "'values': S.combined(anyOf: [S.list(items: S.number()), "
+          'CommonSchemas.dataBinding, CommonSchemas.functionCall])',
+        ),
       );
     });
 
@@ -53,52 +60,46 @@ class Chart extends StatelessWidget {
       expect(
         out,
         contains(
-          "'sizes': A2uiSchemas.listOrReference("
-          "items: S.string(enumValues: ['small', 'large']))",
+          "'sizes': S.combined(anyOf: [S.list(items: "
+          "S.string(enumValues: ['small', 'large'])), "
+          'CommonSchemas.dataBinding, CommonSchemas.functionCall])',
         ),
       );
     });
 
-    test('numeric lists bind through numberList', () {
-      expect(
-        out,
-        contains("'counts': GenUiBinding.numberList(data['counts'])"),
-      );
-      expect(
-        out,
-        contains("'ratios': GenUiBinding.numberList(data['ratios'])"),
-      );
-      expect(
-        out,
-        contains("'values': GenUiBinding.numberList(data['values'])"),
-      );
+    test('numeric lists are read through genUiAsNumList', () {
+      expect(out, contains("genUiAsNumList(props.value('counts'))"));
+      expect(out, contains("genUiAsNumList(props.value('ratios'))"));
+      expect(out, contains("genUiAsNumList(props.value('values'))"));
     });
 
-    test('an enum list binds through stringList', () {
-      expect(out, contains("'sizes': GenUiBinding.stringList(data['sizes'])"));
+    test('an enum list is read through genUiAsStringList', () {
+      expect(out, contains("genUiAsStringList(props.value('sizes'))"));
     });
 
     test('elements convert to the declared element type', () {
       expect(
         out,
         contains(
-          "counts: v.numberList('counts')?.map((n) => n.toInt()).toList()",
+          "counts: genUiAsNumList(props.value('counts')) "
+          '?.map((n) => n.toInt()) .toList()',
         ),
       );
       expect(
         out,
         contains(
-          "ratios: v.numberList('ratios')?.map((n) => n.toDouble()).toList()",
+          "ratios: genUiAsNumList(props.value('ratios')) "
+          '?.map((n) => n.toDouble()) .toList()',
         ),
       );
-      expect(out, contains("values: v.numberList('values')"));
+      expect(out, contains("values: genUiAsNumList(props.value('values'))"));
     });
 
     test('an enum list maps names and drops the ones the enum lacks', () {
       expect(
         out,
         allOf([
-          contains(".stringList('sizes')"),
+          contains("genUiAsStringList(props.value('sizes'))"),
           contains('.map((name) => Size.values.asNameMap()[name])'),
           contains('.nonNulls'),
         ]),
@@ -119,7 +120,7 @@ class Chart extends StatelessWidget {
         out,
         contains("required: ['counts', 'ratios', 'values', 'sizes']"),
       );
-      expect(out, contains("spare: v.numberList('spare')"));
+      expect(out, contains("spare: genUiAsNumList(props.value('spare'))"));
     });
 
     test('examples carry a list of the right shape', () {

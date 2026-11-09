@@ -52,10 +52,10 @@ class LabeledSwitch extends StatelessWidget {
       expect(
         joinLiterals(out),
         contains(
-          "'value': A2uiSchemas.booleanReference(description: 'Whether the "
-          'switch is on. The component writes the value the user chooses back '
-          "to this property, so bind it to a data path if you need to read "
-          "the result.')",
+          "'value': S.fromMap({...CommonSchemas.dynamicBoolean.value, "
+          "'description': 'Whether the switch is on. The component writes the "
+          'value the user chooses back to this property, so bind it to a data '
+          "path if you need to read the result.'})",
         ),
       );
     });
@@ -64,8 +64,8 @@ class LabeledSwitch extends StatelessWidget {
       expect(
         out,
         contains(
-          "'label': A2uiSchemas.stringReference(description: 'Text shown next "
-          "to the switch.')",
+          "'label': S.fromMap({...CommonSchemas.dynamicString.value, "
+          "'description': 'Text shown next to the switch.'})",
         ),
       );
     });
@@ -73,9 +73,7 @@ class LabeledSwitch extends StatelessWidget {
     test('the callback writes to the path of the property it names', () {
       expect(
         out,
-        contains(
-          "onChanged: genUiValueWriter<bool>(ctx, data['value'], 'value')",
-        ),
+        contains("onChanged: genUiValueWriter<bool>(node, props, 'value')"),
       );
     });
 
@@ -83,7 +81,7 @@ class LabeledSwitch extends StatelessWidget {
       expect(
         out,
         contains(
-          "onSizeChanged: genUiValueWriter<Size>(ctx, data['size'], 'size', "
+          "onSizeChanged: genUiValueWriter<Size>(node, props, 'size', "
           'encode: (value) => value.name)',
         ),
       );
@@ -93,36 +91,38 @@ class LabeledSwitch extends StatelessWidget {
       expect(
         out,
         contains(
-          "onVolumeChanged: genUiValueWriter<double>(ctx, data['volume'], 'volume')",
+          "onVolumeChanged: genUiValueWriter<double>(node, props, 'volume')",
         ),
       );
     });
 
-    test('a written property is read through the path it is written to', () {
+    test('a written property is read from where it is written', () {
       expect(
         out,
         contains(
-          "'value': GenUiBinding.bool(genUiWriteReference(ctx, data['value'], "
-          "'value'))",
-        ),
-      );
-    });
-
-    test('until that path holds something, the literal still wins', () {
-      expect(
-        out,
-        contains(
-          "value: (v.boolean('value') ?? genUiAsBool(data['value'])) ?? "
+          "value: genUiAsBool(genUiWrittenValue(node, props, 'value')) ?? "
           "missing<bool>('value', false)",
         ),
       );
     });
 
-    test('a property nobody writes is read straight from the data', () {
-      expect(out, contains("'label': GenUiBinding.string(data['label'])"));
+    test('an enum it writes is read back by name from there too', () {
       expect(
         out,
-        contains("label: v.string('label') ?? missing<String>('label', '')"),
+        contains(
+          'size: Size.values.asNameMap()[genUiAsString('
+          "genUiWrittenValue(node, props, 'size'))]",
+        ),
+      );
+    });
+
+    test('a property nobody writes is read straight from the props', () {
+      expect(
+        out,
+        contains(
+          "label: genUiAsString(props.value('label')) ?? "
+          "missing<String>('label', '')",
+        ),
       );
     });
 
@@ -148,9 +148,7 @@ class Field extends StatelessWidget {
 ''');
     expect(
       out,
-      contains(
-        "onChanged: genUiValueWriter<String>(ctx, data['text'], 'text')",
-      ),
+      contains("onChanged: genUiValueWriter<String>(node, props, 'text')"),
     );
   });
 
@@ -170,9 +168,7 @@ class Field extends StatelessWidget {
 ''');
     expect(
       out,
-      contains(
-        "onChanged: genUiValueWriter<String>(ctx, data['text'], 'text')",
-      ),
+      contains("onChanged: genUiValueWriter<String>(node, props, 'text')"),
     );
   });
 
@@ -194,15 +190,11 @@ class Dial extends StatelessWidget {
 ''');
     expect(
       out,
-      contains(
-        "onChanged: genUiValueWriter<double>(ctx, data['value'], 'value')",
-      ),
+      contains("onChanged: genUiValueWriter<double>(node, props, 'value')"),
     );
     expect(
       out,
-      contains(
-        "onChangeEnd: genUiValueWriter<double>(ctx, data['value'], 'value')",
-      ),
+      contains("onChangeEnd: genUiValueWriter<double>(node, props, 'value')"),
     );
   });
 

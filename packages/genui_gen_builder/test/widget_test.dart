@@ -52,14 +52,19 @@ class Empty extends StatelessWidget {
   const Empty({super.key});
 }
 ''');
-    expect(out, contains("dataSchema: S.object(description: 'Empty.')"));
-    expect(out, contains('widgetBuilder: (ctx) => Empty()'));
+    expect(out, contains("schema: S.object(description: 'Empty.')"));
+    expect(
+      out,
+      contains('builder: (context, node, props, buildChild) => Empty()'),
+    );
     expect(out, contains('[{"id":"root","component":"Empty"}]'));
-    expect(out, isNot(contains('JsonMap')));
+    expect(out, isNot(contains('props.value')));
   });
 
-  test('name, isImplicitlyFlexible and constructor overrides', () async {
-    final out = await generate('''
+  test(
+    'name and constructor overrides; isImplicitlyFlexible is ignored',
+    () async {
+      final out = await generate('''
 @GenUiWidget(
   name: 'Gallery',
   description: 'A gallery.',
@@ -74,21 +79,24 @@ class ImageGallery extends StatelessWidget {
   final bool dense;
 }
 ''');
-    expect(out, contains('final CatalogItem imageGalleryCatalogItem'));
-    expect(out, contains("name: 'Gallery'"));
-    expect(out, contains('isImplicitlyFlexible: true'));
-    expect(out, contains("'urls': A2uiSchemas.stringArrayReference()"));
-    expect(out, isNot(contains("'dense'")));
-    expect(out, contains('ImageGallery.compact('));
-    expect(
-      out,
-      contains(
-        "urls: v.stringList('urls') ?? missing<List<String>>('urls', const <String>[])",
-      ),
-    );
-    expect(out, contains('"component":"Gallery"'));
-    expect(out, contains('"urls":["Alpha","Beta"]'));
-  });
+      expect(out, contains('final CatalogItem imageGalleryCatalogItem'));
+      expect(out, contains("name: 'Gallery'"));
+      // a2ui_flutter has no implicitly flexible components, so the deprecated
+      // flag is accepted and has nothing to be forwarded to.
+      expect(out, isNot(contains('isImplicitlyFlexible')));
+      expect(out, contains("'urls': CommonSchemas.dynamicStringList"));
+      expect(out, isNot(contains("'dense'")));
+      expect(out, contains('ImageGallery.compact('));
+      expect(
+        out,
+        contains(
+          "urls: genUiAsStringList(props.value('urls')) ?? missing<List<String>>('urls', const <String>[])",
+        ),
+      );
+      expect(out, contains('"component":"Gallery"'));
+      expect(out, contains('"urls":["Alpha","Beta"]'));
+    },
+  );
 
   test('positional parameters are passed positionally', () async {
     final out = await generate('''
@@ -103,8 +111,8 @@ class Label extends StatelessWidget {
     expect(
       out,
       contains(
-        "Label(v.string('text') ?? missing<String>('text', ''), "
-        "v.number('size')?.toInt(), bold: v.boolean('bold') ?? false)",
+        "Label(genUiAsString(props.value('text')) ?? missing<String>('text', ''), "
+        "genUiAsNum(props.value('size'))?.toInt(), bold: genUiAsBool(props.value('bold')) ?? false)",
       ),
     );
   });
@@ -125,7 +133,7 @@ class Ignores extends StatelessWidget {
   final Object? decoration;
 }
 ''');
-    expect(out, contains("'title': A2uiSchemas.stringReference()"));
+    expect(out, contains("'title': CommonSchemas.dynamicString"));
     expect(out, isNot(contains('padding')));
     expect(out, isNot(contains('decoration')));
   });
@@ -143,10 +151,10 @@ class FieldAnnotated extends StatelessWidget {
     expect(
       out,
       contains(
-        "'heading': A2uiSchemas.stringReference(description: 'From the field.')",
+        "'heading': S.fromMap({...CommonSchemas.dynamicString.value, 'description': 'From the field.'})",
       ),
     );
-    expect(out, contains("title: v.string('heading')"));
+    expect(out, contains("title: genUiAsString(props.value('heading'))"));
   });
 
   test('multiple annotated classes in one file each get an item', () async {
@@ -231,7 +239,7 @@ class Card extends StatelessWidget {
     expect(
       out,
       contains(
-        "description: 'The product name shown as the card headline, "
+        "'description': 'The product name shown as the card headline, "
         "truncated to a ' 'single line.'",
       ),
     );

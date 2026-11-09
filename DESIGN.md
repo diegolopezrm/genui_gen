@@ -1,6 +1,7 @@
 # genui_gen — Design
 
-Annotation-driven `CatalogItem` generation for Google's `genui` package.
+Annotation-driven `CatalogItem` generation for A2UI's Flutter renderer,
+`a2ui_flutter` (genui until the move to the A2UI Dart SDKs).
 You annotate a widget you already have; `build_runner` derives the JSON schema,
 the widget builder, and the few-shot examples from its constructor. Because
 everything is derived, the catalog can never drift from the widget.
@@ -9,14 +10,15 @@ everything is derived, the catalog can never drift from the widget.
 
 | Package | Role | Dependencies |
 |---|---|---|
-| `packages/genui_gen` | Annotations + tiny runtime helpers used by generated code | `flutter`, `genui`, `meta` |
+| `packages/genui_gen` | Annotations + tiny runtime helpers used by generated code | `flutter`, `a2ui_core`, `a2ui_flutter`, `meta` |
 | `packages/genui_gen_builder` | `build_runner` generator (`source_gen`) | `analyzer`, `build`, `source_gen` (the annotation is matched by name so the Flutter-dependent `genui_gen` never loads into the build isolate) |
 | `example/` | Flutter app with 4 annotated widgets, wired into a `Catalog` | both |
 
 Mirrors the `json_annotation` / `json_serializable` convention. Users add
 `genui_gen` to `dependencies` and `genui_gen_builder` to `dev_dependencies`.
 
-Target: Dart `>=3.10.0 <4.0.0`, Flutter `>=3.35.0`, `genui ^0.10.0`,
+Target: Dart `>=3.10.0 <4.0.0`, Flutter `>=3.38.0`, `a2ui_core ^0.5.0`,
+`a2ui_flutter ^0.1.0`,
 `source_gen ^4.0.0`, `analyzer >=8.0.0 <11.0.0`, `build ^4.0.0`.
 The generator MUST use the current analyzer element model (`ClassElement`,
 `ConstructorElement`, `FormalParameterElement`, `EnumElement`, etc. — the
@@ -32,7 +34,7 @@ class GenUiWidget {
     this.name,                 // defaults to the class name
     required this.description, // fed to the LLM; required on purpose
     this.constructor,          // named constructor to use; default unnamed
-    this.isImplicitlyFlexible = false,
+    this.isImplicitlyFlexible = false, // deprecated: a2ui_flutter has no equivalent
   });
 }
 
@@ -50,66 +52,46 @@ class GenUiAction {
 }
 ```
 
-Runtime helpers (also exported; used by generated code only):
+Runtime helpers (also exported; used by generated code only). The renderer
+resolves every property from its schema before the generated builder runs, so
+the builder reads resolved values from `props` and coerces them with
+`genUiAsString`, `genUiAsNum`, `genUiAsBool`, `genUiAsStringList` and the rest:
 
 ```dart
-/// Resolves a set of literal-or-bound values against a DataContext and calls
-/// [builder] once with all of them resolved. Internally composes genui's
-/// BoundString / BoundNumber / BoundBool / BoundList so binding semantics
-/// ({"path": ...}, {"call": ...}, literal) are exactly genui's.
-class GenUiBindings extends StatelessWidget {
-  const GenUiBindings({
-    required this.dataContext,
-    required this.bindings,           // Map<String, GenUiBinding>
-    required this.builder,            // Widget Function(BuildContext, GenUiValues)
+/// An a2ui_flutter ComponentImplementation that also carries the examples
+/// the generator derived.
+class CatalogItem extends ComponentImplementation {
+  const CatalogItem({
+    required super.name,
+    required super.schema,
+    required super.builder,  // (context, node, props, buildChild)
+    this.exampleData = const [],
   });
 }
 
-sealed class GenUiBinding {
-  const factory GenUiBinding.string(Object? raw) = ...;
-  const factory GenUiBinding.number(Object? raw) = ...;
-  const factory GenUiBinding.bool(Object? raw) = ...;
-  const factory GenUiBinding.stringList(Object? raw) = ...;
-}
+/// Turns the action the renderer resolved for a property into a VoidCallback
+/// that runs it the way the core Button does; null when there is none.
+VoidCallback? genUiActionHandler(NodeAction? action);
 
-/// Typed accessors over resolved values.
-class GenUiValues {
-  static const GenUiValues empty;
-  String? string(String key);
-  num? number(String key);
-  bool? boolean(String key);
-  List<String>? stringList(String key);
-  Object? operator [](String key);   // raw resolved value
-  bool has(String key);              // resolved to non-null
-  Iterable<String> get keys;
-}
-
-/// Builds a VoidCallback that dispatches a UserActionEvent the same way the
-/// core Button does (supports the `event` form of A2UI actions; `functionCall`
-/// is resolved through dataContext like Button does). Malformed action data
-/// is reported as an A2uiValidationException (the only error type genui
-/// forwards to the model with its message intact).
-VoidCallback? genUiActionHandler(CatalogItemContext ctx, Object? actionData);
-
-/// Reports a required property the model omitted as an
-/// A2uiValidationException(surfaceId, path: property), once per
+/// Reports a required property the model omitted as a VALIDATION_FAILED
+/// error on the surface (path: property), once per
 /// `surfaceId/componentId/property`. Silent for `{"path"}` / `{"call"}`
 /// bindings that have not resolved yet. Never throws.
-void genUiReportMissing(CatalogItemContext ctx, String component, String property);
+void genUiReportMissing(ComponentNode node, String component, String property);
 ```
 
 ## Type mapping (v0.1)
 
 | Dart parameter type | Schema | Resolution in builder |
 |---|---|---|
-| `String` / `String?` | `A2uiSchemas.stringReference(description:)` | `GenUiBinding.string` → `values.string(k)` |
-| `int`, `double`, `num` (+nullable) | `A2uiSchemas.numberReference(description:)` | `GenUiBinding.number` → `.toInt()` / `.toDouble()` as needed |
-| `bool` / `bool?` | `A2uiSchemas.booleanReference(description:)` | `GenUiBinding.bool` |
-| `enum E` / `E?` | `A2uiSchemas.stringReference(description:, enumValues: E.values names)` | `GenUiBinding.string` → `E.values.asNameMap()[s]` |
-| `List<String>` (+nullable) | `A2uiSchemas.stringArrayReference(description:)` | `GenUiBinding.stringList` |
-| `Widget` / `Widget?` | `A2uiSchemas.componentReference(description:)` | `ctx.buildChild(id)` (wrapped in `KeyedSubtree`? no — plain) |
-| `List<Widget>` (+nullable) | `S.list(items: A2uiSchemas.componentReference())` | `ids.map(ctx.buildChild).toList()` |
-| `VoidCallback` / `void Function()` (+nullable) | `A2uiSchemas.action(description:)` | `genUiActionHandler(ctx, data[k])` |
+| `String` / `String?` | `CommonSchemas.dynamicString` (+description) | `genUiAsString(props.value(k))` |
+| `int`, `double`, `num` (+nullable) | `CommonSchemas.dynamicNumber` (+description) | `genUiAsNum(props.value(k))` → `.toInt()` / `.toDouble()` as needed |
+| `bool` / `bool?` | `CommonSchemas.dynamicBoolean` (+description) | `genUiAsBool(props.value(k))` |
+| `enum E` / `E?` | `anyOf` of `S.string(enumValues: E.values names)`, `CommonSchemas.dataBinding` and `CommonSchemas.functionCall` | `genUiAsString(props.value(k))` → `E.values.asNameMap()[s]` |
+| `List<String>` (+nullable) | `CommonSchemas.dynamicStringList` (+description) | `genUiAsStringList(props.value(k))` |
+| `Widget` / `Widget?` | `CommonSchemas.componentId` (+description) | `buildChild(props.child(k))` |
+| `List<Widget>` (+nullable) | `S.list(items: CommonSchemas.componentId)` | `props.children(k).map(buildChild).toList()` |
+| `VoidCallback` / `void Function()` (+nullable) | `CommonSchemas.action` (+description) | `genUiActionHandler(props.action(k))` |
 | `Key? key` / `super.key` | skipped silently | — |
 | anything else | **build error** with a clear message naming the widget, parameter and type, and suggesting `@GenUiProp(ignore: true)` | — |
 
@@ -156,13 +138,13 @@ part of 'product_card.dart';
 
 final CatalogItem productCardCatalogItem = CatalogItem(
   name: 'ProductCard',
-  dataSchema: S.object(
+  schema: S.object(
     description: 'A product card with price and image.',
     properties: {
-      'title': A2uiSchemas.stringReference(description: 'Product name.'),
-      'price': A2uiSchemas.numberReference(description: 'Price in USD.'),
-      'imageUrl': A2uiSchemas.stringReference(description: 'Optional image URL.'),
-      'onTap': A2uiSchemas.action(description: 'Fired when the card is tapped.'),
+      'title': S.fromMap({...CommonSchemas.dynamicString.value, 'description': 'Product name.'}),
+      'price': S.fromMap({...CommonSchemas.dynamicNumber.value, 'description': 'Price in USD.'}),
+      'imageUrl': S.fromMap({...CommonSchemas.dynamicString.value, 'description': 'Optional image URL.'}),
+      'onTap': S.fromMap({...CommonSchemas.action.value, 'description': 'Fired when the card is tapped.'}),
     },
     required: ['title', 'price'],
   ),
@@ -179,25 +161,16 @@ final CatalogItem productCardCatalogItem = CatalogItem(
   }
 ]''',
   ],
-  widgetBuilder: (ctx) {
-    final data = ctx.data as JsonMap;
+  builder: (context, node, props, buildChild) {
     T missing<T>(String property, T fallback) {
-      genUiReportMissing(ctx, 'ProductCard', property);
+      genUiReportMissing(node, 'ProductCard', property);
       return fallback;
     }
-    return GenUiBindings(
-      dataContext: ctx.dataContext,
-      bindings: {
-        'title': GenUiBinding.string(data['title']),
-        'price': GenUiBinding.number(data['price']),
-        'imageUrl': GenUiBinding.string(data['imageUrl']),
-      },
-      builder: (context, v) => ProductCard(
-        title: v.string('title') ?? missing<String>('title', ''),
-        price: (v.number('price') ?? missing<num>('price', 0)).toDouble(),
-        imageUrl: v.string('imageUrl'),
-        onTap: genUiActionHandler(ctx, data['onTap']),
-      ),
+    return ProductCard(
+      title: genUiAsString(props.value('title')) ?? missing<String>('title', ''),
+      price: (genUiAsNum(props.value('price')) ?? missing<num>('price', 0)).toDouble(),
+      imageUrl: genUiAsString(props.value('imageUrl')),
+      onTap: genUiActionHandler(props.action('onTap')),
     );
   },
 );
@@ -209,8 +182,8 @@ generated file stays readable and within 80 columns.
 Required-but-missing values: generator emits a fallback (`''`, `0`, `false`,
 first enum value, `const []`, `const SizedBox.shrink()`, a no-op callback)
 through a local `missing<T>()` helper that calls `genUiReportMissing`, which
-reports an `A2uiValidationException` via `ctx.reportError` once per component
-instance and ignores unresolved data bindings — never throws inside build.
+reports a `VALIDATION_FAILED` error on the surface once per component instance
+and ignores unresolved data bindings — never throws inside build.
 
 Example JSON generation: one example per widget. Values: strings → a short
 sample derived from the property description or `"Sample <name>"`; numbers →
@@ -219,7 +192,7 @@ widgets → reference a `Text` component included in the example list; lists of
 widgets → two `Text` children; actions → `{"event": {"name": "<eventName>"}}`.
 Child component ids are `child_<prop>` / `child_<prop>_<n>` so they never
 collide with `root`. Only required props + nullable props with obvious samples
-are included. The examples assume genui's `BasicCatalogItems` are in the
+are included. The examples assume the basic catalog's components are in the
 catalog.
 
 ## Builder wiring
@@ -249,9 +222,10 @@ Use `source_gen_test`-style golden tests or `build_test`'s `testBuilder`:
 - `children_test` — `Widget`, `Widget?`, `List<Widget>`.
 - `actions_test` — `VoidCallback`, `@GenUiAction(eventName:)`.
 - `errors_test` — unsupported type, missing description, ignore on required.
-- `runtime_test` (in `genui_gen/test`) — `GenUiBindings` resolves literals and
-  `{"path": ...}` bindings against a real `DataModel`; `genUiActionHandler`
-  dispatches a `UserActionEvent` with the right name and sourceComponentId.
+- `bindings_test` (in `genui_gen/test`) — every schema the generator emits
+  resolves from a literal and from a `{"path": ...}` binding through a real
+  `MessageProcessor` and `A2uiSurface`; `actions_test` — `genUiActionHandler`
+  dispatches an action with the right name and sourceComponentId.
 
 Every test must actually run green with `flutter test` / `dart test`.
 
@@ -259,10 +233,10 @@ Every test must actually run green with `flutter test` / `dart test`.
 
 `example/lib/widgets/`: `product_card.dart`, `stat_tile.dart` (enum variant,
 double), `tag_row.dart` (`List<String>`), `panel.dart` (`Widget` child +
-`List<Widget>` children + `VoidCallback`). `example/lib/main.dart` builds a
-`Catalog` from the four generated items plus `BasicCatalogItems.asCatalog()`
-and renders the generated examples via genui's `DebugCatalogView` development
-utility (no LLM/network required) so the app is runnable offline. A smoke
+`List<Widget>` children + `VoidCallback`). `example/lib/main.dart` derives a
+catalog from a2ui_flutter's `basicCatalog()` with the generated items added,
+and renders the generated examples with `A2uiSurface` (no LLM/network
+required) so the app is runnable offline. A smoke
 test in `example/test/` checks the catalog contents and that the page renders.
 
 ## Quality bar

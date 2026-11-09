@@ -9,7 +9,7 @@ catalog items offline live in the repository's `example/` directory:
 Quick reference (see the package README for the full walkthrough):
 
 ```sh
-dart pub add genui genui_gen json_schema_builder
+dart pub add a2ui_flutter genui_gen json_schema_builder
 dart pub add dev:build_runner dev:genui_gen_builder
 dart run build_runner build
 ```

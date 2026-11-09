@@ -38,8 +38,8 @@ typedef GenUiDecoder<T> = T Function(Map<String, Object?> json);
 /// Reports one required field of a data object that was missing or unusable.
 typedef GenUiMissingFieldReporter = void Function(String field);
 
-/// Coercions matching genui's Bound* converters, called by generated decoders
-/// in place of a cast.
+/// Coercions matching genui's Bound* converters, called by generated builders
+/// and decoders in place of a cast.
 String? genUiAsString(Object? value);
 num? genUiAsNum(Object? value);
 bool? genUiAsBool(Object? value);
@@ -60,38 +60,27 @@ GenUiMissingFieldReporter? genUiNestedField(
   String field,
 );
 
-sealed class GenUiBinding {
-  // existing: string / number / bool / stringList
-  const factory GenUiBinding.object(Object? raw) = _ObjectBinding;
-  const factory GenUiBinding.objectList(Object? raw) = _ObjectListBinding;
-}
-
-class GenUiValues {
-  // existing: string / number / boolean / stringList
-  Map<String, Object?>? object(String key);
-  List<Map<String, Object?>>? objectList(String key);
-}
 ```
 
-`GenUiBindings` folds `object` through genui's `BoundObject` and `objectList`
-through `BoundList`, so `{"path": ...}` and `{"call": ...}` resolve with genui's
-own semantics — the same rule 0.1 follows. Decoding happens after resolution, in
+The renderer resolves the property, so `{"path": ...}` and `{"call": ...}`
+resolve with A2UI's own semantics — the same rule 0.1 follows — and the
+generated builder reads the result with `genUiAsObject(props.value(k))` or
+`genUiAsObjectList(props.value(k))`. Decoding happens after resolution, in
 generated code, never inside the runtime.
 
 ## Type mapping added in 0.2
 
 | Dart parameter type | Schema | Builder |
 |---|---|---|
-| `T` where `T` is `@GenUiData` (+nullable) | `S.combined(oneOf: [<T schema>, A2uiSchemas.dataBindingSchema(), A2uiSchemas.functionCall()])` | `GenUiBinding.object` → `T.fromGenUiJson(map)` |
-| `List<T>` where `T` is `@GenUiData` (+nullable) | `A2uiSchemas.listOrReference(items: <T schema>)` | `GenUiBinding.objectList` → `.map(T.fromGenUiJson).toList()` |
+| `T` where `T` is `@GenUiData` (+nullable) | `S.combined(anyOf: [<T schema>, CommonSchemas.dataBinding, CommonSchemas.functionCall])` | `genUiAsObject(props.value(k))` → `T.fromGenUiJson(map)` |
+| `List<T>` where `T` is `@GenUiData` (+nullable) | `S.combined(anyOf: [S.list(items: <T schema>), CommonSchemas.dataBinding, CommonSchemas.functionCall])` | `genUiAsObjectList(props.value(k))` → `.map(T.fromGenUiJson).toList()` |
 
-The property schema is a union, not the bare object schema: the builder folds
-the value through `BoundObject` / `BoundList`, which resolve `{"path": ...}`
-and `{"call": ...}` as well as a literal, so the schema has to allow all three
-or a data-bound table fails validation for a surface the runtime would have
-rendered. The core catalog declares comparable properties the same way
-(`ChoicePicker.options` uses `listOrReference`, `ChoicePicker.value` a
-`oneOf` of the literal, `dataBindingSchema()` and `functionCall()`).
+The property schema is a union, not the bare object schema: the renderer
+resolves `{"path": ...}` and `{"call": ...}` as well as a literal, and checks
+every component against its schema before rendering it, so the schema has to
+allow all three or a data-bound table is rejected. It is an `anyOf`, as in the
+`CommonSchemas` dynamic types: a binding is an object too, so it also matches
+an object schema with no required fields, and a `oneOf` would then match twice.
 
 Inside a `@GenUiData` class the supported field types are the 0.1 scalar set —
 `String`, `int`, `double`, `num`, `bool`, enums, `List<String>` — plus nested
@@ -99,9 +88,9 @@ Inside a `@GenUiData` class the supported field types are the 0.1 scalar set —
 inside a data class (a data class is data the model emits, not a component
 reference); attempting it is a build error naming the field.
 
-Nested data schemas are inlined, not `$ref`'d: `CatalogItem.dataSchema` is
-consumed by `A2uiSchemas.updateComponentsSchema` as a `oneOf` branch, and a
-`$ref` would need a registry entry we do not control.
+Nested data schemas are inlined, not `$ref`'d: the catalog document holds the
+component's schema as it is, and a `$ref` would need a registry entry we do
+not control.
 
 ## Generated output for a data class
 
@@ -139,16 +128,16 @@ Row rowFromGenUiJson(
 factory statically typed as `Schema`, so it cannot initialise the
 `ObjectSchema` variable the generated code declares. Both build the same
 schema. `int` fields use `S.integer`, which a widget property cannot (there is
-no `integerReference` in `A2uiSchemas`), so a fractional value is rejected by
+no dynamic integer in `CommonSchemas`), so a fractional value is rejected by
 validation instead of being silently truncated.
 
 Note the schema for a data class uses plain `S.string` / `S.number`, NOT
-`A2uiSchemas.stringReference`: values inside a data object are literals the
+`CommonSchemas.dynamicString`: values inside a data object are literals the
 model emits, not per-field data bindings. The binding applies to the whole
-object (the widget property), which is what `BoundObject` resolves.
+object (the widget property), which is what the renderer resolves.
 
 No value is cast. Every field goes through the `genUiAs*` coercions the runtime
-exports, which apply the same rules genui's `Bound*` widgets apply to a widget
+exports, which apply the same rules the generated builder applies to a widget
 property, so a model that sends `"42"` where a number was declared degrades
 identically in both places and a wrong-typed field never throws a `TypeError`
 inside `build`.
@@ -180,8 +169,9 @@ Beyond cycles, a `@GenUiData` class is rejected when:
 
 - it has type parameters — an inlined JSON Schema cannot express one, and the
   decoder can only name the bare class;
-- a field's wire key would be `path` or `call` — genui resolves a map with a
-  String `path` as a data binding and one containing `call` as a function call,
+- a field's wire key would be `path` or `call` — the renderer resolves a map
+  with a String `path` as a data binding and one containing `call` as a
+  function call,
   so such an object never reaches the widget as a literal;
 - two data classes used by the same generated part have colliding lower-camel
   names (`HTTPRow` and `HttpRow` both give `httpRowGenUiSchema`), even when

@@ -1,4 +1,5 @@
-import 'package:genui/genui.dart';
+import 'package:a2ui_core/a2ui_core.dart';
+import 'package:json_schema_builder/json_schema_builder.dart' show Schema;
 
 import 'audit.dart';
 import 'catalog_json.dart';
@@ -176,7 +177,7 @@ class GenUiCoverage {
 /// It is a number to look at, not a rule to enforce, which is why this hands
 /// back the counts rather than a verdict.
 GenUiCoverage genUiCoverage({
-  required Catalog catalog,
+  required CatalogApi catalog,
   required Iterable<GenUiTrace> traces,
 }) {
   final componentUses = <String, int>{};
@@ -220,28 +221,29 @@ GenUiCoverage genUiCoverage({
 
   final catalogProperties = <String, Set<String>>{};
   final catalogEnumValues = <String, Set<String>>{};
-  for (final CatalogItem item in catalog.items) {
-    final Object schema = item.dataSchema.value;
-    if (schema is! Map) continue;
-    final Object? properties = schema['properties'];
+  // The flattened schemas, because a component may spread its properties
+  // over `allOf` branches, as the basic catalog's do.
+  final Map<String, Schema> schemas = catalog.resolvedComponentSchemas;
+  for (final String component in catalog.components.keys) {
+    final Map<String, Object?>? schema = schemas[component]?.value;
+    final Object? properties = schema?['properties'];
     if (properties is! Map) continue;
     final names = <String>{
       for (final Object? key in properties.keys)
-        if (key is String && key != 'component') key,
+        if (key is String && key != 'id' && key != 'component') key,
     };
-    catalogProperties[item.name] = names;
+    catalogProperties[component] = names;
     for (final String name in names) {
       final Set<String> values = _enumValuesIn(properties[name]);
       if (values.isNotEmpty) {
-        catalogEnumValues['${item.name}.$name'] = values;
+        catalogEnumValues['$component.$name'] = values;
       }
     }
   }
 
-  GenUiCatalogWeight? weight;
-  if (catalog.catalogId != null) {
-    weight = genUiCatalogWeight(genUiCatalogJson(catalog));
-  }
+  final GenUiCatalogWeight weight = genUiCatalogWeight(
+    genUiCatalogJson(catalog),
+  );
 
   return GenUiCoverage(
     sessions: sessions,
@@ -249,7 +251,7 @@ GenUiCoverage genUiCoverage({
     componentUses: <String, int>{for (final e in sorted) e.key: e.value},
     propertyUses: propertyUses,
     enumValueUses: enumValueUses,
-    catalogComponents: catalog.items.map((i) => i.name).toSet(),
+    catalogComponents: catalog.components.keys.toSet(),
     catalogProperties: catalogProperties,
     catalogEnumValues: catalogEnumValues,
     weight: weight,
@@ -258,9 +260,11 @@ GenUiCoverage genUiCoverage({
 
 /// The enum values declared anywhere inside a property's schema.
 ///
-/// A generated enum property is a `DynamicString` combined with an `anyOf`
-/// holding the constants, so the list is not at a fixed depth. Searching for
-/// it costs nothing and survives the shape changing.
+/// A generated enum property is a `oneOf` of the constants, a data binding and
+/// a function call, so the list is not at a fixed depth. Searching for it
+/// costs nothing and survives the shape changing. The protocol's own types
+/// are skipped: a function call declares an enum of return types, which is
+/// not a value of the property.
 Set<String> _enumValuesIn(Object? schema) {
   final found = <String>{};
   void walk(Object? node) {
@@ -270,7 +274,7 @@ Set<String> _enumValuesIn(Object? schema) {
       }
       return;
     }
-    if (node is! Map) return;
+    if (node is! Map || node.containsKey('commonTypesRef')) return;
     final Object? values = node['enum'];
     if (values is List) {
       for (final Object? v in values) {

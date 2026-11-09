@@ -57,8 +57,9 @@ void main() {
       normalize(out!),
       contains("import 'package:genui_gen/genui_gen.dart';"),
     );
-    // genui itself is not named: the catalog reaches it through genui_gen.
-    expect(normalize(out), isNot(contains('package:genui/')));
+    // The renderer itself is not named: the catalog reaches it through
+    // genui_gen.
+    expect(normalize(out), isNot(contains('package:a2ui_flutter/')));
     expect(normalize(out), contains("import 'widgets/card.dart';"));
     expect(normalize(out), contains("import 'widgets/tile.dart';"));
     expect(
@@ -158,9 +159,9 @@ void main() {
       expect(
         normalize(out!),
         contains(
-          'final Catalog genUiCatalog = Catalog(genUiCatalogItems, '
-          'functions: genUiCatalogFunctions, '
-          "catalogId: 'com.example.my_catalog')",
+          'final CatalogImplementation genUiCatalog = CatalogImplementation('
+          "id: 'com.example.my_catalog', components: genUiCatalogItems, "
+          'functions: genUiCatalogFunctions)',
         ),
       );
     });
@@ -175,21 +176,20 @@ void main() {
 
       expect(
         normalize(out!),
-        contains("catalogId: 'https://example.com/a2ui/catalog.json'"),
+        contains("id: 'https://example.com/a2ui/catalog.json'"),
       );
     });
 
-    test('is still assembled when no id is configured', () async {
+    test('is left out when no id is configured, with the reason', () async {
       final out = await aggregate({
         'a|lib/card.genui.dart': part(['cardCatalogItem']),
       });
 
-      expect(
-        normalize(out!),
-        contains(
-          'final Catalog genUiCatalog = Catalog(genUiCatalogItems, functions: genUiCatalogFunctions)',
-        ),
-      );
+      // An a2ui_core catalog cannot exist without an id, and the id is not
+      // the generator's to invent. The lists are still there.
+      expect(normalize(out!), isNot(contains('final CatalogImplementation')));
+      expect(normalize(out), contains('final List<CatalogItem>'));
+      expect(normalize(out), contains('is not declared'));
       // The generated file is where someone reads about the option, so it has
       // to say how to set it.
       expect(out, contains('catalog_id: com.example.my_catalog'));

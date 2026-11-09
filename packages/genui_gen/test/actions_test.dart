@@ -1,118 +1,75 @@
+import 'package:a2ui_core/a2ui_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:genui/genui.dart';
 import 'package:genui_gen/genui_gen.dart';
 
-/// Pumps a widget that builds a [CatalogItemContext] with a real
-/// [BuildContext] and hands it to [body].
-Future<void> pumpWithContext(
-  WidgetTester tester, {
-  required DataContext dataContext,
-  required DispatchEventCallback dispatchEvent,
-  required void Function(Object error, StackTrace? stack) reportError,
-  required Widget Function(CatalogItemContext ctx) body,
-  Object data = const <String, Object?>{},
-}) async {
-  await tester.pumpWidget(
-    MaterialApp(
-      home: Scaffold(
-        body: Builder(
-          builder: (context) => body(
-            CatalogItemContext(
-              data: data,
-              id: 'card-1',
-              type: 'ProductCard',
-              buildChild: (_, [_]) => const SizedBox.shrink(),
-              dispatchEvent: dispatchEvent,
-              buildContext: context,
-              dataContext: dataContext,
-              getComponent: (_) => null,
-              getCatalogItem: (_) => null,
-              surfaceId: 'surface-1',
-              reportError: reportError,
-            ),
-          ),
-        ),
-      ),
-    ),
-  );
-}
+import 'src/surface.dart';
+
+/// A component built the way the generator builds one with a `VoidCallback`
+/// parameter: the action is declared with the common `Action` type and read
+/// back through `props.action`.
+final CatalogItem _tapCard = CatalogItem(
+  name: 'TapCard',
+  schema: S.object(properties: {'onTap': CommonSchemas.action}),
+  builder: (context, node, props, buildChild) => ElevatedButton(
+    onPressed: genUiActionHandler(props.action('onTap')),
+    child: const Text('Tap'),
+  ),
+);
+
+Map<String, Object?> _card(Object? onTap) => <String, Object?>{
+  'id': 'root',
+  'component': 'TapCard',
+  'onTap': ?onTap,
+};
 
 void main() {
-  late InMemoryDataModel model;
-  late DataContext dataContext;
-  late List<UiEvent> events;
-  late List<Object> errors;
-
-  setUp(() {
-    model = InMemoryDataModel();
-    dataContext = DataContext(model, DataPath.root);
-    events = <UiEvent>[];
-    errors = <Object>[];
+  test('returns null when there is no action', () {
+    expect(genUiActionHandler(null), isNull);
   });
 
-  tearDown(() {
-    model.dispose();
+  testWidgets('an omitted action leaves the widget disabled', (tester) async {
+    await renderSurface(tester, items: [_tapCard], components: [_card(null)]);
+
+    final ElevatedButton button = tester.widget(find.byType(ElevatedButton));
+    expect(button.onPressed, isNull);
   });
 
-  testWidgets('returns null when the action data is null', (tester) async {
-    VoidCallback? handler = () {};
-
-    await pumpWithContext(
-      tester,
-      dataContext: dataContext,
-      dispatchEvent: events.add,
-      reportError: (error, _) => errors.add(error),
-      body: (ctx) {
-        handler = genUiActionHandler(ctx, null);
-        return const SizedBox.shrink();
-      },
-    );
-
-    expect(handler, isNull);
-  });
-
-  testWidgets('dispatches a UserActionEvent with name and sourceComponentId', (
+  testWidgets('dispatches the action with its name and source component', (
     tester,
   ) async {
-    await pumpWithContext(
+    final rendered = await renderSurface(
       tester,
-      dataContext: dataContext,
-      dispatchEvent: events.add,
-      reportError: (error, _) => errors.add(error),
-      body: (ctx) => ElevatedButton(
-        onPressed: genUiActionHandler(ctx, const {
+      items: [_tapCard],
+      components: [
+        _card({
           'event': {'name': 'product_selected'},
         }),
-        child: const Text('Tap'),
-      ),
+      ],
     );
 
     await tester.tap(find.text('Tap'));
     await tester.pump();
 
-    expect(errors, isEmpty);
-    expect(events, hasLength(1));
-    final UiEvent event = events.single;
-    expect(event.isUserAction, isTrue);
-    final UserActionEvent action = UserActionEvent.fromMap(event.toMap());
+    expect(rendered.errors, isEmpty);
+    final A2uiRendererAction action = rendered.actions.single;
     expect(action.name, 'product_selected');
-    expect(action.sourceComponentId, 'card-1');
+    expect(action.sourceComponentId, 'root');
+    expect(action.surfaceId, testSurfaceId);
     expect(action.context, isEmpty);
   });
 
   testWidgets('resolves the event context against the data model', (
     tester,
   ) async {
-    model.update(DataPath('/product/id'), 'sku-42');
-
-    await pumpWithContext(
+    final rendered = await renderSurface(
       tester,
-      dataContext: dataContext,
-      dispatchEvent: events.add,
-      reportError: (error, _) => errors.add(error),
-      body: (ctx) => ElevatedButton(
-        onPressed: genUiActionHandler(ctx, const {
+      items: [_tapCard],
+      data: {
+        'product': {'id': 'sku-42'},
+      },
+      components: [
+        _card({
           'event': {
             'name': 'add_to_cart',
             'context': {
@@ -121,248 +78,121 @@ void main() {
             },
           },
         }),
-        child: const Text('Add'),
-      ),
+      ],
     );
 
-    await tester.tap(find.text('Add'));
+    await tester.tap(find.text('Tap'));
     await tester.pump();
 
-    expect(errors, isEmpty);
-    expect(events, hasLength(1));
-    final UserActionEvent action = UserActionEvent.fromMap(
-      events.single.toMap(),
-    );
+    expect(rendered.errors, isEmpty);
+    final A2uiRendererAction action = rendered.actions.single;
     expect(action.name, 'add_to_cart');
-    expect(action.sourceComponentId, 'card-1');
     expect(action.context, {'productId': 'sku-42', 'quantity': 2});
   });
 
-  testWidgets('runs a functionCall through the data context', (tester) async {
-    final List<JsonMap> calls = <JsonMap>[];
-    final DataContext withFunctions = DataContext(
-      model,
-      DataPath.root,
-      functions: [_RecordingFunction(calls)],
-    );
-    model.update(DataPath('/name'), 'ada');
-
-    await pumpWithContext(
+  testWidgets('runs a functionCall through the catalog', (tester) async {
+    final calls = <Map<String, Object?>>[];
+    final rendered = await renderSurface(
       tester,
-      dataContext: withFunctions,
-      dispatchEvent: events.add,
-      reportError: (error, _) => errors.add(error),
-      body: (ctx) => ElevatedButton(
-        onPressed: genUiActionHandler(ctx, const {
+      items: [_tapCard],
+      functions: [
+        GenUiClientFunction(
+          name: 'record',
+          description: 'Records its arguments.',
+          argumentSchema: S.object(properties: {'item': S.string()}),
+          body: (args, context) {
+            calls.add(Map<String, Object?>.of(args));
+            return null;
+          },
+        ),
+      ],
+      components: [
+        _card({
           'functionCall': {
             'call': 'record',
-            'args': {
-              'who': {'path': '/name'},
-            },
+            'args': {'item': 'tea'},
           },
         }),
-        child: const Text('Call'),
-      ),
+      ],
     );
 
-    await tester.tap(find.text('Call'));
+    await tester.tap(find.text('Tap'));
     await tester.pump();
 
-    expect(errors, isEmpty);
-    expect(events, isEmpty);
+    expect(rendered.errors, isEmpty);
+    // A function call runs on the client; nothing goes to the agent.
+    expect(rendered.actions, isEmpty);
     expect(calls, [
-      {'who': 'ada'},
+      {'item': 'tea'},
     ]);
   });
 
-  testWidgets('reports A2uiFunctionException when the function fails', (
-    tester,
-  ) async {
-    final DataContext withFunctions = DataContext(
-      model,
-      DataPath.root,
-      functions: const [_FailingFunction()],
-    );
-
-    await pumpWithContext(
+  testWidgets('a function that fails is reported, not thrown', (tester) async {
+    final rendered = await renderSurface(
       tester,
-      dataContext: withFunctions,
-      dispatchEvent: events.add,
-      reportError: (error, _) => errors.add(error),
-      body: (ctx) => ElevatedButton(
-        onPressed: genUiActionHandler(ctx, const {
+      items: [_tapCard],
+      functions: [
+        GenUiClientFunction(
+          name: 'explode',
+          description: 'Always fails.',
+          argumentSchema: S.object(properties: {}),
+          body: (args, context) => throw StateError('boom'),
+        ),
+      ],
+      components: [
+        _card({
           'functionCall': {'call': 'explode'},
         }),
-        child: const Text('Boom'),
-      ),
+      ],
     );
 
-    await tester.tap(find.text('Boom'));
+    await tester.tap(find.text('Tap'));
     await tester.pump();
 
-    expect(events, isEmpty);
-    expect(errors, hasLength(1));
-    final Object error = errors.single;
-    expect(error, isA<A2uiFunctionException>());
-    expect((error as A2uiFunctionException).functionName, 'explode');
-    expect(error.cause, isA<StateError>());
+    expect(tester.takeException(), isNull);
+    expect(rendered.actions, isEmpty);
+    final A2uiRendererError error = rendered.errors.single;
+    expect(error.code, 'EXECUTION_ERROR');
+    expect(error.message, contains('explode'));
   });
 
-  testWidgets('closeModal pops the current route', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Builder(
-          builder: (context) => ElevatedButton(
-            onPressed: () {
-              showDialog<void>(
-                context: context,
-                builder: (dialogContext) => Builder(
-                  builder: (innerContext) => ElevatedButton(
-                    onPressed: genUiActionHandler(
-                      CatalogItemContext(
-                        data: const <String, Object?>{},
-                        id: 'close',
-                        type: 'Button',
-                        buildChild: (_, [_]) => const SizedBox.shrink(),
-                        dispatchEvent: events.add,
-                        buildContext: innerContext,
-                        dataContext: dataContext,
-                        getComponent: (_) => null,
-                        getCatalogItem: (_) => null,
-                        surfaceId: 'surface-1',
-                        reportError: (error, _) => errors.add(error),
-                      ),
-                      const {
-                        'functionCall': {'call': 'closeModal'},
-                      },
-                    ),
-                    child: const Text('Close'),
-                  ),
-                ),
-              );
-            },
-            child: const Text('Open'),
-          ),
-        ),
-      ),
-    );
-
-    await tester.tap(find.text('Open'));
-    await tester.pumpAndSettle();
-    expect(find.text('Close'), findsOneWidget);
-
-    await tester.tap(find.text('Close'));
-    await tester.pumpAndSettle();
-    expect(find.text('Close'), findsNothing);
-    expect(errors, isEmpty);
-  });
-
-  testWidgets('reports malformed action data instead of throwing', (
+  testWidgets('a malformed action is refused before the widget sees it', (
     tester,
   ) async {
-    late VoidCallback notAMap;
-    late VoidCallback eventWithoutName;
-    late VoidCallback functionCallWithoutCall;
-    late VoidCallback neitherKey;
-
-    await pumpWithContext(
-      tester,
-      dataContext: dataContext,
-      dispatchEvent: events.add,
-      reportError: (error, _) => errors.add(error),
-      body: (ctx) {
-        notAMap = genUiActionHandler(ctx, 'tap')!;
-        eventWithoutName = genUiActionHandler(ctx, const {
-          'event': {'context': {}},
-        })!;
-        functionCallWithoutCall = genUiActionHandler(ctx, const {
-          'functionCall': {'args': {}},
-        })!;
-        neitherKey = genUiActionHandler(ctx, const {'other': true})!;
-        return const SizedBox.shrink();
-      },
+    // The renderer checks the component against its schema, which declares
+    // the common `Action` type, so an event without a name never reaches the
+    // handler: the message is rejected and the agent told why.
+    final processor = MessageProcessor<ComponentImplementation>(
+      catalogs: [
+        testCatalog(components: [_tapCard]),
+      ],
+      reportErrorsOnly: true,
     );
+    addTearDown(processor.dispose);
 
-    expect(notAMap, returnsNormally);
-    expect(eventWithoutName, returnsNormally);
-    expect(functionCallWithoutCall, returnsNormally);
-    expect(neitherKey, returnsNormally);
-    await tester.pump();
+    final List<ErrorMessage> rejected = processor.processMessagesWithErrors([
+      {
+        'version': testVersion,
+        'createSurface': {
+          'surfaceId': testSurfaceId,
+          'catalogId': testCatalogId,
+        },
+      },
+      {
+        'version': testVersion,
+        'updateComponents': {
+          'surfaceId': testSurfaceId,
+          'components': [
+            _card({'event': <String, Object?>{}}),
+          ],
+        },
+      },
+    ]);
 
-    expect(events, isEmpty);
-    // The action without "event" or "functionCall" is only logged, like in
-    // the core Button; the other three are reported.
-    expect(errors, hasLength(3));
+    expect(rejected, hasLength(1));
     expect(
-      errors,
-      everyElement(
-        isA<A2uiValidationException>()
-            .having((e) => e.surfaceId, 'surfaceId', 'surface-1')
-            .having((e) => e.path, 'path', 'card-1'),
-      ),
+      processor.model.getSurface(testSurfaceId)!.componentsModel.get('root'),
+      isNull,
     );
   });
-
-  testWidgets('does not throw when reportError itself throws', (tester) async {
-    late VoidCallback handler;
-
-    await pumpWithContext(
-      tester,
-      dataContext: dataContext,
-      dispatchEvent: events.add,
-      reportError: (error, _) => throw StateError('reporting failed'),
-      body: (ctx) {
-        handler = genUiActionHandler(ctx, 'malformed')!;
-        return const SizedBox.shrink();
-      },
-    );
-
-    expect(handler, returnsNormally);
-    await tester.pump();
-    expect(tester.takeException(), isNull);
-  });
-}
-
-class _RecordingFunction extends SynchronousClientFunction {
-  const _RecordingFunction(this.calls);
-
-  final List<JsonMap> calls;
-
-  @override
-  String get name => 'record';
-
-  @override
-  String get description => 'Records its arguments.';
-
-  @override
-  ClientFunctionReturnType get returnType => ClientFunctionReturnType.any;
-
-  @override
-  Schema get argumentSchema => S.object(properties: {'who': S.string()});
-
-  @override
-  Object? executeSync(JsonMap args, ExecutionContext context) {
-    calls.add(Map<String, Object?>.of(args));
-    return null;
-  }
-}
-
-class _FailingFunction extends SynchronousClientFunction {
-  const _FailingFunction();
-
-  @override
-  String get name => 'explode';
-
-  @override
-  String get description => 'Always fails.';
-
-  @override
-  ClientFunctionReturnType get returnType => ClientFunctionReturnType.any;
-
-  @override
-  Schema get argumentSchema => S.object();
-
-  @override
-  Object? executeSync(JsonMap args, ExecutionContext context) =>
-      throw StateError('kaboom');
 }

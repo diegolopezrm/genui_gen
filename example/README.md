@@ -1,9 +1,9 @@
 # genui_gen example
 
 A small Flutter app that shows `genui_gen` end to end: five ordinary widgets
-are annotated with `@GenUiWidget`, `build_runner` derives a genui
+are annotated with `@GenUiWidget`, `build_runner` derives an A2UI
 `CatalogItem` for each one, and the app renders every generated example with
-genui's `DebugCatalogView`. No LLM, API key or network connection is needed.
+a2ui_flutter's `A2uiSurface`. No LLM, API key or network connection is needed.
 
 ## Three tabs, three things the package does
 
@@ -53,8 +53,8 @@ schema (`metricRowGenUiSchema`) and decoder (`metricRowFromGenUiJson`) that
 
 Each `lib/widgets/<name>.dart` declares `part '<name>.genui.dart';`. The part
 file holds the generated `final CatalogItem <name>CatalogItem`, and
-`lib/main.dart` assembles those five items plus genui's basic catalog into one
-`Catalog`. A `@GenUiData` file such as `lib/models/metric_row.dart` declares
+`lib/main.dart` derives one `CatalogImplementation` from a2ui_flutter's basic
+catalog with those items added. A `@GenUiData` file such as `lib/models/metric_row.dart` declares
 the same kind of `part`, but its generated file holds a schema and a decoder
 instead of a `CatalogItem`.
 
@@ -114,9 +114,10 @@ cd example
 GENUI_UPDATE_GOLDENS=1 flutter test test/genui_semantics_test.dart
 ```
 
-Reading the file is the point. `Icon` and `Image` record nothing at all, and
-`Panel`'s close button records a button with no name — both are genui's to fix,
-and neither is visible from the Dart.
+Reading the file is the point. `Panel`'s close button records a button with no
+name, which is not visible from the Dart. Only the generated components are
+recorded: the test renders each component's examples, and a2ui_flutter's basic
+components carry none.
 
 ## Recording a session
 

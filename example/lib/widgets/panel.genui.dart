@@ -13,7 +13,7 @@ part of 'panel.dart';
 /// Generated [CatalogItem] for [Panel].
 final CatalogItem panelCatalogItem = CatalogItem(
   name: 'Panel',
-  dataSchema: S.object(
+  schema: S.object(
     description:
         'A titled panel that wraps any other component. It has a '
         'header with the title and a close button, a body and an '
@@ -21,31 +21,34 @@ final CatalogItem panelCatalogItem = CatalogItem(
         'the bottom edge. Use it to group related content under a '
         'heading.',
     properties: {
-      'title': A2uiSchemas.stringReference(
-        description: 'The heading shown at the top of the panel.',
-      ),
-      'child': A2uiSchemas.componentReference(
-        description: 'The component rendered as the body of the panel.',
-      ),
+      'title': S.fromMap({
+        ...CommonSchemas.dynamicString.value,
+        'description': 'The heading shown at the top of the panel.',
+      }),
+      'child': S.fromMap({
+        ...CommonSchemas.componentId.value,
+        'description': 'The component rendered as the body of the panel.',
+      }),
       'actions': S.list(
         description:
             'Components laid out along the bottom edge, usually buttons.',
-        items: A2uiSchemas.componentReference(),
+        items: CommonSchemas.componentId,
       ),
-      'onClose': A2uiSchemas.action(
-        description:
+      'onClose': S.fromMap({
+        ...CommonSchemas.action.value,
+        'description':
             'Fired when the user presses the close button in the header.',
-      ),
+      }),
       'meta': S.combined(
         description:
             'Extra labelled details, shown under the title. The keys are '
             'the agent\'s to choose: this is for whatever it decided was '
             'worth attaching to this particular panel, which is exactly '
             'the case a fixed set of properties cannot express.',
-        oneOf: [
+        anyOf: [
           S.object(additionalProperties: S.string()),
-          A2uiSchemas.dataBindingSchema(),
-          A2uiSchemas.functionCall(),
+          CommonSchemas.dataBinding,
+          CommonSchemas.functionCall,
         ],
       ),
     },
@@ -86,35 +89,24 @@ final CatalogItem panelCatalogItem = CatalogItem(
   }
 ]''',
   ],
-  widgetBuilder: (ctx) {
-    final data = ctx.data as JsonMap;
+  builder: (context, node, props, buildChild) {
     T missing<T>(String property, T fallback) {
-      genUiReportMissing(ctx, 'Panel', property);
+      genUiReportMissing(node, 'Panel', property);
       return fallback;
     }
 
-    final _child = data['child'];
-    final _actions = data['actions'];
-    return GenUiBindings(
-      dataContext: ctx.dataContext,
-      bindings: {
-        'title': GenUiBinding.string(data['title']),
-        'meta': GenUiBinding.object(data['meta']),
+    return Panel(
+      title:
+          genUiAsString(props.value('title')) ?? missing<String>('title', ''),
+      child: switch (props.child('child')) {
+        final child? => buildChild(child),
+        _ => missing<Widget>('child', const SizedBox.shrink()),
       },
-      builder: (context, v) => Panel(
-        title: v.string('title') ?? missing<String>('title', ''),
-        child: _child is String
-            ? ctx.buildChild(_child)
-            : missing<Widget>('child', const SizedBox.shrink()),
-        actions: _actions is List
-            ? _actions
-                  .whereType<String>()
-                  .map((id) => ctx.buildChild(id))
-                  .toList()
-            : const [],
-        onClose: genUiActionHandler(ctx, data['onClose']),
-        meta: genUiAsStringMap(v.object('meta')) ?? const <String, String>{},
-      ),
+      actions: props.value('actions') is List
+          ? [for (final child in props.children('actions')) buildChild(child)]
+          : const [],
+      onClose: genUiActionHandler(props.action('onClose')),
+      meta: genUiAsStringMap(props.value('meta')) ?? const <String, String>{},
     );
   },
 );

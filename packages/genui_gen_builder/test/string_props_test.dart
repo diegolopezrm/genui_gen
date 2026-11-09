@@ -45,21 +45,23 @@ class Greeting extends StatelessWidget {
       expect(out, contains("description: 'A greeting.'"));
     });
 
-    test('maps every string to stringReference', () {
+    test('maps every string to DynamicString', () {
       expect(
         out,
         contains(
-          "'name': A2uiSchemas.stringReference(description: 'Who to greet.')",
+          "'name': S.fromMap({...CommonSchemas.dynamicString.value, "
+          "'description': 'Who to greet.'})",
         ),
       );
       expect(
         out,
         contains(
-          "'subtitle': A2uiSchemas.stringReference(description: 'Shown under the name.')",
+          "'subtitle': S.fromMap({...CommonSchemas.dynamicString.value, "
+          "'description': 'Shown under the name.'})",
         ),
       );
-      expect(out, contains("'prefix': A2uiSchemas.stringReference()"));
-      expect(out, contains("'optionalNote': A2uiSchemas.stringReference()"));
+      expect(out, contains("'prefix': CommonSchemas.dynamicString,"));
+      expect(out, contains("'optionalNote': CommonSchemas.dynamicString,"));
     });
 
     test('required iff required, non-nullable and without default', () {
@@ -70,46 +72,50 @@ class Greeting extends StatelessWidget {
       expect(
         out,
         contains(
-          "'label_text': A2uiSchemas.stringReference(description: 'Override wins.')",
+          "'label_text': S.fromMap({...CommonSchemas.dynamicString.value, "
+          "'description': 'Override wins.'})",
         ),
       );
       expect(out, isNot(contains('loses to')));
       expect(
         out,
-        contains("'label_text': GenUiBinding.string(data['label_text'])"),
-      );
-      expect(
-        out,
         contains(
-          "label: v.string('label_text') ?? missing<String>('label_text', '')",
+          "label: genUiAsString(props.value('label_text')) ?? "
+          "missing<String>('label_text', '')",
         ),
       );
     });
 
-    test('binds every string through GenUiBindings', () {
-      expect(out, contains('return GenUiBindings('));
-      expect(out, contains('dataContext: ctx.dataContext'));
-      expect(out, contains("'name': GenUiBinding.string(data['name'])"));
-      expect(
-        out,
-        contains("'subtitle': GenUiBinding.string(data['subtitle'])"),
-      );
+    test('reads every string from the resolved properties', () {
+      expect(out, contains('builder: (context, node, props, buildChild) {'));
+      expect(out, contains('return Greeting('));
+      expect(out, contains("genUiAsString(props.value('name'))"));
+      expect(out, contains("genUiAsString(props.value('subtitle'))"));
     });
 
     test('required strings fall back to empty string and report', () {
       expect(
         out,
-        contains("name: v.string('name') ?? missing<String>('name', '')"),
+        contains(
+          "name: genUiAsString(props.value('name')) ?? "
+          "missing<String>('name', '')",
+        ),
       );
       expect(out, contains('T missing<T>(String property, T fallback)'));
-      expect(out, contains("genUiReportMissing(ctx, 'Greeting', property);"));
+      expect(out, contains("genUiReportMissing(node, 'Greeting', property);"));
       expect(out, isNot(contains('reportError')));
     });
 
     test('nullable strings pass through, defaults apply when absent', () {
-      expect(out, contains("subtitle: v.string('subtitle')"));
-      expect(out, contains("optionalNote: v.string('optionalNote')"));
-      expect(out, contains("prefix: v.string('prefix') ?? 'Hello'"));
+      expect(out, contains("subtitle: genUiAsString(props.value('subtitle'))"));
+      expect(
+        out,
+        contains("optionalNote: genUiAsString(props.value('optionalNote'))"),
+      );
+      expect(
+        out,
+        contains("prefix: genUiAsString(props.value('prefix')) ?? 'Hello'"),
+      );
     });
 
     test('example contains required strings only', () {
@@ -134,7 +140,7 @@ class Docs extends StatelessWidget {
 ''');
     expect(
       out,
-      contains("description: 'First line. Second paragraph with text.'"),
+      contains("'description': 'First line. Second paragraph with text.'"),
     );
   });
 
@@ -149,6 +155,6 @@ class Quote extends StatelessWidget {
 }
 ''');
     expect(out, contains(r"description: 'It\'s \$5 or \'free\'.'"));
-    expect(out, contains(r"""description: 'Don\'t include "quotes".'"""));
+    expect(out, contains(r"""'description': 'Don\'t include "quotes".'"""));
   });
 }

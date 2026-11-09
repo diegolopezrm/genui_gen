@@ -8,30 +8,31 @@ library;
 
 /// How a constructor parameter is exposed in the generated catalog item.
 enum PropKind {
-  /// `String` / `String?` → `A2uiSchemas.stringReference`.
+  /// `String` / `String?` → `CommonSchemas.dynamicString`.
   string,
 
-  /// `int` / `int?` → `A2uiSchemas.numberReference`, resolved with `toInt()`.
+  /// `int` / `int?` → `CommonSchemas.dynamicNumber`, resolved with `toInt()`.
   integer,
 
-  /// `double` / `double?` → `A2uiSchemas.numberReference`, resolved with
+  /// `double` / `double?` → `CommonSchemas.dynamicNumber`, resolved with
   /// `toDouble()`.
   decimal,
 
-  /// `num` / `num?` → `A2uiSchemas.numberReference`.
+  /// `num` / `num?` → `CommonSchemas.dynamicNumber`.
   number,
 
-  /// `bool` / `bool?` → `A2uiSchemas.booleanReference`.
+  /// `bool` / `bool?` → `CommonSchemas.dynamicBoolean`.
   boolean,
 
-  /// A Dart `enum` → `A2uiSchemas.stringReference(enumValues: ...)`.
+  /// A Dart `enum` → an `anyOf` of `S.string(enumValues: ...)`, a data
+  /// binding and a function call.
   enumeration,
 
-  /// `List<String>` (+nullable) → `A2uiSchemas.stringArrayReference`.
+  /// `List<String>` (+nullable) → `CommonSchemas.dynamicStringList`.
   stringList,
 
-  /// `List<int>` (+nullable) → `A2uiSchemas.listOrReference(items:
-  /// S.number())`, each entry resolved with `toInt()`.
+  /// `List<int>` (+nullable) → an `anyOf` of `S.list(items: S.number())`, a
+  /// data binding and a function call, each entry resolved with `toInt()`.
   integerList,
 
   /// `List<double>` (+nullable) → same schema, resolved with `toDouble()`.
@@ -40,8 +41,8 @@ enum PropKind {
   /// `List<num>` (+nullable) → same schema, resolved as-is.
   numberList,
 
-  /// `List<E>` where `E` is a Dart `enum` (+nullable) →
-  /// `A2uiSchemas.listOrReference(items: S.string(enumValues: ...))`.
+  /// `List<E>` where `E` is a Dart `enum` (+nullable) → the same, with
+  /// `S.string(enumValues: ...)` items.
   enumerationList,
 
   /// A class annotated with `@GenUiData` (+nullable) → the generated
@@ -52,13 +53,14 @@ enum PropKind {
   /// `S.list(items: <T schema>)`.
   dataList,
 
-  /// `Widget` / `Widget?` → `A2uiSchemas.componentReference`.
+  /// `Widget` / `Widget?` → `CommonSchemas.componentId`.
   widget,
 
-  /// `List<Widget>` (+nullable) → `S.list(items: componentReference())`.
+  /// `List<Widget>` (+nullable) → `S.list(items: CommonSchemas.componentId)`,
+  /// or `CommonSchemas.childList` for a template.
   widgetList,
 
-  /// `VoidCallback` / `void Function()` (+nullable) → `A2uiSchemas.action`.
+  /// `VoidCallback` / `void Function()` (+nullable) → `CommonSchemas.action`.
   action,
 
   /// `void Function(T)` marked `@GenUiWrites('<property>')`.
@@ -85,36 +87,8 @@ enum PropKind {
 }
 
 extension PropKindX on PropKind {
-  /// Whether the value is resolved through `GenUiBindings` (i.e. it supports
-  /// genui's literal / `{"path": ...}` / `{"call": ...}` forms).
-  bool get isBound => switch (this) {
-    PropKind.string ||
-    PropKind.integer ||
-    PropKind.decimal ||
-    PropKind.number ||
-    PropKind.boolean ||
-    PropKind.enumeration ||
-    PropKind.stringList ||
-    PropKind.integerList ||
-    PropKind.decimalList ||
-    PropKind.numberList ||
-    PropKind.enumerationList ||
-    PropKind.data ||
-    PropKind.dataList ||
-    PropKind.map => true,
-    PropKind.widget ||
-    PropKind.widgetList ||
-    PropKind.action ||
-    PropKind.valueWriter ||
-    PropKind.checkResult => false,
-  };
-
   /// Whether the value is a `@GenUiData` object or a list of them.
   bool get isData => this == PropKind.data || this == PropKind.dataList;
-
-  /// Whether the value is a child component reference built through
-  /// `ctx.buildChild`.
-  bool get isChild => this == PropKind.widget || this == PropKind.widgetList;
 }
 
 /// One constructor parameter that ends up in the generated schema.
@@ -210,7 +184,7 @@ final class PropSpec {
   /// A property is required iff the parameter is required in the constructor,
   /// has no default value and is non-nullable. When such a value is missing
   /// at runtime the generated builder substitutes a fallback and reports the
-  /// problem through `ctx.reportError`.
+  /// problem through `genUiReportMissing`.
   bool get isSchemaRequired =>
       kind != PropKind.valueWriter &&
       kind != PropKind.checkResult &&
@@ -271,7 +245,6 @@ final class WidgetSpec {
     required this.constructorName,
     required this.catalogName,
     required this.description,
-    required this.isImplicitlyFlexible,
     required this.props,
   });
 
@@ -286,9 +259,6 @@ final class WidgetSpec {
 
   /// The widget description fed to the LLM.
   final String description;
-
-  /// Forwarded to `CatalogItem.isImplicitlyFlexible`.
-  final bool isImplicitlyFlexible;
 
   /// Properties in constructor declaration order.
   final List<PropSpec> props;
@@ -327,16 +297,6 @@ final class WidgetSpec {
     for (final p in writerProps) p.writesProperty!,
   };
 
-  /// The properties that resolve through `GenUiBindings`.
-  ///
-  /// A template list is bound as well, even though a list of children is not
-  /// a bound value in itself: what is bound is the path it repeats over, so
-  /// that new entries arriving in the data model rebuild the children.
-  Iterable<PropSpec> get boundProps =>
-      props.where((p) => p.kind.isBound || p.isTemplate);
-
-  Iterable<PropSpec> get childProps => props.where((p) => p.kind.isChild);
-
   Iterable<PropSpec> get requiredProps =>
       props.where((p) => p.isSchemaRequired);
 }
@@ -364,8 +324,8 @@ String lowerCamel(String name) {
 bool _isUpper(String char) =>
     char.toUpperCase() == char && char.toLowerCase() != char;
 
-/// What a `@GenUiFunction` hands back, as genui's `ClientFunctionReturnType`
-/// spells it.
+/// What a `@GenUiFunction` hands back, as a2ui_core's `A2uiReturnType` spells
+/// it.
 enum FunctionReturn {
   string('string'),
   number('number'),
@@ -374,13 +334,12 @@ enum FunctionReturn {
   object('object'),
   any('any'),
 
-  /// A `void` function. Named `empty` because genui's enum constant is, `void`
-  /// being a keyword.
-  empty('empty');
+  /// A `void` function, `void` being a keyword.
+  empty('void_');
 
   const FunctionReturn(this.constantName);
 
-  /// The `ClientFunctionReturnType` constant to emit.
+  /// The `A2uiReturnType` constant to emit.
   final String constantName;
 }
 

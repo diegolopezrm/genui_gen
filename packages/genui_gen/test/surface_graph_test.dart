@@ -1,21 +1,38 @@
+import 'package:a2ui_core/a2ui_core.dart';
+import 'package:a2ui_flutter/a2ui_flutter.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:genui/genui.dart';
 import 'package:genui_gen/inspector.dart';
 
-SurfaceDefinition _definition(List<JsonMap> components) => SurfaceDefinition(
-  surfaceId: 's',
-  catalogId: 'dev.dlsoft.inspect',
-  components: <String, Component>{
-    for (final JsonMap json in components)
-      json['id']! as String: Component.fromJson(json),
-  },
-);
+/// A surface holding [components], built directly rather than through a
+/// processor, so a shape a processor would refuse — a cycle — can be read.
+SurfaceModel<ComponentImplementation> _surface(
+  List<Map<String, Object?>> components,
+) {
+  final surface = SurfaceModel<ComponentImplementation>(
+    's',
+    defaultCatalog: CatalogImplementation(
+      id: 'dev.dlsoft.inspect',
+      components: const [],
+    ),
+  );
+  addTearDown(surface.dispose);
+  for (final Map<String, Object?> json in components) {
+    surface.componentsModel.addComponent(
+      ComponentModel(json['id']! as String, json['component']! as String, {
+        for (final MapEntry<String, Object?> entry in json.entries)
+          if (entry.key != 'id' && entry.key != 'component')
+            entry.key: entry.value,
+      }),
+    );
+  }
+  return surface;
+}
 
 void main() {
   group('GenUiSurfaceGraph', () {
     test('reads the tree out of the component definitions', () {
       final graph = GenUiSurfaceGraph.of(
-        _definition(<JsonMap>[
+        _surface(<Map<String, Object?>>[
           {
             'id': 'root',
             'component': 'Column',
@@ -38,7 +55,7 @@ void main() {
 
     test('reads the paths each component is bound to', () {
       final graph = GenUiSurfaceGraph.of(
-        _definition(<JsonMap>[
+        _surface(<Map<String, Object?>>[
           {
             'id': 'root',
             'component': 'Column',
@@ -70,7 +87,7 @@ void main() {
 
     test('a template is both a child and a binding', () {
       final graph = GenUiSurfaceGraph.of(
-        _definition(<JsonMap>[
+        _surface(<Map<String, Object?>>[
           {
             'id': 'root',
             'component': 'Column',
@@ -97,7 +114,7 @@ void main() {
 
     test('an absolute path inside a template escapes the row', () {
       final graph = GenUiSurfaceGraph.of(
-        _definition(<JsonMap>[
+        _surface(<Map<String, Object?>>[
           {
             'id': 'root',
             'component': 'Column',
@@ -133,7 +150,7 @@ void main() {
       // is a string like any other. Nothing here can tell it apart from the
       // text in 'heading', so the walk leaves it out rather than guessing.
       final graph = GenUiSurfaceGraph.of(
-        _definition(<JsonMap>[
+        _surface(<Map<String, Object?>>[
           {
             'id': 'root',
             'component': 'Column',
@@ -149,7 +166,7 @@ void main() {
 
     test('flags a component nothing reaches', () {
       final graph = GenUiSurfaceGraph.of(
-        _definition(<JsonMap>[
+        _surface(<Map<String, Object?>>[
           {
             'id': 'root',
             'component': 'Column',
@@ -167,7 +184,7 @@ void main() {
 
     test('flags a component that contains itself, without hanging', () {
       final graph = GenUiSurfaceGraph.of(
-        _definition(<JsonMap>[
+        _surface(<Map<String, Object?>>[
           {'id': 'root', 'component': 'Card', 'child': 'inner'},
           {'id': 'inner', 'component': 'Card', 'child': 'root'},
         ]),
@@ -180,7 +197,7 @@ void main() {
 
     test('says so when there is no root', () {
       final graph = GenUiSurfaceGraph.of(
-        _definition(<JsonMap>[
+        _surface(<Map<String, Object?>>[
           {'id': 'heading', 'component': 'Text', 'text': 'Storage'},
         ]),
       );
@@ -192,7 +209,7 @@ void main() {
     });
 
     test('an empty surface describes itself without inventing findings', () {
-      final graph = GenUiSurfaceGraph.of(_definition(<JsonMap>[]));
+      final graph = GenUiSurfaceGraph.of(_surface(<Map<String, Object?>>[]));
 
       expect(graph.describe(), contains('0 components on s'));
       expect(graph.cyclic, isEmpty);

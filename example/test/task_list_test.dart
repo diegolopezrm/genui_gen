@@ -4,52 +4,65 @@
 // per entry, and new entries arriving in the data model add rows without the
 // agent composing anything again.
 
-import 'package:a2ui_core/a2ui_core.dart' as core;
+import 'package:a2ui_core/a2ui_core.dart';
+import 'package:a2ui_flutter/a2ui_flutter.dart';
 import 'package:example/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:genui/genui.dart';
 
-Future<SurfaceController> pumpTaskList(
+final String _version = A2uiProtocolVersion.v0_9.jsonValue;
+
+Future<MessageProcessor<ComponentImplementation>> pumpTaskList(
   WidgetTester tester, {
   required Object rows,
-  JsonMap? data,
+  Map<String, Object?>? data,
 }) async {
-  final controller = SurfaceController(catalogs: [exampleCatalog]);
-  addTearDown(controller.dispose);
+  final processor = MessageProcessor<ComponentImplementation>(
+    catalogs: [exampleCatalog],
+    validationConfig: ValidationConfig.strict,
+  );
+  addTearDown(processor.dispose);
 
-  controller.handleMessage(
-    core.UpdateComponentsMessage(
-      surfaceId: 's',
-      components: [
-        {'id': 'root', 'component': 'TaskList', 'title': 'Today', 'rows': rows},
-        {
-          'id': 'task_row',
-          'component': 'Text',
-          'text': {'path': 'label'},
-        },
-      ],
-    ),
-  );
-  controller.handleMessage(
-    core.CreateSurfaceMessage(
-      surfaceId: 's',
-      catalogId: exampleCatalog.catalogId!,
-    ),
-  );
-  if (data != null) {
-    controller.handleMessage(
-      core.UpdateDataModelMessage(surfaceId: 's', value: data),
-    );
-  }
+  processor.processMessages([
+    {
+      'version': _version,
+      'createSurface': {'surfaceId': 's', 'catalogId': exampleCatalog.id},
+    },
+    if (data != null)
+      {
+        'version': _version,
+        'updateDataModel': {'surfaceId': 's', 'value': data},
+      },
+    {
+      'version': _version,
+      'updateComponents': {
+        'surfaceId': 's',
+        'components': [
+          {
+            'id': 'root',
+            'component': 'TaskList',
+            'title': 'Today',
+            'rows': rows,
+          },
+          {
+            'id': 'task_row',
+            'component': 'Text',
+            'text': {'path': 'label'},
+          },
+        ],
+      },
+    },
+  ]);
 
   await tester.pumpWidget(
     MaterialApp(
-      home: Scaffold(body: Surface(surfaceContext: controller.contextFor('s'))),
+      home: Scaffold(
+        body: A2uiSurface(surface: processor.model.getSurface('s')!),
+      ),
     ),
   );
   await tester.pumpAndSettle();
-  return controller;
+  return processor;
 }
 
 void main() {
@@ -71,7 +84,7 @@ void main() {
   });
 
   testWidgets('a new entry adds a row, with no new surface', (tester) async {
-    final controller = await pumpTaskList(
+    final processor = await pumpTaskList(
       tester,
       rows: {'componentId': 'task_row', 'path': '/tasks'},
       data: {
@@ -81,17 +94,18 @@ void main() {
       },
     );
 
-    controller.handleMessage(
-      core.UpdateDataModelMessage(
-        surfaceId: 's',
-        value: {
+    processor.processMessages({
+      'version': _version,
+      'updateDataModel': {
+        'surfaceId': 's',
+        'value': {
           'tasks': [
             {'label': 'Call the dentist'},
             {'label': 'Buy milk'},
           ],
         },
-      ),
-    );
+      },
+    });
     await tester.pumpAndSettle();
 
     expect(find.text('Buy milk'), findsOneWidget);

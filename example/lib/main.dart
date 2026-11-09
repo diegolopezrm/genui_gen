@@ -1,5 +1,6 @@
+import 'package:a2ui_flutter/a2ui_flutter.dart';
+import 'package:a2ui_flutter/v0_9/basic_catalog.dart';
 import 'package:flutter/material.dart';
-import 'package:genui/genui.dart';
 import 'package:genui_gen/tracing.dart';
 
 import 'genui_catalog.g.dart';
@@ -11,20 +12,22 @@ void main() {
   runApp(const GenUiGenExampleApp());
 }
 
-/// The catalog handed to genui: every generated item in this app, plus genui's
-/// basic catalog so the generated examples can reference core components such
-/// as `Text`.
+/// The catalog handed to the renderer: every generated item in this app, plus
+/// a2ui_flutter's basic catalog so the generated examples can reference core
+/// components such as `Text`.
 ///
 /// `genUiCatalog` comes from `genui_catalog.g.dart`, which the builder
 /// rewrites whenever a `@GenUiWidget` is added or removed, and carries the
 /// `catalog_id` set in `build.yaml`. Adding a widget is one file; nothing here
 /// has to be touched.
-final Catalog exampleCatalog = genUiCatalog.copyWith(
-  newItems: BasicCatalogItems.asCatalog().items.toList(),
-  // The functions too, not just the items. A catalog holds both, and the
-  // fourteen basic ones are what a `checks` rule calls: without them
-  // `{"call": "required"}` names a function nobody registered.
-  newFunctions: BasicCatalogItems.asCatalog().functions.toList(),
+///
+/// Derived from the basic catalog, which keeps its functions as well as its
+/// components. The fourteen basic functions are what a `checks` rule calls:
+/// without them `{"call": "required"}` names a function nobody registered.
+final CatalogImplementation exampleCatalog = basicCatalog().derive(
+  catalogId: genUiCatalog.id,
+  addComponents: genUiCatalog.components.values,
+  addFunctions: genUiCatalog.functions.values,
 );
 
 /// The session recorded in the Session tab, for the Trace tab to replay.

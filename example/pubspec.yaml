@@ -1,19 +1,19 @@
 name: example
-description: Example app for genui_gen — five annotated widgets rendered offline through genui's DebugCatalogView.
+description: Example app for genui_gen — five annotated widgets rendered offline through a2ui_flutter.
 publish_to: none
 version: 0.1.0
 
 environment:
   sdk: ^3.10.0
-  flutter: ">=3.35.0"
+  flutter: ">=3.38.0"
 
 resolution: workspace
 
 dependencies:
-  a2ui_core: ^0.1.0
+  a2ui_core: ^0.5.0
+  a2ui_flutter: ^0.1.0
   flutter:
     sdk: flutter
-  genui: ^0.10.0
   genui_gen: ^0.14.0
 
 dev_dependencies:

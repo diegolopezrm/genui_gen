@@ -1,5 +1,5 @@
 name: genui_gen
-description: Annotations and runtime helpers to generate genui CatalogItems from your own Flutter widgets. Derive the schema from the constructor so the catalog can never drift.
+description: Annotations and runtime helpers to generate A2UI CatalogItems from your own Flutter widgets. Derive the schema from the constructor so the catalog can never drift.
 version: 0.14.1
 homepage: https://diegolopezrm.github.io/genui_gen/
 repository: https://github.com/diegolopezrm/genui_gen
@@ -13,15 +13,15 @@ topics:
 
 environment:
   sdk: ^3.10.0
-  flutter: ">=3.35.0"
+  flutter: ">=3.38.0"
 
 resolution: workspace
 
 dependencies:
-  a2ui_core: ">=0.1.0 <0.2.0"
+  a2ui_core: ">=0.5.0 <0.6.0"
+  a2ui_flutter: ">=0.1.0 <0.2.0"
   flutter:
     sdk: flutter
-  genui: ">=0.10.0 <0.11.0"
   json_schema_builder: ">=0.1.3 <0.2.0"
   meta: ">=1.16.0 <2.0.0"
 

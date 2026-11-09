@@ -1,5 +1,6 @@
+import 'package:a2ui_core/a2ui_core.dart';
+import 'package:a2ui_flutter/a2ui_flutter.dart';
 import 'package:flutter/widgets.dart';
-import 'package:genui/genui.dart';
 
 import 'trace.dart';
 
@@ -24,20 +25,29 @@ class GenUiTracePlayer {
   /// replaying an old session against today's components is how you find out
   /// that a component the agent still asks for no longer exists.
   GenUiTracePlayer(this.trace, {required this.catalog}) {
-    _controller = SurfaceController(catalogs: [catalog]);
+    _processor = _newProcessor();
   }
 
   /// The session being replayed.
   final GenUiTrace trace;
 
   /// The catalog the replay renders with.
-  final Catalog catalog;
+  final CatalogImplementation catalog;
 
-  late SurfaceController _controller;
+  late MessageProcessor<ComponentImplementation> _processor;
   int _position = 0;
 
-  /// The controller holding the replayed surfaces.
-  SurfaceController get controller => _controller;
+  /// The processor holding the replayed surfaces.
+  MessageProcessor<ComponentImplementation> get processor => _processor;
+
+  /// A message the catalog no longer accepts is reported on the processor's
+  /// `onError` rather than thrown, so the replay goes on and shows what still
+  /// renders.
+  MessageProcessor<ComponentImplementation> _newProcessor() =>
+      MessageProcessor<ComponentImplementation>(
+        catalogs: [catalog],
+        reportErrorsOnly: true,
+      );
 
   /// How many steps the trace holds.
   int get length => trace.steps.length;
@@ -68,8 +78,8 @@ class GenUiTracePlayer {
   void seek(int step) {
     final int target = step.clamp(0, length);
     if (target < _position) {
-      _controller.dispose();
-      _controller = SurfaceController(catalogs: [catalog]);
+      _processor.dispose();
+      _processor = _newProcessor();
       _position = 0;
     }
     for (var i = _position; i < target; i++) {
@@ -87,15 +97,15 @@ class GenUiTracePlayer {
   void _apply(GenUiTraceStep step) {
     switch (step) {
       case GenUiMessageStep():
-        _controller.handleMessage(step.decode());
+        _processor.processMessages(step.message);
       case GenUiDataStep():
         // Written whole, at the root, because that is how it was recorded: the
         // state of a surface at a moment, not the difference from the one
         // before it.
-        _controller
-            .contextFor(step.surfaceId)
-            .dataModel
-            .update(DataPath(''), step.data);
+        _processor.model
+            .getSurface(step.surfaceId)
+            ?.dataModel
+            .set('/', step.data);
       case GenUiEventStep():
         // What the app told the agent is not an input to the replay. It is
         // kept in the trace because it explains what the agent answered next.
@@ -104,7 +114,7 @@ class GenUiTracePlayer {
   }
 
   /// Releases the replayed surfaces.
-  void dispose() => _controller.dispose();
+  void dispose() => _processor.dispose();
 }
 
 /// Shows the surface a [GenUiTracePlayer] is currently holding.
@@ -124,7 +134,10 @@ class GenUiTraceView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final String? id = surfaceId ?? player.currentSurfaceId;
-    if (id == null) return const SizedBox.shrink();
-    return Surface(surfaceContext: player.controller.contextFor(id));
+    final SurfaceModel<ComponentImplementation>? surface = id == null
+        ? null
+        : player.processor.model.getSurface(id);
+    if (surface == null) return const SizedBox.shrink();
+    return A2uiSurface(key: ObjectKey(surface), surface: surface);
   }
 }

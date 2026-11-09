@@ -1,7 +1,8 @@
 # genui_gen
 
-Annotate a Flutter widget, run `build_runner`, get a genui `CatalogItem` whose
-schema, builder and examples are derived from the widget's constructor.
+Annotate a Flutter widget, run `build_runner`, get an A2UI `CatalogItem` for
+[a2ui_flutter](https://pub.dev/packages/a2ui_flutter) whose schema, builder and
+examples are derived from the widget's constructor.
 
 A page that shows it end to end — constructor to schema to the message an agent
 sends, a recorded session you can step through, and what the tooling found in
@@ -15,10 +16,9 @@ sessions and the test helpers wired in. It runs in the browser with no key:
 
 ## The problem
 
-A [genui](https://pub.dev/packages/genui) `Catalog` needs three things per
-widget: a JSON schema the model composes against, a `widgetBuilder` that turns
-that JSON back into a widget, and example data for development tooling and
-few-shot prompting. Writing them by hand is tedious, and it drifts silently:
+An A2UI catalog needs three things per widget: a JSON schema the model composes
+against, a builder that turns that JSON back into a widget, and example data
+for development tooling and few-shot prompting. Writing them by hand is tedious, and it drifts silently:
 rename a constructor parameter, add a required one, change an enum, and the app
 still compiles while the model keeps composing against an outdated contract.
 genui's own README is explicit that the model will not use a custom widget on
@@ -32,7 +32,7 @@ one-shot or few-shot prompting to teach it how and when to use each
 `CatalogItem` from it. The schema property names are the parameter names. The
 required list is the set of non-nullable parameters without defaults. Enum
 values are the enum's `name`s. The builder calls the constructor with every
-property resolved through genui's own binding helpers. There is no second
+property resolved by the A2UI renderer itself. There is no second
 source of truth to keep in sync: if the constructor changes and the generated
 part is stale, the build fails or the regenerated file changes in review. The
 catalog cannot drift from the widget because the catalog is a function of the
@@ -44,7 +44,7 @@ widget.
 
 ```yaml
 dependencies:
-  genui: ^0.10.0
+  a2ui_flutter: ^0.1.0
   genui_gen: ^0.14.0
 
 dev_dependencies:
@@ -110,8 +110,8 @@ class ProductCard extends StatelessWidget {
 ```
 
 The `part` directive names the file the generator will write. The generated
-part shares your imports, so the annotated file must import `genui` and
-`genui_gen`, which re-exports the schema names the part needs.
+part shares your imports, so the annotated file must import `genui_gen`, which
+re-exports the schema and renderer names the part needs.
 
 ### 3. Generate
 
@@ -122,12 +122,22 @@ dart run build_runner build
 ### 4. Register the item
 
 ```dart
-final catalog = BasicCatalogItems.asCatalog().copyWith(
-  newItems: [productCardCatalogItem],
+import 'package:a2ui_core/a2ui_core.dart';
+import 'package:a2ui_flutter/a2ui_flutter.dart';
+import 'package:a2ui_flutter/v0_9/basic_catalog.dart';
+
+final catalog = basicCatalog().derive(
+  catalogId: 'com.example.app',
+  addComponents: [productCardCatalogItem],
 );
 
-final controller = SurfaceController(catalogs: [catalog]);
+final processor = MessageProcessor<ComponentImplementation>(
+  catalogs: [catalog],
+);
 ```
+
+Feed the processor what the agent sends with `processor.processMessages(json)`
+and render each surface it creates with `A2uiSurface`.
 
 Naming each item is fine for one widget. Once there are several, use the
 generated `genui_catalog.g.dart` instead and let the list maintain itself —
@@ -143,17 +153,25 @@ part of 'product_card.dart';
 
 final CatalogItem productCardCatalogItem = CatalogItem(
   name: 'ProductCard',
-  dataSchema: S.object(
+  schema: S.object(
     description: 'A product card with price and image.',
     properties: {
-      'title': A2uiSchemas.stringReference(description: 'Product name.'),
-      'price': A2uiSchemas.numberReference(description: 'Price in USD.'),
-      'imageUrl': A2uiSchemas.stringReference(
-        description: 'Optional image URL.',
-      ),
-      'onTap': A2uiSchemas.action(
-        description: 'Fired when the card is tapped.',
-      ),
+      'title': S.fromMap({
+        ...CommonSchemas.dynamicString.value,
+        'description': 'Product name.',
+      }),
+      'price': S.fromMap({
+        ...CommonSchemas.dynamicNumber.value,
+        'description': 'Price in USD.',
+      }),
+      'imageUrl': S.fromMap({
+        ...CommonSchemas.dynamicString.value,
+        'description': 'Optional image URL.',
+      }),
+      'onTap': S.fromMap({
+        ...CommonSchemas.action.value,
+        'description': 'Fired when the card is tapped.',
+      }),
     },
     required: ['title', 'price'],
   ),
@@ -174,54 +192,49 @@ final CatalogItem productCardCatalogItem = CatalogItem(
   }
 ]''',
   ],
-  widgetBuilder: (ctx) {
-    final data = ctx.data as JsonMap;
-    // Reports a required property the model omitted via ctx.reportError
+  builder: (context, node, props, buildChild) {
+    // Reports a required property the model omitted on the surface's onError
     // (once per component) and returns the fallback instead.
     T missing<T>(String property, T fallback) {
-      genUiReportMissing(ctx, 'ProductCard', property);
+      genUiReportMissing(node, 'ProductCard', property);
       return fallback;
     }
-    return GenUiBindings(
-      dataContext: ctx.dataContext,
-      bindings: {
-        'title': GenUiBinding.string(data['title']),
-        'price': GenUiBinding.number(data['price']),
-        'imageUrl': GenUiBinding.string(data['imageUrl']),
-      },
-      builder: (context, v) => ProductCard(
-        title: v.string('title') ?? missing<String>('title', ''),
-        price: (v.number('price') ?? missing<num>('price', 0)).toDouble(),
-        imageUrl: v.string('imageUrl'),
-        onTap: genUiActionHandler(ctx, data['onTap']),
-      ),
+
+    return ProductCard(
+      title:
+          genUiAsString(props.value('title')) ?? missing<String>('title', ''),
+      price: (genUiAsNum(props.value('price')) ?? missing<num>('price', 0))
+          .toDouble(),
+      imageUrl: genUiAsString(props.value('imageUrl')),
+      onTap: genUiActionHandler(props.action('onTap')),
     );
   },
 );
 ```
 
-Every property accepts a literal or a genui data binding (`{"path": ...}`)
-because `GenUiBindings` composes genui's `BoundString`, `BoundNumber`,
-`BoundBool` and `BoundList` under the hood. Actions dispatch a
-`UserActionEvent` exactly the way genui's core `Button` does.
+Every property accepts a literal or a data binding (`{"path": ...}`) because
+its schema is one of A2UI's dynamic types: the renderer resolves the property
+against the data model, hands the builder the value, and rebuilds it when the
+value changes. The value is then coerced with the rules genui's `Bound*`
+widgets applied. Actions run the way the core `Button`'s do.
 
 ## Supported parameter types
 
 | Dart parameter type | Schema emitted | Passed to the constructor as |
 |---|---|---|
-| `String`, `String?` | string reference | the resolved `String` |
-| `int`, `double`, `num` and nullable variants | number reference | converted with `toInt()` / `toDouble()` as needed |
-| `bool`, `bool?` | boolean reference | the resolved `bool` |
-| `enum E`, `E?` | string reference with `enumValues` set to the enum's `name`s | `E.values.asNameMap()[value]`, falling back to the first constant when the property is required |
-| `List<String>`, `List<String>?` | string array reference | `List<String>` |
-| `List<int>`, `List<double>`, `List<num>` and nullable variants | `A2uiSchemas.listOrReference(items: S.number())` | entries converted with `toInt()` / `toDouble()` as needed |
-| `List<E>`, `List<E>?` where `E` is an enum | `listOrReference` whose items carry the enum's `name`s | one `E` per entry; a name the enum does not declare is dropped |
-| a class annotated with `@GenUiData`, and its nullable variant | a `oneOf` of the inlined object schema, a data binding and a function call | the decoded instance |
-| `List<T>`, `List<T>?` where `T` is `@GenUiData` | `A2uiSchemas.listOrReference(items: <that object schema>)` | one decoded `T` per element |
-| `Map<String, V>`, `Map<String, V>?` where `V` is a scalar, an enum or `Object?` | an object schema with `additionalProperties` | the coerced `Map`; an entry the model got wrong is dropped |
-| `Widget`, `Widget?` | component reference | `ctx.buildChild(id)` |
-| `List<Widget>`, `List<Widget>?` | list of component references | one `ctx.buildChild` per id |
-| `VoidCallback`, `void Function()` and nullable variants | action | a callback that dispatches a `UserActionEvent` |
+| `String`, `String?` | `DynamicString` | the resolved `String` |
+| `int`, `double`, `num` and nullable variants | `DynamicNumber` | converted with `toInt()` / `toDouble()` as needed |
+| `bool`, `bool?` | `DynamicBoolean` | the resolved `bool` |
+| `enum E`, `E?` | an `anyOf` of a string with `enumValues` set to the enum's `name`s, a data binding and a function call | `E.values.asNameMap()[value]`, falling back to the first constant when the property is required |
+| `List<String>`, `List<String>?` | `DynamicStringList` | `List<String>` |
+| `List<int>`, `List<double>`, `List<num>` and nullable variants | an `anyOf` of a list of numbers, a data binding and a function call | entries converted with `toInt()` / `toDouble()` as needed |
+| `List<E>`, `List<E>?` where `E` is an enum | the same, with the enum's `name`s on the items | one `E` per entry; a name the enum does not declare is dropped |
+| a class annotated with `@GenUiData`, and its nullable variant | an `anyOf` of the inlined object schema, a data binding and a function call | the decoded instance |
+| `List<T>`, `List<T>?` where `T` is `@GenUiData` | an `anyOf` of a list of that object schema, a data binding and a function call | one decoded `T` per element |
+| `Map<String, V>`, `Map<String, V>?` where `V` is a scalar, an enum or `Object?` | an `anyOf` of an object schema with `additionalProperties`, a data binding and a function call | the coerced `Map`; an entry the model got wrong is dropped |
+| `Widget`, `Widget?` | `ComponentId` | the child the renderer resolved, built with `buildChild` |
+| `List<Widget>`, `List<Widget>?` | list of `ComponentId`s | one built child per id |
+| `VoidCallback`, `void Function()` and nullable variants | `Action` | a callback that runs the action |
 | `void Function(T)` marked `@GenUiWrites`, where `T` is a `String`, a number, a `bool` or an enum | nothing; the callback is not a property | a callback that writes the user's value into the data model |
 | `Key? key` / `super.key` | skipped | not passed |
 | anything else | build error naming the widget, parameter and type | see Limitations |
@@ -234,14 +247,17 @@ because `GenUiBindings` composes genui's `BoundString`, `BoundNumber`,
   resolved value only when it is non-null, so the Dart default applies when
   the model omits it.
 - A required property that arrives missing or malformed does not throw during
-  build. The builder substitutes a fallback (`''`, `0`, `false`, the first enum
-  value, `const []`, `SizedBox.shrink()`, a no-op callback) and reports the
-  problem once per component through `ctx.reportError`, as an
-  `A2uiValidationException` so the model sees the widget and property names.
-  A `{"path": ...}` binding that has not resolved yet is not reported; it
+  build. The renderer checks every component against its schema first, so a
+  literal the model left out or sent with the wrong type is rejected, and
+  reported to the agent, before the builder runs. What the schema cannot catch
+  still reaches the builder, which substitutes a fallback (`''`, `0`, `false`,
+  the first enum value, `const []`, `SizedBox.shrink()`, a no-op callback).
+  A literal that gets that far is reported once per component on the surface's
+  `onError`, as a `VALIDATION_FAILED` error naming the widget and property. A
+  `{"path": ...}` binding that has not resolved yet is not reported; it
   rebuilds on its own when the data model is populated.
 - The generated examples use the core `Text` component for child widgets, so
-  keep `BasicCatalogItems` in your `Catalog` (as in step 4).
+  derive your catalog from the basic catalog (as in step 4).
 
 ### Where descriptions come from
 
@@ -261,9 +277,12 @@ catalog entry without a description is useless to the model.
   description: 'Fed to the model. Required.',
   name: 'ProductCard',          // schema component name; defaults to the class name
   constructor: 'fromSummary',   // named constructor to read; defaults to the unnamed one
-  isImplicitlyFlexible: false,  // forwarded to CatalogItem.isImplicitlyFlexible
 )
 ```
+
+`isImplicitlyFlexible` is deprecated and has no effect: a2ui_flutter has no
+implicitly flexible components, so a widget that needs bounded constraints has
+to bound itself.
 
 ```dart
 @GenUiProp(
@@ -283,7 +302,7 @@ for `this.x` parameters, on the field.
 
 ```dart
 @GenUiAction(
-  eventName: 'addToCart',       // UserActionEvent name; defaults to the parameter name
+  eventName: 'addToCart',       // event name in the example; defaults to the parameter name
   description: 'Fired when the user adds the product to the cart.',
 )
 ```
@@ -319,20 +338,24 @@ final List<CatalogItem> genUiCatalogItems = <CatalogItem>[
   statTileCatalogItem,
 ];
 
-final Catalog genUiCatalog = Catalog(
-  genUiCatalogItems,
-  catalogId: 'com.example.app',
+final CatalogImplementation genUiCatalog = CatalogImplementation(
+  id: 'com.example.app',
+  components: genUiCatalogItems,
+  functions: genUiCatalogFunctions,
 );
 ```
 
-Which makes registering them one line, whatever the app grows into:
+Which makes registering them one statement, whatever the app grows into:
 
 ```dart
+import 'package:a2ui_flutter/v0_9/basic_catalog.dart';
+
 import 'genui_catalog.g.dart';
 
-final catalog = genUiCatalog.copyWith(
-  newItems: BasicCatalogItems.asCatalog().items.toList(),
-  newFunctions: BasicCatalogItems.asCatalog().functions.toList(),
+final catalog = basicCatalog().derive(
+  catalogId: genUiCatalog.id,
+  addComponents: genUiCatalogItems,
+  addFunctions: genUiCatalogFunctions,
 );
 ```
 
@@ -363,13 +386,14 @@ Worth knowing:
 - `@GenUiWidget(name: '...')` on a private class generates a private variable,
   which no other library can name. It is left out with a warning saying so,
   rather than emitting a file that does not compile.
-- Without `catalog_id`, `genUiCatalog` is still assembled, just without an id.
-  A surface names the catalog it was built against, so set one before talking
-  to an agent.
+- Without `catalog_id`, the two lists are still emitted but `genUiCatalog` is
+  not: an A2UI catalog cannot exist without an id, and a surface names the
+  catalog it was built against. Set one before talking to an agent.
 
 ## Handing the catalog to an agent (`catalog.json`)
 
-Inside the app, genui puts the catalog in the prompt for you. Everything
+Inside an app that prompts the model itself, `a2ui_agent` puts the catalog in
+the prompt for you. Everything
 outside this Flutter process needs it as a document: an agent written in
 Python, a second client rendering the same surfaces in SwiftUI, a review that
 has to answer what the model was allowed to ask for last Tuesday.
@@ -406,14 +430,11 @@ flutter test test/catalog_json_test.dart --update-goldens
 
 `example/catalog.json` is generated exactly that way. Worth knowing:
 
-- The catalog needs an id. Without one the surface has no way to name it, so
-  the export throws rather than writing a document nothing can reference.
-- The `$ref`s point at the shared A2UI types for v0.9, the protocol version
-  genui emits, so whatever resolves them needs network access or a local copy
-  of `common_types.json`.
-- `title` and `description` are worth passing. genui fills in `A2UI Catalog`
-  and `Custom catalog of A2UI components and functions.` for every catalog ever
-  generated, and an agent handed three of them has nothing else to tell them
+- The `$ref`s point at the shared A2UI types in `common_types.json`, relative
+  to the catalog, so whatever resolves them needs a copy of that file for the
+  protocol version the catalog speaks, v0.9 here.
+- `title` and `description` are worth passing. A catalog defined in code has
+  neither, and an agent handed three of them has nothing else to tell them
   apart by.
 
 ## What the component exposes (`package:genui_gen/testing.dart`)
@@ -429,14 +450,19 @@ review.
 ```dart
 // test/genui_semantics_test.dart
 testWidgets('the catalog exposes what it exposed before', (tester) async {
+  // The examples compose the basic `Text` for child components.
+  final catalog = basicCatalog().derive(
+    catalogId: genUiCatalog.id,
+    addComponents: genUiCatalogItems,
+  );
   final recorded = <String, List<GenUiSemanticNode>>{};
 
-  for (final item in genUiCatalog.items) {
+  for (final item in genUiCatalogItems) {
     final handle = tester.ensureSemantics();
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: GenUiExampleSurface(catalog: genUiCatalog, item: item),
+          body: GenUiExampleSurface(catalog: catalog, item: item),
         ),
       ),
     );
@@ -477,11 +503,11 @@ The file it writes reads like this, and is meant to be reviewed:
 Worth knowing:
 
 - `GenUiExampleSurface` renders the item's generated example through a real
-  `SurfaceController`, so the recording covers the whole path — schema,
-  bindings, actions — rather than the widget called directly.
-- A component that renders nothing a user can reach records an empty list. In
-  the example app that is what `Icon` and `Image` do: genui builds them without
-  a semantic label, so a screen reader is told nothing at all.
+  `MessageProcessor` and `A2uiSurface`, so the recording covers the whole path
+  — schema, bindings, actions — rather than the widget called directly.
+- A component that renders nothing a user can reach records an empty list: a
+  screen reader is told nothing at all. Only components that carry examples
+  are recorded, and a2ui_flutter's basic components carry none.
 - The shape — role, name, value, state, actions, in traversal order — is the
   one [A2UI's rendering cases](https://github.com/a2ui-project/a2ui/issues/2738)
   are written in, because it is the only description of a rendered surface that
@@ -500,8 +526,8 @@ A trace is that session, kept:
 
 ```dart
 final recorder = GenUiTraceRecorder.attach(
-  controller,
-  catalogId: genUiCatalog.catalogId,
+  processor,
+  catalogId: genUiCatalog.id,
   redact: const ['/user/email'],
 );
 
@@ -556,15 +582,17 @@ It renders every item's own generated example with each property replaced by
 something else that property could hold: a required one left out, a null, a
 string where a number was declared, an empty list, a list of two hundred
 entries, a binding that never resolves, a call to a function nobody
-registered, a string longer than any layout expects.
+registered, a string longer than any layout expects. The renderer checks each
+case against the schema before applying it, and a case it refuses never
+reaches the widget: the agent is told instead, so it is not a finding.
 
 Every finding carries the component the renderer was handed, so a case is
 something to paste into a test rather than a description to reconstruct:
 
 ```
-Slider: `max` as an empty list
-  threw: type 'List<Object?>' is not a subtype of type 'num?' in type cast
-  {"id":"root","component":"Slider","value":0.5,"max":[]}
+Fragile: `label` as an unresolved binding
+  threw: Null check operator used on a null value
+  {"id":"root","component":"Fragile","label":{"path":"/genui_fuzz/nothing_here"}}
 ```
 
 The cases are built by mutating the examples rather than by reading the
@@ -587,9 +615,8 @@ Worth knowing:
   your design tokens for instance, need that app to render at all, or every one
   fails the same way before any case runs:
   `host: (surface) => MaterialApp(theme: appTheme, home: Scaffold(body: SingleChildScrollView(child: surface)))`.
-- Pointed at genui's own basic catalog it currently reports 69 crashing cases
-  across five components, filed as
-  [a2ui#2872](https://github.com/a2ui-project/a2ui/issues/2872).
+- Components without examples are not fuzzed, which includes a2ui_flutter's
+  basic components.
 
 ## What the agent actually used (`genUiCoverage`)
 
@@ -674,9 +701,9 @@ component takes.
 
 A property on its own is read-only: the model puts a value there and the widget
 displays it. A control the user operates has to report the new value back, and
-genui's own basic catalog does that by writing it into the surface's data
-model — that is what `TextField`, `Slider`, `CheckBox`, `ChoicePicker`,
-`DateTimeInput` and `Tabs` all do.
+the basic catalog does that by writing it into the surface's data model — that
+is what `TextField`, `Slider`, `CheckBox`, `ChoicePicker` and `DateTimeInput`
+all do.
 
 `@GenUiWrites` gives an annotated widget the same ability:
 
@@ -734,11 +761,12 @@ The model sends a binding, and reads the answer back from the path it chose:
   control reflects what the user just did.
 - A literal still works. When the model sends `"enabled": true` rather than a
   binding, there is no path it named, so the value is written to
-  `<componentId>.enabled` — the fallback genui's own `TextField` uses — and the
+  `<componentId>.enabled` — the fallback genui's own `TextField` used — and the
   literal is what the control starts from until that path holds something. The
-  widget stays interactive either way.
+  widget stays interactive either way. a2ui_flutter's own controls do not do
+  this: given a literal, they keep the change to themselves or ignore it.
 - A write the data model refuses (an index out of bounds, a non-numeric segment
-  on a list) is reported through `ctx.reportError` rather than thrown out of a
+  on a list) is reported on the surface's `onError` rather than thrown out of a
   gesture handler, the same way a failed action is.
 
 ### Rules
@@ -830,20 +858,21 @@ it.
 
 Worth knowing:
 
-- **The rules are evaluated one at a time, not folded together.** genui's own
-  `checksToExpression` combines the conditions into a single `and` and keeps no
-  messages, which is why the basic catalog can only colour a field red. The
-  message is the only part of a rule a person ever reads, and the agent wrote
-  it for them.
-- A rule whose condition has not resolved yet counts as passing, so a field is
-  not announced as invalid before the data model arrives. A rule with no
-  message is skipped rather than shown as an unexplained failure, and a
-  condition that throws counts as passing rather than taking the screen down.
+- **The rules are evaluated one at a time, not folded together.** The renderer
+  keeps the message of every failing rule, and the parameter gets the first.
+  The message is the only part of a rule a person ever reads, and the agent
+  wrote it for them.
+- A rule whose condition is still waiting on an answer from the agent counts
+  as passing, so a field is not announced as invalid before the answer
+  arrives. A rule with no message is refused: A2UI requires one, so the
+  renderer rejects the component and tells the agent rather than showing an
+  unexplained failure. A condition that cannot be evaluated is reported to the
+  agent, and its rule fails.
 - A condition usually calls one of the basic catalog's functions (`required`,
   `regex`, `length`, `numeric`, `email`), so those functions have to be in the
-  catalog you hand the controller. `Catalog.copyWith` takes items and functions
-  separately: pass `newFunctions` as well as `newItems`, or the rules will name
-  functions nobody registered.
+  catalog you hand the processor. A catalog derived from `basicCatalog()`
+  keeps them; one built with `CatalogImplementation(...)` has to list them, or
+  the rules will name functions nobody registered.
 
 ## Lists the data model fills (`@GenUiProp(template: true)`)
 
@@ -881,9 +910,9 @@ and one row is built per entry at `/tasks`. A new entry in the data model adds
 a row without the agent being asked for anything.
 
 Each child reads its own entry: the child of `/tasks` at index 2 binds `label`
-against `/tasks/2/label`, so a single component describes every row. Children
-are keyed by entry rather than by position, so a row removed from the middle
-takes its state with it instead of handing it to the row that moved up.
+against `/tasks/2/label`, so a single component describes every row. The
+renderer expands the template itself, one child per entry of the list at the
+path.
 
 Worth knowing:
 
@@ -901,25 +930,29 @@ Worth knowing:
 A catalog has two halves, and everything above is one of them. Components are
 what the agent composes a surface out of. Functions are what it computes a
 value with, through the `{"call": ...}` form every bound property already
-accepts. genui registers fourteen of them (`required`, `regex`, `length`,
-`numeric`, `email`, `openUrl`, `formatString`, `formatNumber`,
+accepts. The basic catalog registers fourteen of them (`required`, `regex`,
+`length`, `numeric`, `email`, `openUrl`, `formatString`, `formatNumber`,
 `formatCurrency`, `formatDate`, `pluralize`, `and`, `or`, `not`), and adding
-one of your own meant writing a `ClientFunction` by hand:
+one of your own means writing a `FunctionImplementation` by hand:
 
 ```dart
-class ShortenName implements ClientFunction {
-  String get name => 'shortenName';
-  String get description => '...';
-  Schema get argumentSchema => S.object(  // written beside the code that
-    properties: {                          // reads it back, and free to
-      'name': ...,                         // drift from it
-    },
-    required: ['name'],
-  );
-  ClientFunctionReturnType get returnType => ClientFunctionReturnType.string;
+class ShortenName extends FunctionImplementation {
+  ShortenName()
+    : super(
+        name: 'shortenName',
+        description: '...',
+        argumentSchema: S.object(  // written beside the code that
+          properties: {            // reads it back, and free to
+            'name': ...,           // drift from it
+          },
+          required: ['name'],
+        ),
+        returnType: A2uiReturnType.string,
+      );
 
-  Stream<Object?> execute(JsonMap args, ExecutionContext context) =>
-      Stream.value(_shorten(args['name'] as String));  // and a cast
+  @override
+  Object? execute(Map<String, dynamic> args, DataContext context, [_]) =>
+      _shorten(args['name'] as String);  // and a cast
 }
 ```
 
@@ -964,7 +997,7 @@ the wire.
 | parameters with no default, non-nullable | the `required` list |
 | parameter doc comments, or `@GenUiProp(description:)` | the argument descriptions |
 | an enum parameter | a string argument carrying the enum's `name`s |
-| the Dart return type | `ClientFunctionReturnType` |
+| the Dart return type | `A2uiReturnType` |
 | `Future<T>` | an async function (`GenUiClientFunction.async`) |
 | `Stream<T>` | a reactive one (`.streaming`), for a clock, a request, a watched path |
 
@@ -984,10 +1017,11 @@ surface to build a child on or event to dispatch.
 Worth knowing:
 
 - The generated functions land in `genUiCatalogFunctions` and are handed to the
-  assembled `Catalog`, so adding one needs no other change anywhere. They reach
+  assembled `CatalogImplementation`, so adding one needs no other change
+  anywhere. They reach
   the exported `catalog.json` under `functions`, in the shape A2UI publishes
   for its own basic catalog.
-- A name genui's basic catalog already registers is a build error. A catalog is
+- A name the basic catalog already registers is a build error. A catalog is
   a map from name to function, so a second `required` would replace the one
   that is there and change what every prompt written against it means. Rename
   it with `@GenUiFunction(name: ...)`.
@@ -1095,31 +1129,32 @@ element:
 
 ```dart
     properties: {
-      'title': A2uiSchemas.stringReference(
-        description: 'The heading shown above the table.',
-      ),
-      'rows': A2uiSchemas.listOrReference(
+      'title': S.fromMap({
+        ...CommonSchemas.dynamicString.value,
+        'description': 'The heading shown above the table.',
+      }),
+      'rows': S.combined(
         description: 'The rows of the table, in display order.',
-        items: metricRowGenUiSchema,
+        anyOf: [
+          S.list(items: metricRowGenUiSchema),
+          CommonSchemas.dataBinding,
+          CommonSchemas.functionCall,
+        ],
       ),
     },
     required: ['title', 'rows'],
 ```
 
 ```dart
-      bindings: {
-        'title': GenUiBinding.string(data['title']),
-        'rows': GenUiBinding.objectList(data['rows']),
-      },
-      builder: (context, v) => MetricsTable(
-        title: v.string('title') ?? missing<String>('title', ''),
-        rows:
-            v
-                .objectList('rows')
-                ?.map((json) => metricRowFromGenUiJson(json, missingIn('rows')))
-                .toList() ??
-            missing<List<MetricRow>>('rows', const <MetricRow>[]),
-      ),
+    return MetricsTable(
+      title:
+          genUiAsString(props.value('title')) ?? missing<String>('title', ''),
+      rows:
+          genUiAsObjectList(props.value('rows'))
+              ?.map((json) => metricRowFromGenUiJson(json, missingIn('rows')))
+              .toList() ??
+          missing<List<MetricRow>>('rows', const <MetricRow>[]),
+    );
 ```
 
 so the model composes one component with real objects in it:
@@ -1144,15 +1179,15 @@ so the model composes one component with real objects in it:
   A `Widget` or a callback inside a data class is a build error naming the
   field: a data class is data the model emits, not a component reference.
 - Inside the object the schema uses plain `S.string` / `S.integer` /
-  `S.number`, not the `A2uiSchemas.*Reference` forms, because those values are
+  `S.number`, not the `CommonSchemas.dynamic*` forms, because those values are
   literals. The binding applies to the whole property, so
-  `"rows": {"path": "/report/rows"}` resolves through genui's `BoundList` while
-  a `{"path": ...}` on an individual field inside a row does not — which is why
-  the *property* schema is a union of the literal, a data binding and a
-  function call, and the *field* schemas are not.
+  `"rows": {"path": "/report/rows"}` is resolved by the renderer while a
+  `{"path": ...}` on an individual field inside a row is refused by the field's
+  schema — which is why the *property* schema is a union of the literal, a data
+  binding and a function call, and the *field* schemas are not.
 - No field is cast. Each one goes through the `genUiAs*` coercions the runtime
-  exports, which apply genui's own `Bound*` rules, so a wrong-typed field
-  degrades instead of throwing a `TypeError` inside `build`.
+  exports, which apply the rules genui's `Bound*` widgets applied, so a
+  wrong-typed field degrades instead of throwing a `TypeError` inside `build`.
 - Nested data schemas are inlined rather than `$ref`'d, so a data class that
   reaches itself (directly or transitively) is a build error naming the cycle.
 - A required field the model omits falls back exactly as in 0.1 (`''`, `0`,
@@ -1167,7 +1202,7 @@ so the model composes one component with real objects in it:
   descriptions come from the same three places.
 - A description on a property or field whose *type* is a data class is kept
   too, so one use site can say what the object means there without changing the
-  shared class. On a widget property it becomes the description of the `oneOf`
+  shared class. On a widget property it becomes the description of the `anyOf`
   wrapper; on a field of another data class the inlined schema is copied with
   that description in place of the class's own.
 - A generic data class, a field whose wire key would be the reserved `path` or
@@ -1254,27 +1289,27 @@ Two ways around it in the meantime:
   composing components. The argument schema, the return type and the argument
   reading all come from the signature, and the assembled catalog and the
   exported `catalog.json` pick the functions up on their own.
-- Proposed next: accessibility — `ComponentCommon` declares `label` and
-  `description` on every A2UI component and the conformance suite tests them.
-  genui does not apply them yet
-  ([a2ui#2697](https://github.com/a2ui-project/a2ui/issues/2697),
-  [genui#1035](https://github.com/flutter/genui/pull/1035)); once it does, a
-  generator is the one place to wire them in for every annotated widget.
+- Accessibility: `ComponentCommon` declares `label` and `description` on every
+  A2UI component and the conformance suite tests them
+  ([a2ui#2697](https://github.com/a2ui-project/a2ui/issues/2697)). genui did
+  not apply them; a2ui_flutter applies them around every component it renders,
+  generated ones included.
 - Proposed next: smarter example generation, where the author's own default
   values and the property description feed the sample instead of the fixed
   `42` / `Sample <name>` placeholders.
 
 ## Compatibility
 
-- `genui ^0.10.0`
-- Flutter `>=3.35.0`
+- `a2ui_core ^0.5.0` and `a2ui_flutter ^0.1.0`
+- Flutter `>=3.38.0`
 - Dart `>=3.10.0 <4.0.0`
 - `build_runner ^2.15.0`, `source_gen ^4.1.0`, `analyzer >=10.0.0 <15.0.0`
 
-genui lives in [flutter/genui](https://github.com/flutter/genui) and is
-pre-1.0; its `CatalogItem`, `A2uiSchemas` and binding APIs still move between
-minor versions. This package tracks genui and bumps its constraint when genui
-breaks. If you are on a newer genui than the constraint allows, open an issue.
+`a2ui_core` and `a2ui_flutter` live in
+[a2ui-project/a2ui](https://github.com/a2ui-project/a2ui) and are pre-1.0;
+their APIs still move between minor versions. This package tracks them and
+bumps its constraints when they break. If you are on a newer release than the
+constraints allow, open an issue.
 
 ## Packages
 
@@ -1282,7 +1317,7 @@ breaks. If you are on a newer genui than the constraint allows, open an issue.
 |---|---|---|
 | [`genui_gen`](packages/genui_gen) | `dependencies` | `@GenUiWidget`, `@GenUiData`, `@GenUiProp`, `@GenUiAction`, `@GenUiWrites` and the runtime helpers the generated code calls |
 | [`genui_gen_builder`](packages/genui_gen_builder) | `dev_dependencies` | the `build_runner` generator, and the aggregating builder that emits `genui_catalog.g.dart` |
-| [`example`](example) | - | six annotated widgets — one driven by a `@GenUiData` class, one a switch that writes back — rendered offline through genui's `DebugCatalogView` |
+| [`example`](example) | - | six annotated widgets — one driven by a `@GenUiData` class, one a switch that writes back — rendered offline through a2ui_flutter's `A2uiSurface` |
 
 ## Contributing
 

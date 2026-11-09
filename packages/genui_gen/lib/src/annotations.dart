@@ -35,7 +35,7 @@ import 'package:meta/meta_meta.dart';
 /// ```
 ///
 /// The generated part exposes `productCardCatalogItem`, ready to be added to a
-/// genui `Catalog`.
+/// `CatalogImplementation`.
 @Target({TargetKind.classType})
 class GenUiWidget {
   /// Creates a [GenUiWidget] annotation.
@@ -47,7 +47,7 @@ class GenUiWidget {
     this.name,
     required this.description,
     this.constructor,
-    this.isImplicitlyFlexible = false,
+    @Deprecated(_noImplicitFlex) this.isImplicitlyFlexible = false,
   });
 
   /// The component name used in the A2UI JSON (`"component": "<name>"`).
@@ -66,10 +66,19 @@ class GenUiWidget {
   /// Whether the component should be implicitly flexible when placed inside a
   /// flex container such as the core `Row` or `Column`.
   ///
-  /// Forwarded verbatim to `CatalogItem.isImplicitlyFlexible`. Enable it for
-  /// widgets that require bounded constraints (lists, text fields, ...).
+  /// genui forwarded this to `CatalogItem.isImplicitlyFlexible`.
+  /// a2ui_flutter's `Row` and `Column` have no such flag, so it has no effect
+  /// and the generator ignores it. A widget that needs bounded constraints
+  /// (a list, a text field) has to bound itself, with a `LimitedBox` for
+  /// instance, or the agent sends it a `weight`.
+  @Deprecated(_noImplicitFlex)
   final bool isImplicitlyFlexible;
 }
+
+const String _noImplicitFlex =
+    'a2ui_flutter has no implicitly flexible components, so this has no '
+    'effect. Give a widget that needs bounded constraints its own bound, such '
+    'as a LimitedBox.';
 
 /// Per-parameter overrides for a [GenUiWidget] constructor parameter.
 ///
@@ -145,8 +154,8 @@ class GenUiAction {
   /// Creates a [GenUiAction] annotation.
   const GenUiAction({this.eventName, this.description});
 
-  /// The name of the `UserActionEvent` dispatched when the callback fires, as
-  /// used in the generated example (`{"event": {"name": "<eventName>"}}`).
+  /// The name of the event dispatched when the callback fires, as used in the
+  /// generated example (`{"event": {"name": "<eventName>"}}`).
   ///
   /// Defaults to the parameter name (e.g. `onTap`). At runtime the event name
   /// always comes from the A2UI action data produced by the model; this value
@@ -228,8 +237,8 @@ class GenUiData {
 ///
 /// A `@GenUiWidget` property is read-only on its own: the model puts a value
 /// there and the widget displays it. A control the user operates — a switch, a
-/// slider, a text field — also has to report the new value back, and genui's
-/// own basic catalog does that by writing it into the surface's data model. A
+/// slider, a text field — also has to report the new value back, and the basic
+/// catalog's controls do that by writing it into the surface's data model. A
 /// parameter annotated with [GenUiWrites] does the same: the generated builder
 /// passes a callback that writes to the property named by [property].
 ///
@@ -260,8 +269,9 @@ class GenUiData {
 /// written back to that same path, so `{"value": {"path": "/form/notify"}}`
 /// makes `/form/notify` hold whatever the user chose. When the model sends a
 /// literal instead of a binding there is nowhere it named to write to, so the
-/// value goes to `<componentId>.<property>`, which is what genui's own
-/// `TextField` does. The widget stays interactive either way.
+/// value goes to `<componentId>.<property>`, which is where genui's own
+/// `TextField` put it, and the widget reads it back from there. The widget
+/// stays interactive either way.
 ///
 /// [property] must name another property of the same widget, and the
 /// callback's argument type must match it: `ValueChanged<bool>` writes to a
@@ -292,9 +302,9 @@ class GenUiWrites {
 /// `{"call": ...}` form that any bound property already accepts. The basic
 /// catalog ships fourteen of them (`required`, `regex`, `length`, `numeric`,
 /// `email`, `formatString` and the rest), and an app that wants one of its own
-/// has to write a `ClientFunction` by hand: the name, the description, an
-/// `argumentSchema` spelled out in JSON schema, the return type, and an
-/// `execute` that digs each argument back out of a `JsonMap` and casts it.
+/// has to write a `FunctionImplementation` by hand: the name, the description,
+/// an `argumentSchema` spelled out in JSON schema, the return type, and an
+/// `execute` that digs each argument back out of a map and casts it.
 ///
 /// That is the same drift this package removes from components, one half of
 /// the catalog over. The schema is written by hand beside the code that reads
@@ -319,8 +329,8 @@ class GenUiWrites {
 ///
 /// Register the generated functions the same way as the items: the aggregating
 /// builder puts them in `genui_catalog.g.dart` and hands them to the
-/// assembled `Catalog`, so they reach both the prompt and the exported
-/// `catalog.json`.
+/// assembled `CatalogImplementation`, so they reach both the prompt and the
+/// exported `catalog.json`.
 @Target({TargetKind.function})
 class GenUiFunction {
   /// Creates a [GenUiFunction] annotation.

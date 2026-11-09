@@ -10,9 +10,9 @@
 ///
 /// ```dart
 /// GenUiInspector(
-///   controller: controller,
+///   processor: processor,
 ///   recorder: recorder,
-///   child: GenUiConversation(...),
+///   child: MyConversationView(...),
 /// )
 /// ```
 ///

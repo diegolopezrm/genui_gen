@@ -17,26 +17,20 @@ const _flutter = "import 'package:flutter/widgets.dart';";
 
 /// Which import provides each identifier the emitter may reference.
 const importForSymbol = <String, String>{
-  // genui_gen 0.14 re-exports the renderer types generated code names, so one
+  // genui_gen re-exports the renderer types generated code names, so one
   // import covers them whichever renderer it sits on.
   'CatalogItem': _genuiGen,
-  'A2uiSchemas': _genuiGen,
-  'JsonMap': _genuiGen,
-  'ClientFunction': _genuiGen,
-  'ClientFunctionReturnType': _genuiGen,
+  'CommonSchemas': _genuiGen,
+  'FunctionImplementation': _genuiGen,
+  'A2uiReturnType': _genuiGen,
   'S': _jsonSchemaBuilder,
   'ObjectSchema': _jsonSchemaBuilder,
-  'GenUiBindings': _genuiGen,
-  'GenUiChecks': _genuiGen,
   'GenUiCheckResult': _genuiGen,
   'GenUiClientFunction': _genuiGen,
-  'GenUiBinding': _genuiGen,
   'GenUiMissingFieldReporter': _genuiGen,
   'genUiActionHandler': _genuiGen,
-  'genUiTemplateChildren': _genuiGen,
-  'genUiTemplatePath': _genuiGen,
   'genUiValueWriter': _genuiGen,
-  'genUiWriteReference': _genuiGen,
+  'genUiWrittenValue': _genuiGen,
   'genUiReportMissing': _genuiGen,
   'genUiAsString': _genuiGen,
   'genUiAsNum': _genuiGen,

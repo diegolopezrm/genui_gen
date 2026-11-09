@@ -13,20 +13,22 @@ part of 'tag_row.dart';
 /// Generated [CatalogItem] for [TagRow].
 final CatalogItem tagRowCatalogItem = CatalogItem(
   name: 'TagRow',
-  dataSchema: S.object(
+  schema: S.object(
     description:
         'A row of short text tags rendered as chips. Exactly one tag '
         'is highlighted as selected. Use it to show categories, '
         'filters or keywords attached to an item.',
     properties: {
-      'tags': A2uiSchemas.stringArrayReference(
-        description: 'The tags to display, one chip each, in order.',
-      ),
-      'selectedIndex': A2uiSchemas.numberReference(
-        description:
+      'tags': S.fromMap({
+        ...CommonSchemas.dynamicStringList.value,
+        'description': 'The tags to display, one chip each, in order.',
+      }),
+      'selectedIndex': S.fromMap({
+        ...CommonSchemas.dynamicNumber.value,
+        'description':
             'The zero-based index of the highlighted tag. Defaults to the '
             'first one.',
-      ),
+      }),
     },
     required: ['tags'],
   ),
@@ -43,25 +45,17 @@ final CatalogItem tagRowCatalogItem = CatalogItem(
   }
 ]''',
   ],
-  widgetBuilder: (ctx) {
-    final data = ctx.data as JsonMap;
+  builder: (context, node, props, buildChild) {
     T missing<T>(String property, T fallback) {
-      genUiReportMissing(ctx, 'TagRow', property);
+      genUiReportMissing(node, 'TagRow', property);
       return fallback;
     }
 
-    return GenUiBindings(
-      dataContext: ctx.dataContext,
-      bindings: {
-        'tags': GenUiBinding.stringList(data['tags']),
-        'selectedIndex': GenUiBinding.number(data['selectedIndex']),
-      },
-      builder: (context, v) => TagRow(
-        tags:
-            v.stringList('tags') ??
-            missing<List<String>>('tags', const <String>[]),
-        selectedIndex: v.number('selectedIndex')?.toInt() ?? 0,
-      ),
+    return TagRow(
+      tags:
+          genUiAsStringList(props.value('tags')) ??
+          missing<List<String>>('tags', const <String>[]),
+      selectedIndex: genUiAsNum(props.value('selectedIndex'))?.toInt() ?? 0,
     );
   },
 );

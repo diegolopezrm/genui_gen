@@ -1,18 +1,17 @@
-import 'dart:async';
-
-import 'package:a2ui_core/a2ui_core.dart' as core;
+import 'package:a2ui_core/a2ui_core.dart';
+import 'package:a2ui_flutter/a2ui_flutter.dart';
+import 'package:a2ui_flutter/v0_9/basic_catalog.dart' as v0_9;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:genui/genui.dart';
 import 'package:genui_gen/inspector.dart';
 import 'package:genui_gen/tracing.dart';
 
-Catalog get _catalog =>
-    BasicCatalogItems.asCatalog().copyWith(catalogId: 'dev.dlsoft.inspect');
+CatalogImplementation get _catalog =>
+    v0_9.basicCatalog().derive(catalogId: 'dev.dlsoft.inspect');
 
 /// A surface with a checkbox bound to `/on`, a line of text bound to a path
 /// the agent never wrote, and a button.
-List<JsonMap> get _components => <JsonMap>[
+List<Map<String, Object?>> get _components => <Map<String, Object?>>[
   {
     'id': 'root',
     'component': 'Column',
@@ -40,35 +39,37 @@ List<JsonMap> get _components => <JsonMap>[
   {'id': 'send-label', 'component': 'Text', 'text': 'Confirm'},
 ];
 
-/// Renders whatever surfaces the controller has, rebuilding as they arrive.
+/// Renders whatever surfaces the processor has, rebuilding as they arrive.
 ///
 /// The inspector's own child is handed to it once and never rebuilt by it, so
-/// the app under the panel has to follow the controller itself, exactly as a
+/// the app under the panel has to follow the processor itself, exactly as a
 /// real one does.
 class _LiveSurfaces extends StatefulWidget {
-  const _LiveSurfaces(this.controller);
+  const _LiveSurfaces(this.processor);
 
-  final SurfaceController controller;
+  final MessageProcessor<ComponentImplementation> processor;
 
   @override
   State<_LiveSurfaces> createState() => _LiveSurfacesState();
 }
 
 class _LiveSurfacesState extends State<_LiveSurfaces> {
-  late final StreamSubscription<SurfaceUpdate> _updates = widget
-      .controller
-      .surfaceUpdates
-      .listen((_) => setState(() {}));
+  late final List<Subscription> _subscriptions = <Subscription>[
+    widget.processor.model.onSurfaceCreated.subscribe((_) => setState(() {})),
+    widget.processor.model.onSurfaceDeleted.subscribe((_) => setState(() {})),
+  ];
 
   @override
   void initState() {
     super.initState();
-    _updates;
+    _subscriptions;
   }
 
   @override
   void dispose() {
-    _updates.cancel();
+    for (final Subscription subscription in _subscriptions) {
+      subscription.unsubscribe();
+    }
     super.dispose();
   }
 
@@ -77,8 +78,9 @@ class _LiveSurfacesState extends State<_LiveSurfaces> {
     body: Column(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        for (final String id in widget.controller.activeSurfaceIds)
-          Surface(surfaceContext: widget.controller.contextFor(id)),
+        for (final SurfaceModel<ComponentImplementation> surface
+            in widget.processor.model.allSurfaces)
+          A2uiSurface(key: ObjectKey(surface), surface: surface),
       ],
     ),
   );
@@ -87,7 +89,7 @@ class _LiveSurfacesState extends State<_LiveSurfaces> {
 /// Pumps the inspector over a live surface and opens the panel.
 /// A surface built from a template: one component repeated over `/items`,
 /// reading a path written relative to the row it renders.
-List<JsonMap> get _templateComponents => <JsonMap>[
+List<Map<String, Object?>> get _templateComponents => <Map<String, Object?>>[
   {
     'id': 'root',
     'component': 'Column',
@@ -106,38 +108,53 @@ Future<void> pumpInspector(
   bool enabled = true,
   bool template = false,
 }) async {
-  final controller = SurfaceController(catalogs: [_catalog]);
-  addTearDown(controller.dispose);
+  final processor = MessageProcessor<ComponentImplementation>(
+    catalogs: [_catalog],
+  );
+  addTearDown(processor.dispose);
 
   GenUiTraceRecorder? recorder;
   if (withRecorder) {
-    recorder = GenUiTraceRecorder.attach(controller, catalogId: 'x');
+    recorder = GenUiTraceRecorder.attach(processor, catalogId: 'x');
     addTearDown(recorder.dispose);
   }
-  final A2uiMessageSink sink = recorder ?? controller;
+  void send(AgentToRendererMessage message) {
+    if (recorder != null) {
+      recorder.handleMessage(message);
+    } else {
+      processor.processMessages(message.toJson());
+    }
+  }
 
   await tester.pumpWidget(
     MaterialApp(
       home: GenUiInspector(
-        controller: controller,
+        processor: processor,
         recorder: recorder,
         enabled: enabled,
-        child: _LiveSurfaces(controller),
+        child: _LiveSurfaces(processor),
       ),
     ),
   );
 
-  sink.handleMessage(
-    core.UpdateComponentsMessage(
+  final String version = A2uiProtocolVersion.v0_9.jsonValue;
+  send(
+    CreateSurfaceMessage(
+      version: version,
+      surfaceId: 's',
+      catalogId: 'dev.dlsoft.inspect',
+    ),
+  );
+  send(
+    UpdateComponentsMessage(
+      version: version,
       surfaceId: 's',
       components: template ? _templateComponents : _components,
     ),
   );
-  sink.handleMessage(
-    core.CreateSurfaceMessage(surfaceId: 's', catalogId: 'dev.dlsoft.inspect'),
-  );
-  sink.handleMessage(
-    core.UpdateDataModelMessage(
+  send(
+    UpdateDataModelMessage(
+      version: version,
       surfaceId: 's',
       value: template
           ? {
@@ -265,7 +282,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.textContaining('false'), findsOneWidget);
 
-      await tester.tap(find.byType(CheckboxListTile));
+      await tester.tap(find.byType(Checkbox));
       await tester.pumpAndSettle();
 
       expect(find.textContaining('true'), findsOneWidget);

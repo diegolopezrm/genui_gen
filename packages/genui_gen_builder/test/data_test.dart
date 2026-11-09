@@ -70,9 +70,9 @@ void main() {
       );
     });
 
-    test('fields use plain S.* schemas, never A2uiSchemas', () async {
+    test('fields use plain S.* schemas, never CommonSchemas', () async {
       final out = await generate(row);
-      expect(out, isNot(contains('A2uiSchemas')));
+      expect(out, isNot(contains('CommonSchemas')));
       expect(out, contains("'label': S.string()"));
       expect(out, contains("'value': S.number()"));
       expect(out, contains("'count': S.integer()"));
@@ -307,7 +307,7 @@ class Row {
   });
 
   group('widget properties', () {
-    test('a required object property binds, decodes and reports', () async {
+    test('a required object property resolves, decodes and reports', () async {
       final out = await generate('''
 $badge
 
@@ -320,13 +320,12 @@ class BadgeView extends StatelessWidget {
       expect(
         out,
         contains(
-          "dataSchema: S.object(description: 'Shows a badge.', "
-          "properties: {'badge': S.combined(oneOf: [badgeGenUiSchema, "
-          'A2uiSchemas.dataBindingSchema(), A2uiSchemas.functionCall()])}, '
+          "schema: S.object(description: 'Shows a badge.', "
+          "properties: {'badge': S.combined(anyOf: [badgeGenUiSchema, "
+          'CommonSchemas.dataBinding, CommonSchemas.functionCall])}, '
           "required: ['badge'])",
         ),
       );
-      expect(out, contains("'badge': GenUiBinding.object(data['badge'])"));
       // The reporter is handed over only on the branch where the object
       // really resolved. The fallback branch decodes the empty map without
       // one, so a `{"path": ...}` that has not resolved yet produces the
@@ -335,11 +334,11 @@ class BadgeView extends StatelessWidget {
       expect(
         out,
         contains(
-          "badge: switch (v.object('badge')) {"
+          "badge: switch (genUiAsObject(props.value('badge'))) {"
           'final Map<String, Object?> json => '
           "badgeFromGenUiJson(json, missingIn('badge')), "
           '_ => badgeFromGenUiJson('
-          "missing<JsonMap>('badge', const <String, Object?>{}))}",
+          "missing<Map<String, Object?>>('badge', const <String, Object?>{}))}",
         ),
       );
     });
@@ -357,7 +356,7 @@ class BadgeView extends StatelessWidget {
       expect(
         out,
         contains(
-          "badge: switch (v.object('badge')) {"
+          "badge: switch (genUiAsObject(props.value('badge'))) {"
           'final Map<String, Object?> json => '
           "badgeFromGenUiJson(json, missingIn('badge')), "
           '_ => null}',
@@ -366,9 +365,9 @@ class BadgeView extends StatelessWidget {
       expect(
         out,
         contains(
-          "dataSchema: S.object(description: 'Shows a badge.', "
-          "properties: {'badge': S.combined(oneOf: [badgeGenUiSchema, "
-          'A2uiSchemas.dataBindingSchema(), A2uiSchemas.functionCall()])})',
+          "schema: S.object(description: 'Shows a badge.', "
+          "properties: {'badge': S.combined(anyOf: [badgeGenUiSchema, "
+          'CommonSchemas.dataBinding, CommonSchemas.functionCall])})',
         ),
       );
     });
@@ -399,17 +398,14 @@ class BadgeList extends StatelessWidget {
       expect(
         out,
         contains(
-          "'badges': A2uiSchemas.listOrReference(items: badgeGenUiSchema)",
+          "'badges': S.combined(anyOf: [S.list(items: badgeGenUiSchema), "
+          'CommonSchemas.dataBinding, CommonSchemas.functionCall])',
         ),
       );
       expect(
         out,
-        contains("'badges': GenUiBinding.objectList(data['badges'])"),
-      );
-      expect(
-        out,
         contains(
-          "badges: v .objectList('badges') ?.map((json) => "
+          "badges: genUiAsObjectList(props.value('badges')) ?.map((json) => "
           "badgeFromGenUiJson(json, missingIn('badges'))) .toList() ?? "
           "missing<List<Badge>>('badges', const <Badge>[])",
         ),
@@ -429,7 +425,7 @@ class BadgeList extends StatelessWidget {
       expect(
         out,
         contains(
-          "badges: v .objectList('badges') ?.map((json) => "
+          "badges: genUiAsObjectList(props.value('badges')) ?.map((json) => "
           "badgeFromGenUiJson(json, missingIn('badges'))) .toList())",
         ),
       );
@@ -451,8 +447,9 @@ class BadgeList extends StatelessWidget {
       expect(
         out,
         contains(
-          "'badges': A2uiSchemas.listOrReference("
-          "description: 'The badges to show.', items: badgeGenUiSchema)",
+          "'badges': S.combined(description: 'The badges to show.', "
+          'anyOf: [S.list(items: badgeGenUiSchema), '
+          'CommonSchemas.dataBinding, CommonSchemas.functionCall])',
         ),
       );
     });
@@ -474,8 +471,8 @@ class BadgeView extends StatelessWidget {
         contains(
           "'badge': S.combined(description: "
           "'The badge shown next to the title.', "
-          'oneOf: [badgeGenUiSchema, A2uiSchemas.dataBindingSchema(), '
-          'A2uiSchemas.functionCall()])',
+          'anyOf: [badgeGenUiSchema, CommonSchemas.dataBinding, '
+          'CommonSchemas.functionCall])',
         ),
       );
       // The class keeps its own description; only the property carries the
@@ -498,8 +495,8 @@ class BadgeView extends StatelessWidget {
         expect(
           out,
           contains(
-            "'badge': S.combined(oneOf: [badgeGenUiSchema, "
-            'A2uiSchemas.dataBindingSchema(), A2uiSchemas.functionCall()])',
+            "'badge': S.combined(anyOf: [badgeGenUiSchema, "
+            'CommonSchemas.dataBinding, CommonSchemas.functionCall])',
           ),
         );
         expect(out, isNot(contains('ObjectSchema.fromMap')));
@@ -545,18 +542,16 @@ class BadgeList extends StatelessWidget {
   final List<Badge> badges;
 }
 ''');
-      expect(out, contains("'title': A2uiSchemas.stringReference()"));
+      expect(out, contains("'title': CommonSchemas.dynamicString"));
       expect(
         out,
         contains(
-          "'badges': A2uiSchemas.listOrReference(items: badgeGenUiSchema)",
+          "'badges': S.combined(anyOf: [S.list(items: badgeGenUiSchema), "
+          'CommonSchemas.dataBinding, CommonSchemas.functionCall])',
         ),
       );
-      expect(out, contains("'title': GenUiBinding.string(data['title'])"));
-      expect(
-        out,
-        contains("'badges': GenUiBinding.objectList(data['badges'])"),
-      );
+      expect(out, contains("title: genUiAsString(props.value('title'))"));
+      expect(out, contains("genUiAsObjectList(props.value('badges'))"));
     });
   });
 
@@ -752,7 +747,10 @@ class Table extends StatelessWidget {
       );
       expect(
         out,
-        contains("'rows': A2uiSchemas.listOrReference(items: rowGenUiSchema)"),
+        contains(
+          "'rows': S.combined(anyOf: [S.list(items: rowGenUiSchema), "
+          'CommonSchemas.dataBinding, CommonSchemas.functionCall])',
+        ),
       );
       expect(
         out,
@@ -836,14 +834,15 @@ class BadgeList extends StatelessWidget {
       expect(
         out,
         contains(
-          "'badges': A2uiSchemas.listOrReference(items: badgeGenUiSchema)",
+          "'badges': S.combined(anyOf: [S.list(items: badgeGenUiSchema), "
+          'CommonSchemas.dataBinding, CommonSchemas.functionCall])',
         ),
       );
       expect(
         out,
         contains(
-          "'badge': S.combined(oneOf: [badgeGenUiSchema, "
-          'A2uiSchemas.dataBindingSchema(), A2uiSchemas.functionCall()])',
+          "'badge': S.combined(anyOf: [badgeGenUiSchema, "
+          'CommonSchemas.dataBinding, CommonSchemas.functionCall])',
         ),
       );
     });
@@ -890,7 +889,10 @@ class Badge {
       // belong to the libraries that declare them.
       expect(
         out,
-        contains("'rows': A2uiSchemas.listOrReference(items: rowGenUiSchema)"),
+        contains(
+          "'rows': S.combined(anyOf: [S.list(items: rowGenUiSchema), "
+          'CommonSchemas.dataBinding, CommonSchemas.functionCall])',
+        ),
       );
       expect(out, isNot(contains('final ObjectSchema rowGenUiSchema')));
       expect(out, isNot(contains('badgeGenUiSchema')));
@@ -968,26 +970,23 @@ class Panel extends StatelessWidget {
       expect(
         out,
         contains(
-          "'badges': A2uiSchemas.listOrReference(items: badgeGenUiSchema)",
+          "'badges': S.combined(anyOf: [S.list(items: badgeGenUiSchema), "
+          'CommonSchemas.dataBinding, CommonSchemas.functionCall])',
         ),
       );
       expect(
         out,
-        contains("'children': S.list(items: A2uiSchemas.componentReference())"),
+        contains("'children': S.list(items: CommonSchemas.componentId)"),
       );
-      // The children are read straight from `data`, never bound.
-      expect(out, contains("final _children = data['children'];"));
+      // The children arrive as nodes the renderer resolved; the badges as the
+      // data the binding resolved.
+      expect(out, contains("genUiAsObjectList(props.value('badges'))"));
       expect(
         out,
         contains(
-          "bindings: {'badges': GenUiBinding.objectList(data['badges'])}",
-        ),
-      );
-      expect(
-        out,
-        contains(
-          '_children is List ? _children .whereType<String>()'
-          ' .map((id) => ctx.buildChild(id)) .toList()',
+          "children: props.value('children') is List "
+          "? [for (final child in props.children('children')) "
+          'buildChild(child)]',
         ),
       );
     });

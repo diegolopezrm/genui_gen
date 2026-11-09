@@ -29,55 +29,62 @@ class Panel extends StatelessWidget {
 ''');
     });
 
-    test('schema uses componentReference and lists of it', () {
+    test('schema uses ComponentId and lists of it', () {
       expect(
         out,
         contains(
-          "'body': A2uiSchemas.componentReference(description: 'Main content.')",
+          "'body': S.fromMap({...CommonSchemas.componentId.value, "
+          "'description': 'Main content.'})",
         ),
       );
-      expect(out, contains("'footer': A2uiSchemas.componentReference()"));
+      expect(out, contains("'footer': CommonSchemas.componentId,"));
       expect(
         out,
-        contains("'actions': S.list(items: A2uiSchemas.componentReference())"),
+        contains("'actions': S.list(items: CommonSchemas.componentId)"),
       );
       expect(
         out,
-        contains("'extras': S.list(items: A2uiSchemas.componentReference())"),
+        contains("'extras': S.list(items: CommonSchemas.componentId)"),
       );
       expect(out, contains("required: ['body', 'actions']"));
     });
 
-    test('children are not bound, so no GenUiBindings wrapper is needed', () {
-      expect(out, isNot(contains('GenUiBindings(')));
+    test('children are built straight from the resolved properties', () {
       expect(out, contains('return Panel('));
+      expect(out, isNot(contains('data[')));
     });
 
-    test('single children build through ctx.buildChild', () {
-      expect(out, contains("final _body = data['body'];"));
-      expect(out, contains('body: _body is String'));
-      expect(out, contains('ctx.buildChild(_body)'));
-      expect(out, contains("missing<Widget>('body', const SizedBox.shrink())"));
-      expect(
-        out,
-        contains('footer: _footer is String ? ctx.buildChild(_footer) : null'),
-      );
-    });
-
-    test('child lists map ids through ctx.buildChild', () {
-      expect(out, contains("final _actions = data['actions'];"));
-      expect(out, contains('actions: _actions is List'));
+    test('single children build the node the renderer resolved', () {
       expect(
         out,
         contains(
-          '.whereType<String>().map((id) => ctx.buildChild(id)).toList()',
+          "body: switch (props.child('body')) {final child? => "
+          "buildChild(child), _ => missing<Widget>('body', "
+          'const SizedBox.shrink())}',
+        ),
+      );
+      expect(
+        out,
+        contains(
+          "footer: switch (props.child('footer')) {final child? => "
+          'buildChild(child), _ => null}',
+        ),
+      );
+    });
+
+    test('child lists build one child per node', () {
+      expect(out, contains("actions: props.value('actions') is List"));
+      expect(
+        out,
+        contains(
+          "[for (final child in props.children('actions')) buildChild(child)]",
         ),
       );
       expect(
         out,
         contains("missing<List<Widget>>('actions', const <Widget>[])"),
       );
-      expect(out, contains('badges: _badges is List'));
+      expect(out, contains("badges: props.value('badges') is List"));
       expect(out, contains(': const <Widget>[])'));
     });
 
@@ -114,11 +121,10 @@ class TitledBox extends StatelessWidget {
   final Widget child;
 }
 ''');
-      expect(out, contains("final _child = data['child'];"));
-      expect(out, contains('return GenUiBindings('));
-      expect(out, contains("'title': GenUiBinding.string(data['title'])"));
-      expect(out, isNot(contains("'child': GenUiBinding")));
-      expect(out, contains('builder: (context, v) => TitledBox('));
+      expect(out, contains("title: genUiAsString(props.value('title'))"));
+      expect(out, contains("child: switch (props.child('child'))"));
+      expect(out, isNot(contains("props.value('child')")));
+      expect(out, contains('return TitledBox('));
     },
   );
 }

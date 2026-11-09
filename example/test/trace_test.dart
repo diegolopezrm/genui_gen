@@ -5,16 +5,16 @@
 // writes it, reads it back and replays it, which is the whole loop a bug
 // report goes through.
 
-import 'package:a2ui_core/a2ui_core.dart' as core;
+import 'package:a2ui_core/a2ui_core.dart';
+import 'package:a2ui_flutter/a2ui_flutter.dart';
 import 'package:example/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:genui/genui.dart';
 import 'package:genui_gen/tracing.dart';
 
 const _surfaceId = 'settings';
 
-List<JsonMap> get _components => <JsonMap>[
+List<Map<String, Object?>> get _components => <Map<String, Object?>>[
   {
     'id': 'root',
     'component': 'PreferenceRow',
@@ -28,29 +28,35 @@ void main() {
   testWidgets('a session with this catalog replays as it happened', (
     tester,
   ) async {
-    final controller = SurfaceController(catalogs: [exampleCatalog]);
-    addTearDown(controller.dispose);
+    final processor = MessageProcessor<ComponentImplementation>(
+      catalogs: [exampleCatalog],
+    );
+    addTearDown(processor.dispose);
     final recorder = GenUiTraceRecorder.attach(
-      controller,
-      catalogId: exampleCatalog.catalogId,
+      processor,
+      catalogId: exampleCatalog.id,
       notes: const {'report': 'the switch would not stay on'},
     );
     addTearDown(recorder.dispose);
 
+    final String version = A2uiProtocolVersion.v0_9.jsonValue;
     recorder.handleMessage(
-      core.UpdateComponentsMessage(
+      CreateSurfaceMessage(
+        version: version,
+        surfaceId: _surfaceId,
+        catalogId: exampleCatalog.id,
+      ),
+    );
+    recorder.handleMessage(
+      UpdateComponentsMessage(
+        version: version,
         surfaceId: _surfaceId,
         components: _components,
       ),
     );
     recorder.handleMessage(
-      core.CreateSurfaceMessage(
-        surfaceId: _surfaceId,
-        catalogId: exampleCatalog.catalogId!,
-      ),
-    );
-    recorder.handleMessage(
-      core.UpdateDataModelMessage(
+      UpdateDataModelMessage(
+        version: version,
         surfaceId: _surfaceId,
         value: {'notify': false},
       ),
@@ -59,7 +65,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: Surface(surfaceContext: controller.contextFor(_surfaceId)),
+          body: A2uiSurface(surface: processor.model.getSurface(_surfaceId)!),
         ),
       ),
     );

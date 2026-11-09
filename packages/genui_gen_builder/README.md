@@ -7,8 +7,9 @@
 
 `build_runner` generator for
 [`genui_gen`](https://pub.dev/packages/genui_gen). It turns a Flutter
-widget annotated with `@GenUiWidget` into a genui `CatalogItem` whose JSON
-schema, widget builder and few-shot example are all derived from the widget's
+widget annotated with `@GenUiWidget` into an A2UI `CatalogItem`, rendered by
+[a2ui_flutter](https://pub.dev/packages/a2ui_flutter), whose JSON schema,
+widget builder and few-shot example are all derived from the widget's
 constructor. Nothing is written by hand, so the catalog can never drift from
 the widget.
 
@@ -26,7 +27,8 @@ model computes a value with rather than what it composes a surface out of.
 |---|---|
 | Dart SDK | `>=3.10.0 <4.0.0` |
 | `analyzer` | `>=10.0.0 <15.0.0` |
-| `genui` | `0.10.x` |
+| `a2ui_core` (generated code) | `0.5.x` |
+| `a2ui_flutter` (generated code) | `0.1.x` |
 
 The generator is written against the parts of the analyzer element model that
 are stable across major versions, so a new `analyzer` release does not require
@@ -36,7 +38,7 @@ a new release of this package unless it removes API the generator uses.
 
 ```yaml
 dependencies:
-  genui: ^0.10.0
+  a2ui_flutter: ^0.1.0
   genui_gen: ^0.14.0
 
 dev_dependencies:
@@ -56,6 +58,7 @@ Flutter-dependent runtime never loads into the build isolate.
 
 | Builder | Needs at least | Because it emits |
 |---|---|---|
+| unreleased | the matching unreleased `genui_gen` | a2ui_flutter components: `CatalogItem(schema:, builder:)`, `CommonSchemas`, `genUiWrittenValue` |
 | 0.8.x | `genui_gen >= 0.9.0` | `GenUiClientFunction` |
 | 0.7.x | `genui_gen >= 0.8.0` | `genUiTemplateChildren`, `GenUiBinding.value` |
 | 0.6.x | `genui_gen >= 0.5.0` | the assembled `Catalog` with its `catalogId` |
@@ -104,24 +107,24 @@ dart run build_runner build
 ```
 
 The generated part declares `final CatalogItem productCardCatalogItem`, ready
-to be added to a `Catalog`. The variable name is always
+to be added to a `CatalogImplementation`. The variable name is always
 `<lowerCamelClassName>CatalogItem`, regardless of `@GenUiWidget(name:)`.
 
 The annotated file must:
 
 - contain the `part '<file>.genui.dart';` directive (the builder warns and
   skips the file otherwise), and
-- import `package:genui/genui.dart` and `package:genui_gen/genui_gen.dart`
-  (plus Flutter). The generated code is a `part of` your library and reuses its
-  imports; when one is missing the build fails with the exact import lines to
-  add. `genui_gen` re-exports `S`, `Schema` and `ObjectSchema`, so the schema
-  names the generated part uses come with it.
+- import `package:genui_gen/genui_gen.dart` (plus Flutter). The generated code
+  is a `part of` your library and reuses its imports; when one is missing the
+  build fails with the exact import lines to add. `genui_gen` re-exports `S`,
+  `Schema`, `ObjectSchema` and the a2ui_core and a2ui_flutter names the
+  generated part uses, so they come with it.
 
 ## The package's catalog
 
 A second builder collects every generated item of the package into
 `lib/genui_catalog.g.dart`, which declares both the list and the assembled
-`Catalog`:
+`CatalogImplementation`:
 
 ```dart
 final List<CatalogItem> genUiCatalogItems = <CatalogItem>[
@@ -129,9 +132,10 @@ final List<CatalogItem> genUiCatalogItems = <CatalogItem>[
   statTileCatalogItem,
 ];
 
-final Catalog genUiCatalog = Catalog(
-  genUiCatalogItems,
-  catalogId: 'com.example.app',
+final CatalogImplementation genUiCatalog = CatalogImplementation(
+  id: 'com.example.app',
+  components: genUiCatalogItems,
+  functions: genUiCatalogFunctions,
 );
 ```
 
@@ -148,8 +152,8 @@ targets:
           catalog_id: com.example.app
 ```
 
-Without it the catalog is still assembled, just without an id, and the
-generated file says how to set one. An id that is not a string, or that could
+Without it only the lists are written, because an A2UI catalog cannot exist
+without an id, and the generated file says how to set one. An id that is not a string, or that could
 not survive being written into the generated file, is a build error naming the
 option.
 
@@ -164,27 +168,29 @@ against.
 
 ## Type mapping
 
-| Constructor parameter type | Schema | Resolved with |
+| Constructor parameter type | Schema | Read with |
 |---|---|---|
-| `String`, `String?` | `A2uiSchemas.stringReference` | `GenUiBinding.string` |
-| `int`, `double`, `num` (+`?`) | `A2uiSchemas.numberReference` | `GenUiBinding.number`, then `toInt()` / `toDouble()` |
-| `bool`, `bool?` | `A2uiSchemas.booleanReference` | `GenUiBinding.bool` |
-| any `enum` (+`?`) | `A2uiSchemas.stringReference(enumValues: ...)` | `GenUiBinding.string`, then `Enum.values.asNameMap()[s]` |
-| `List<String>` (+`?`) | `A2uiSchemas.stringArrayReference` | `GenUiBinding.stringList` |
-| `Widget`, `Widget?` | `A2uiSchemas.componentReference` | `ctx.buildChild(id)` |
-| `List<Widget>` (+`?`) | `S.list(items: componentReference())` | `ids.map(ctx.buildChild)` |
-| a `@GenUiData` class (+`?`) | `S.combined(oneOf: [<its ObjectSchema>, dataBindingSchema(), functionCall()])` | `GenUiBinding.object`, then `<name>FromGenUiJson(map)` |
-| `List<@GenUiData>` (+`?`) | `A2uiSchemas.listOrReference(items: <its ObjectSchema>)` | `GenUiBinding.objectList`, then `.map(<name>FromGenUiJson)` |
-| `VoidCallback`, `void Function()` (+`?`) | `A2uiSchemas.action` | `genUiActionHandler(ctx, data[k])` |
+| `String`, `String?` | `CommonSchemas.dynamicString` | `genUiAsString(props.value(k))` |
+| `int`, `double`, `num` (+`?`) | `CommonSchemas.dynamicNumber` | `genUiAsNum(props.value(k))`, then `toInt()` / `toDouble()` |
+| `bool`, `bool?` | `CommonSchemas.dynamicBoolean` | `genUiAsBool(props.value(k))` |
+| any `enum` (+`?`) | `S.combined(anyOf: [S.string(enumValues: ...), dataBinding, functionCall])` | `genUiAsString(props.value(k))`, then `Enum.values.asNameMap()[s]` |
+| `List<String>` (+`?`) | `CommonSchemas.dynamicStringList` | `genUiAsStringList(props.value(k))` |
+| `Widget`, `Widget?` | `CommonSchemas.componentId` | `buildChild` on `props.child(k)` |
+| `List<Widget>` (+`?`) | `S.list(items: CommonSchemas.componentId)` | `buildChild` on each of `props.children(k)` |
+| a `@GenUiData` class (+`?`) | `S.combined(anyOf: [<its ObjectSchema>, dataBinding, functionCall])` | `genUiAsObject(props.value(k))`, then `<name>FromGenUiJson(map)` |
+| `List<@GenUiData>` (+`?`) | `S.combined(anyOf: [S.list(items: <its ObjectSchema>), dataBinding, functionCall])` | `genUiAsObjectList(props.value(k))`, then `.map(<name>FromGenUiJson)` |
+| `VoidCallback`, `void Function()` (+`?`) | `CommonSchemas.action` | `genUiActionHandler(props.action(k))` |
 | `Key? key`, `super.key` | skipped | — |
 | anything else | build error | — |
 
-Values resolved through `GenUiBindings` accept genui's literal,
-`{"path": ...}` and `{"call": ...}` forms, exactly like the core catalog. For a
-data property the binding applies to the whole object, so `{"path": "/rows"}`
-resolves the list and the generated decoder runs on the result — and the schema
-says so, which is why an object property is a `oneOf` of the object schema, a
-data binding and a function call rather than the bare object schema.
+The renderer resolves each property from its schema, so every one accepts a
+literal, a `{"path": ...}` and a `{"call": ...}`, exactly like the core
+catalog's. For a data property the binding applies to the whole object, so
+`{"path": "/rows"}` resolves the list and the generated decoder runs on the
+result — and the schema says so, which is why an object property is an `anyOf`
+of the object schema, a data binding and a function call rather than the bare
+object schema. `anyOf` rather than `oneOf`, because a binding is an object too
+and matches an object schema with no required fields as well.
 
 ## Data classes
 
@@ -240,12 +246,12 @@ Both build exactly the same schema.
 
 Rules specific to data classes:
 
-- Fields use the plain `S.*` schemas, not `A2uiSchemas.*Reference`: the values
+- Fields use the plain `S.*` schemas, not `CommonSchemas.dynamic*`: the values
   inside a data object are literals the model emits, and the binding applies to
   the object as a whole. An `int` field is therefore `S.integer`, which a
-  widget property cannot be — `A2uiSchemas` only offers `numberReference`.
+  widget property cannot be — `CommonSchemas` only offers `dynamicNumber`.
 - Nothing is cast. Every field goes through the `genUiAs*` coercions exported
-  by `genui_gen`, which apply the very rules genui's `Bound*` widgets apply to
+  by `genui_gen`, which apply the very rules the generated builder applies to
   a widget property, so a model that sends `"42"` where a number was declared
   degrades identically in both places and never throws a `TypeError` inside
   `build`.
@@ -254,9 +260,9 @@ Rules specific to data classes:
   lists of them. A `Widget`, a `List<Widget>` or a callback inside a data class
   is a build error: a data class is data, not a component reference.
 - Nested schemas are inlined (by referencing the nested `ObjectSchema`
-  variable), never `$ref`'d, because `CatalogItem.dataSchema` is consumed as a
-  `oneOf` branch of `A2uiSchemas.updateComponentsSchema` and there is no
-  registry entry to point a `$ref` at. A class that reaches itself is therefore
+  variable), never `$ref`'d, because the catalog document holds the
+  component's schema as it is and there is no registry entry to point a `$ref`
+  at. A class that reaches itself is therefore
   a build error naming the cycle path.
 - A **required** field that is missing or malformed decodes to the same neutral
   fallback the widget builder uses (`''`, `0`, `false`, the first enum value,
@@ -335,9 +341,11 @@ The generated builder never throws. When a required property is missing or
 resolves to `null` it substitutes a neutral fallback (`''`, `0`, `false`, the
 first enum value, `const []`, `SizedBox.shrink()`, a no-op callback, a data
 object decoded from an empty map) and calls
-`genUiReportMissing`, which reports an `A2uiValidationException` through
-`ctx.reportError` once per component instance, so the model gets the feedback
-and the surface still renders. Unresolved `{"path": ...}` and `{"call": ...}`
+`genUiReportMissing`, which reports a `VALIDATION_FAILED` error on the
+surface's `onError` once per component instance, so the model gets the feedback
+and the surface still renders. The renderer checks every component against its
+schema before the builder runs, so most of what the model leaves out is
+rejected and reported there first. Unresolved `{"path": ...}` and `{"call": ...}`
 bindings are not reported: they rebuild on their own once the data arrives.
 
 ## Examples
@@ -348,7 +356,7 @@ data objects, strings whose name hints at a URL or e-mail). A data property
 gets one sample object and a list property gets two, built from the data
 class's own fields by the same rules. Child components reference
 `Text` components (ids `child_<prop>`) that are included in the example, so
-the examples assume genui's `BasicCatalogItems` are part of your `Catalog`.
+the examples assume the basic catalog's components are part of your catalog.
 
 ## Diagnostics
 
@@ -375,13 +383,22 @@ such — the cause is a missing import or an ambiguous name, not the type table.
 ```dart
 final CatalogItem productCardCatalogItem = CatalogItem(
   name: 'ProductCard',
-  dataSchema: S.object(
+  schema: S.object(
     description: 'A product card with price and image.',
     properties: {
-      'title': A2uiSchemas.stringReference(description: 'Product name.'),
-      'price': A2uiSchemas.numberReference(description: 'Price in USD.'),
-      'imageUrl': A2uiSchemas.stringReference(),
-      'onTap': A2uiSchemas.action(description: 'Fired when the card is tapped.'),
+      'title': S.fromMap({
+        ...CommonSchemas.dynamicString.value,
+        'description': 'Product name.',
+      }),
+      'price': S.fromMap({
+        ...CommonSchemas.dynamicNumber.value,
+        'description': 'Price in USD.',
+      }),
+      'imageUrl': CommonSchemas.dynamicString,
+      'onTap': S.fromMap({
+        ...CommonSchemas.action.value,
+        'description': 'Fired when the card is tapped.',
+      }),
     },
     required: ['title', 'price'],
   ),
@@ -397,25 +414,19 @@ final CatalogItem productCardCatalogItem = CatalogItem(
   }
 ]''',
   ],
-  widgetBuilder: (ctx) {
-    final data = ctx.data as JsonMap;
+  builder: (context, node, props, buildChild) {
     T missing<T>(String property, T fallback) {
-      genUiReportMissing(ctx, 'ProductCard', property);
+      genUiReportMissing(node, 'ProductCard', property);
       return fallback;
     }
-    return GenUiBindings(
-      dataContext: ctx.dataContext,
-      bindings: {
-        'title': GenUiBinding.string(data['title']),
-        'price': GenUiBinding.number(data['price']),
-        'imageUrl': GenUiBinding.string(data['imageUrl']),
-      },
-      builder: (context, v) => ProductCard(
-        title: v.string('title') ?? missing<String>('title', ''),
-        price: (v.number('price') ?? missing<num>('price', 0)).toDouble(),
-        imageUrl: v.string('imageUrl'),
-        onTap: genUiActionHandler(ctx, data['onTap']),
-      ),
+
+    return ProductCard(
+      title:
+          genUiAsString(props.value('title')) ?? missing<String>('title', ''),
+      price: (genUiAsNum(props.value('price')) ?? missing<num>('price', 0))
+          .toDouble(),
+      imageUrl: genUiAsString(props.value('imageUrl')),
+      onTap: genUiActionHandler(props.action('onTap')),
     );
   },
 );
@@ -423,9 +434,9 @@ final CatalogItem productCardCatalogItem = CatalogItem(
 
 ## Testing the builder
 
-The package's own tests run with plain `dart test`; Flutter, genui and
-genui_gen are replaced by small in-memory stubs so the generator is exercised
-without a Flutter SDK.
+The package's own tests run with plain `dart test`; Flutter, a2ui_core,
+a2ui_flutter and genui_gen are replaced by small in-memory stubs so the
+generator is exercised without a Flutter SDK.
 
 ## License
 

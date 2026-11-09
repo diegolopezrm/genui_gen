@@ -1,5 +1,4 @@
-import 'package:a2ui_core/a2ui_core.dart' as core;
-import 'package:genui/genui.dart';
+import 'package:a2ui_core/a2ui_core.dart';
 
 /// A stand-in for the agent, so the example runs with no key and no network.
 ///
@@ -15,7 +14,7 @@ class ScriptedAgent {
       prompt: 'What is on my plate today?',
       keywords: <String>['plate', 'today', 'task', 'todo'],
       description: 'A list whose rows come from the data model.',
-      components: <JsonMap>[
+      components: <Map<String, Object?>>[
         {
           'id': 'root',
           'component': 'TaskList',
@@ -42,7 +41,7 @@ class ScriptedAgent {
       description:
           'A control that writes what the user chose back to the '
           'data model.',
-      components: <JsonMap>[
+      components: <Map<String, Object?>>[
         {
           'id': 'root',
           'component': 'Panel',
@@ -76,7 +75,7 @@ class ScriptedAgent {
       prompt: 'How did the store do this week?',
       keywords: <String>['store', 'sales', 'metric', 'week', 'report'],
       description: 'A table and a card, composed from two generated widgets.',
-      components: <JsonMap>[
+      components: <Map<String, Object?>>[
         {
           'id': 'root',
           'component': 'Column',
@@ -108,7 +107,7 @@ class ScriptedAgent {
       description:
           'A surface whose text the app computes, through a catalog '
           'function the agent only had to name.',
-      components: <JsonMap>[
+      components: <Map<String, Object?>>[
         {
           'id': 'root',
           'component': 'TaskList',
@@ -141,7 +140,7 @@ class ScriptedAgent {
       description:
           'A field carrying the rules the agent attached to it. Type in it '
           'and the message goes away without anything going back.',
-      components: <JsonMap>[
+      components: <Map<String, Object?>>[
         {
           'id': 'root',
           'component': 'Panel',
@@ -214,7 +213,7 @@ class ScriptedTurn {
   final String description;
 
   /// The components of the surface.
-  final List<JsonMap> components;
+  final List<Map<String, Object?>> components;
 
   /// The data model the surface binds to.
   final Map<String, Object?> data;
@@ -226,18 +225,28 @@ class ScriptedTurn {
   /// drops every write made through it: the control writes, the write fails,
   /// and nothing changes on screen. A real agent's payload arrives decoded
   /// from JSON and is mutable already, so this is a cost of scripting one.
-  List<core.A2uiMessage> messages(
-    String surfaceId,
-    String catalogId,
-  ) => <core.A2uiMessage>[
-    core.UpdateComponentsMessage(surfaceId: surfaceId, components: components),
-    core.CreateSurfaceMessage(surfaceId: surfaceId, catalogId: catalogId),
-    if (data.isNotEmpty)
-      core.UpdateDataModelMessage(
-        surfaceId: surfaceId,
-        value: _mutable(data) as Map<String, Object?>,
-      ),
-  ];
+  List<AgentToRendererMessage> messages(String surfaceId, String catalogId) =>
+      <AgentToRendererMessage>[
+        CreateSurfaceMessage(
+          version: _version,
+          surfaceId: surfaceId,
+          catalogId: catalogId,
+        ),
+        UpdateComponentsMessage(
+          version: _version,
+          surfaceId: surfaceId,
+          components: components,
+        ),
+        if (data.isNotEmpty)
+          UpdateDataModelMessage(
+            version: _version,
+            surfaceId: surfaceId,
+            value: _mutable(data) as Map<String, Object?>,
+          ),
+      ];
+
+  /// The protocol version these messages speak.
+  static final String _version = A2uiProtocolVersion.v0_9.jsonValue;
 }
 
 /// A deep, modifiable copy of a value that may have come from a `const` map.

@@ -1,3 +1,82 @@
+## Unreleased
+
+- Moves from genui to the A2UI Dart SDKs, `a2ui_core` 0.5 and `a2ui_flutter`
+  0.1, which replace it. The two cannot share an app, since genui needs
+  `a2ui_core` 0.1, so this breaks every app: replace `genui` with
+  `a2ui_flutter` in `pubspec.yaml`, render with a `MessageProcessor` and
+  `A2uiSurface`, and regenerate with the matching `genui_gen_builder`.
+  Flutter 3.38 or later is required. The wire protocol stays at A2UI v0.9.
+- `CatalogItem` is now this package's own class: an a2ui_flutter
+  `ComponentImplementation` that also carries `exampleData`, which the
+  testing helpers render. It takes `schema` and `builder` where genui's took
+  `dataSchema` and `widgetBuilder`, and the builder receives
+  `(context, node, props, buildChild)` with every property already resolved
+  by the renderer. It has no `isImplicitlyFlexible`, and
+  `GenUiWidget.isImplicitlyFlexible` is deprecated and has no effect, because
+  a2ui_flutter has no implicitly flexible components.
+- The re-exports follow the renderer: `CommonSchemas`, `A2uiReturnType`,
+  `FunctionImplementation`, `CatalogImplementation` and
+  `ComponentImplementation` in place of genui's `A2uiSchemas`, `Catalog`,
+  `ClientFunction`, `ClientFunctionReturnType` and `JsonMap`.
+- `GenUiClientFunction` is a `FunctionImplementation`. Its bodies take a
+  `Map<String, Object?>` and a2ui_core's `DataContext`, and its `returnType`
+  is an `A2uiReturnType`. `.async` and `.streaming` still answer a bound
+  property as well as an action. An argument the agent may bind to a path
+  needs a `CommonSchemas` dynamic type in `argumentSchema`, because the
+  renderer checks a call's arguments before it resolves them; generated
+  functions already declare one.
+- Removed `GenUiBindings`, `GenUiBinding`, `GenUiValues`, `GenUiChecks`,
+  `genUiTemplatePath`, `genUiTemplateChildren` and `genUiWriteReference`. The
+  renderer resolves properties, evaluates `checks` and expands templates
+  itself, so generated code no longer calls them.
+- `genUiActionHandler` takes the action the renderer resolved for a property,
+  and `genUiValueWriter`, `genUiWritePath` and `genUiReportMissing` take the
+  node and properties the builder receives, in place of genui's
+  `CatalogItemContext`. What they report reaches the surface's `onError` as an
+  `A2uiRendererError`: `VALIDATION_FAILED` for a missing property and
+  `DATA_ERROR` for a write the data model refuses. Added `genUiWrittenValue`,
+  which reads a written property back from where `genUiValueWriter` put it,
+  and `GenUiCheckResult.of`, which reads what the renderer made of a
+  component's `checks`.
+- `GenUiExampleSurface`, `genUiFuzz` and `GenUiTracePlayer` take a
+  `CatalogImplementation`, and `genUiCatalogJson` and `genUiCoverage` take any
+  a2ui_core catalog. They render with a `MessageProcessor` and an
+  `A2uiSurface`.
+- `GenUiInspector` takes `processor:` in place of `controller:`, and so does
+  `GenUiTraceRecorder.attach`; `GenUiTracePlayer.controller` is now
+  `processor`. The recorder's `handleMessage` takes an a2ui_core
+  `AgentToRendererMessage`, and it records the actions and errors the
+  processor reports. `GenUiSurfaceGraph.of` reads an a2ui_core
+  `SurfaceModel`, and the graph's `definition` is now `surface`.
+  `GenUiMessageStep.decode` returns an `AgentToRendererMessage`.
+- The renderer behaves differently from genui in ways an app can see:
+  - It checks every component against its schema before applying it, and
+    rejects and reports what the schema does not allow. genui rendered it and
+    reported afterwards. So `genUiFuzz` no longer reports a case the renderer
+    refuses.
+  - a2ui_flutter's basic components carry no examples, so `genUiFuzz`,
+    `GenUiExampleSurface` and the semantics recording cover the components
+    that do, such as the generated ones.
+  - A rule in `checks` with no message is refused, and a condition that
+    cannot be evaluated makes its rule fail rather than pass.
+  - An `updateComponents` for a surface that does not exist yet is an error,
+    so send `createSurface` first. genui held such updates until the surface
+    arrived, and a trace recorded in that order replays without its
+    components.
+  - A template repeats over a list only. This package's own template code
+    also repeated over the entries of a map.
+  - `genUiCatalogJson` writes a2ui_core's catalog document: a component's
+    schema as declared, no generic title or description, and `$ref`s
+    relative to the catalog. It no longer throws for a catalog without an
+    id, since a catalog can no longer lack one.
+  - A `functionCall` action naming `closeModal` no longer pops the route.
+    a2ui_flutter's `Modal` closes itself.
+- `genUiCatalogDiff` compares a reference into `common_types.json` by the
+  definition's name, wherever the file is hosted, and reads an `anyOf` the way
+  it reads a `oneOf`. Diffing a `catalog.json` written with genui against one
+  written now still reports the properties whose binding and function call
+  branches genui wrote inline.
+
 ## 0.14.1
 
 - `genUiFuzz` takes `host`, the app each surface is drawn in. It was always a

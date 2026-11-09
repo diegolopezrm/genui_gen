@@ -1,3 +1,30 @@
+## Unreleased
+
+- Generates code for a2ui_flutter instead of genui. **Needs the matching
+  genui_gen**, which moves to the A2UI Dart SDKs; upgrade both together and
+  regenerate. A `CatalogItem` is declared with `schema` and a `builder` that
+  reads the properties the renderer resolved through the `genUiAs*`
+  coercions, so genui's `Bound*` widgets, `GenUiBindings` and
+  `CatalogItemContext` are gone from the output.
+- Property schemas use a2ui_core's `CommonSchemas` (`dynamicString`,
+  `dynamicNumber`, `dynamicBoolean`, `dynamicStringList`, `componentId`,
+  `childList`, `action` and `checkRule`) in place of genui's `A2uiSchemas`. An
+  enum, a list of numbers or enums, a `@GenUiData` object or list and a map
+  become an `anyOf` of the literal, a data binding and a function call, where
+  genui's were a `oneOf`: a binding is an object too, so it matched both
+  branches of an object schema with no required fields, and a2ui_core rejects
+  a component whose property matches a `oneOf` twice.
+- Generated functions are `FunctionImplementation`s with an `A2uiReturnType`;
+  a `void` function returns `A2uiReturnType.void_`.
+- `genui_catalog.g.dart` lists `FunctionImplementation`s and assembles a
+  `CatalogImplementation`. Without a `catalog_id` it no longer declares
+  `genUiCatalog`, because an a2ui_core catalog cannot exist without an id;
+  the two lists are still there, and the file says how to set one.
+- `@GenUiWidget(isImplicitlyFlexible:)` is ignored.
+- Diagnostics name the A2UI basic catalog instead of genui's. The warning for
+  a component named like a basic one now says that adding it to a catalog
+  derived from `basicCatalog()` replaces the basic component.
+
 ## 0.13.0
 
 - The generated `genui_catalog.g.dart` imports `package:genui_gen/genui_gen.dart`

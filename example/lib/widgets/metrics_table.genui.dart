@@ -13,20 +13,25 @@ part of 'metrics_table.dart';
 /// Generated [CatalogItem] for [MetricsTable].
 final CatalogItem metricsTableCatalogItem = CatalogItem(
   name: 'MetricsTable',
-  dataSchema: S.object(
+  schema: S.object(
     description:
         'A titled table of metrics. Each row has a label, a numeric '
         'value, a trend (up, down or flat) and an optional note. Use '
         'it to compare several KPIs at once, for example a quarterly '
         'summary or the health of a set of services.',
     properties: {
-      'title': A2uiSchemas.stringReference(
-        description:
+      'title': S.fromMap({
+        ...CommonSchemas.dynamicString.value,
+        'description':
             'The heading shown above the table, e.g. "Q3 performance".',
-      ),
-      'rows': A2uiSchemas.listOrReference(
+      }),
+      'rows': S.combined(
         description: 'The rows of the table, in display order.',
-        items: metricRowGenUiSchema,
+        anyOf: [
+          S.list(items: metricRowGenUiSchema),
+          CommonSchemas.dataBinding,
+          CommonSchemas.functionCall,
+        ],
       ),
     },
     required: ['title', 'rows'],
@@ -53,30 +58,22 @@ final CatalogItem metricsTableCatalogItem = CatalogItem(
   }
 ]''',
   ],
-  widgetBuilder: (ctx) {
-    final data = ctx.data as JsonMap;
+  builder: (context, node, props, buildChild) {
     T missing<T>(String property, T fallback) {
-      genUiReportMissing(ctx, 'MetricsTable', property);
+      genUiReportMissing(node, 'MetricsTable', property);
       return fallback;
     }
 
     GenUiMissingFieldReporter missingIn(String property) =>
-        (field) => genUiReportMissing(ctx, 'MetricsTable', '$property.$field');
-    return GenUiBindings(
-      dataContext: ctx.dataContext,
-      bindings: {
-        'title': GenUiBinding.string(data['title']),
-        'rows': GenUiBinding.objectList(data['rows']),
-      },
-      builder: (context, v) => MetricsTable(
-        title: v.string('title') ?? missing<String>('title', ''),
-        rows:
-            v
-                .objectList('rows')
-                ?.map((json) => metricRowFromGenUiJson(json, missingIn('rows')))
-                .toList() ??
-            missing<List<MetricRow>>('rows', const <MetricRow>[]),
-      ),
+        (field) => genUiReportMissing(node, 'MetricsTable', '$property.$field');
+    return MetricsTable(
+      title:
+          genUiAsString(props.value('title')) ?? missing<String>('title', ''),
+      rows:
+          genUiAsObjectList(props.value('rows'))
+              ?.map((json) => metricRowFromGenUiJson(json, missingIn('rows')))
+              .toList() ??
+          missing<List<MetricRow>>('rows', const <MetricRow>[]),
     );
   },
 );

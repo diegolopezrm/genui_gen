@@ -35,46 +35,51 @@ class Badge extends StatelessWidget {
       expect(
         out,
         contains(
-          "'variant': A2uiSchemas.stringReference(description: 'Visual style.', "
-          "enumValues: ['primary', 'secondary', 'danger'])",
+          "'variant': S.combined(description: 'Visual style.', "
+          "anyOf: [S.string(enumValues: ['primary', 'secondary', 'danger']), "
+          'CommonSchemas.dataBinding, CommonSchemas.functionCall])',
         ),
       );
       expect(
         out,
         contains(
-          "'size': A2uiSchemas.stringReference(enumValues: ['small', 'large'])",
+          "'size': S.combined(anyOf: [S.string(enumValues: ['small', 'large']), "
+          'CommonSchemas.dataBinding, CommonSchemas.functionCall])',
         ),
       );
       expect(out, contains("required: ['variant']"));
     });
 
-    test('binds enums as strings', () {
-      expect(out, contains("'variant': GenUiBinding.string(data['variant'])"));
+    test('reads enums as strings', () {
+      expect(out, contains("genUiAsString(props.value('variant'))"));
     });
 
     test('maps names to enum values without throwing', () {
       expect(
         out,
         contains(
-          "variant: Variant.values.asNameMap()[v.string('variant')] ?? "
+          "variant: Variant.values.asNameMap()[genUiAsString(props.value('variant'))] ?? "
           "missing<Variant>('variant', Variant.values.first)",
         ),
       );
       expect(
         out,
         contains(
-          "size: Size.values.asNameMap()[v.string('size')] ?? Size.large",
+          "size: Size.values.asNameMap()[genUiAsString(props.value('size'))] ?? Size.large",
         ),
       );
       expect(
         out,
         contains(
-          "fallbackSize: Size.values.asNameMap()[v.string('fallbackSize')]",
+          'fallbackSize: Size.values .asNameMap()'
+          "[genUiAsString(props.value('fallbackSize'))]",
         ),
       );
       expect(
         out,
-        contains("tone: Variant.values.asNameMap()[v.string('tone')]))"),
+        contains(
+          "tone: Variant.values.asNameMap()[genUiAsString(props.value('tone'))])",
+        ),
       );
     });
 

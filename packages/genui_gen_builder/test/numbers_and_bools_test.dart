@@ -36,13 +36,13 @@ class StatTile extends StatelessWidget {
 ''');
     });
 
-    test('maps numbers to numberReference and bools to booleanReference', () {
-      expect(out, contains("'count': A2uiSchemas.numberReference()"));
-      expect(out, contains("'ratio': A2uiSchemas.numberReference()"));
-      expect(out, contains("'value': A2uiSchemas.numberReference()"));
-      expect(out, contains("'threshold': A2uiSchemas.numberReference()"));
-      expect(out, contains("'highlighted': A2uiSchemas.booleanReference()"));
-      expect(out, contains("'dense': A2uiSchemas.booleanReference()"));
+    test('maps numbers to DynamicNumber and bools to DynamicBoolean', () {
+      expect(out, contains("'count': CommonSchemas.dynamicNumber"));
+      expect(out, contains("'ratio': CommonSchemas.dynamicNumber"));
+      expect(out, contains("'value': CommonSchemas.dynamicNumber"));
+      expect(out, contains("'threshold': CommonSchemas.dynamicNumber"));
+      expect(out, contains("'highlighted': CommonSchemas.dynamicBoolean"));
+      expect(out, contains("'dense': CommonSchemas.dynamicBoolean"));
     });
 
     test('schema required list', () {
@@ -52,44 +52,56 @@ class StatTile extends StatelessWidget {
       );
     });
 
-    test('uses number and bool bindings', () {
-      expect(out, contains("'count': GenUiBinding.number(data['count'])"));
-      expect(out, contains("'scale': GenUiBinding.number(data['scale'])"));
-      expect(
-        out,
-        contains("'highlighted': GenUiBinding.bool(data['highlighted'])"),
-      );
+    test('reads numbers and bools through their coercions', () {
+      expect(out, contains("genUiAsNum(props.value('count'))"));
+      expect(out, contains("genUiAsNum(props.value('scale'))"));
+      expect(out, contains("genUiAsBool(props.value('highlighted'))"));
     });
 
     test('required numbers convert with fallback 0', () {
       expect(
         out,
         contains(
-          "count: (v.number('count') ?? missing<num>('count', 0)).toInt()",
+          "count: (genUiAsNum(props.value('count')) ?? "
+          "missing<num>('count', 0)) .toInt()",
         ),
       );
       expect(
         out,
         contains(
-          "ratio: (v.number('ratio') ?? missing<num>('ratio', 0)).toDouble()",
+          "ratio: (genUiAsNum(props.value('ratio')) ?? "
+          "missing<num>('ratio', 0)) .toDouble()",
         ),
       );
       expect(
         out,
-        contains("value: v.number('value') ?? missing<num>('value', 0)"),
+        contains(
+          "value: genUiAsNum(props.value('value')) ?? missing<num>('value', 0)",
+        ),
       );
       expect(
         out,
         contains(
-          "highlighted: v.boolean('highlighted') ?? missing<bool>('highlighted', false)",
+          "highlighted: genUiAsBool(props.value('highlighted')) ?? missing<bool>('highlighted', false)",
         ),
       );
     });
 
     test('defaults apply when the value is absent', () {
-      expect(out, contains("maxItems: v.number('maxItems')?.toInt() ?? 10"));
-      expect(out, contains("scale: v.number('scale')?.toDouble() ?? 1.5"));
-      expect(out, contains("enabled: v.boolean('enabled') ?? true"));
+      expect(
+        out,
+        contains(
+          "maxItems: genUiAsNum(props.value('maxItems'))?.toInt() ?? 10",
+        ),
+      );
+      expect(
+        out,
+        contains("scale: genUiAsNum(props.value('scale'))?.toDouble() ?? 1.5"),
+      );
+      expect(
+        out,
+        contains("enabled: genUiAsBool(props.value('enabled')) ?? true"),
+      );
     });
 
     test('non-literal defaults are parenthesised', () async {
@@ -112,20 +124,30 @@ class Defaults extends StatelessWidget {
   final Widget? child;
 }
 ''');
-      expect(out, contains("n: v.number('n')?.toInt() ?? (kFlag ? 1 : 2)"));
-      expect(out, contains("m: v.number('m')?.toInt() ?? kDefault"));
-      expect(out, contains("sum: v.number('sum')?.toInt() ?? (1 + 2)"));
+      expect(
+        out,
+        contains("n: genUiAsNum(props.value('n'))?.toInt() ?? (kFlag ? 1 : 2)"),
+      );
+      expect(
+        out,
+        contains("m: genUiAsNum(props.value('m'))?.toInt() ?? kDefault"),
+      );
+      expect(
+        out,
+        contains("sum: genUiAsNum(props.value('sum'))?.toInt() ?? (1 + 2)"),
+      );
       expect(
         out,
         contains(
-          'child: _child is String ? ctx.buildChild(_child) : (kFlag ? const SizedBox() : null)',
+          "child: switch (props.child('child')) {final child? => "
+          'buildChild(child), _ => (kFlag ? const SizedBox() : null)}',
         ),
       );
     });
 
     test('nullable values pass through', () {
-      expect(out, contains("threshold: v.number('threshold')"));
-      expect(out, contains("dense: v.boolean('dense')"));
+      expect(out, contains("threshold: genUiAsNum(props.value('threshold'))"));
+      expect(out, contains("dense: genUiAsBool(props.value('dense'))"));
     });
 
     test(

@@ -30,33 +30,35 @@ final List<CatalogItem> genUiCatalogItems = <CatalogItem>[
   taskListCatalogItem,
 ];
 
-/// Every [ClientFunction] generated in this package, by
-/// name.
+/// Every [FunctionImplementation] generated in this
+/// package, by name.
 ///
 /// These are the other half of a catalog: what the model
 /// computes a value with, through the `{"call": ...}` form
 /// any bound property accepts.
-final List<ClientFunction> genUiCatalogFunctions = <ClientFunction>[
-  describeMetricGenUiFunction,
-  formatPriceGenUiFunction,
-  shortenNameGenUiFunction,
-];
+final List<FunctionImplementation> genUiCatalogFunctions =
+    <FunctionImplementation>[
+      describeMetricGenUiFunction,
+      formatPriceGenUiFunction,
+      shortenNameGenUiFunction,
+    ];
 
 /// Every generated [CatalogItem] of this package, as a
-/// [Catalog] ready to hand to genui.
+/// [CatalogImplementation] ready to hand to the renderer.
 ///
-/// Compose it with any other catalog through
-/// [Catalog.copyWith], for instance to add genui's own
-/// basic components:
+/// A v0.9 surface draws on one catalog, so add a2ui_flutter's
+/// basic components by deriving its basic catalog
+/// (`package:a2ui_flutter/v0_9/basic_catalog.dart`):
 ///
 /// ```dart
-/// final catalog = genUiCatalog.copyWith(
-///   newItems: BasicCatalogItems.asCatalog().items.toList(),
-///   newFunctions: BasicCatalogItems.asCatalog().functions.toList(),
+/// final catalog = basicCatalog().derive(
+///   catalogId: genUiCatalog.id,
+///   addComponents: genUiCatalogItems,
+///   addFunctions: genUiCatalogFunctions,
 /// );
 /// ```
-final Catalog genUiCatalog = Catalog(
-  genUiCatalogItems,
+final CatalogImplementation genUiCatalog = CatalogImplementation(
+  id: 'dev.dlsoft.genui_gen.example',
+  components: genUiCatalogItems,
   functions: genUiCatalogFunctions,
-  catalogId: 'dev.dlsoft.genui_gen.example',
 );

@@ -157,7 +157,8 @@ class Ok extends StatelessWidget {
     expect(
       out,
       contains(
-        "Ok(v.string('a') ?? missing<String>('a', ''), v.string('c') ?? 'x')",
+        "Ok(genUiAsString(props.value('a')) ?? missing<String>('a', ''), "
+        "genUiAsString(props.value('c')) ?? 'x')",
       ),
     );
   });
@@ -213,7 +214,10 @@ class Base extends StatelessWidget {
 ''',
       },
     );
-    expect(out, contains("count: v.number('count')?.toInt() ?? 3"));
+    expect(
+      out,
+      contains("count: genUiAsNum(props.value('count'))?.toInt() ?? 3"),
+    );
   });
 
   test('two classes with the same lower-camel name', () async {
@@ -320,7 +324,7 @@ class Card extends StatelessWidget {
 
     test('genui_gen on its own is enough', () async {
       // genui_gen re-exports the renderer types generated code names, so an
-      // annotated file does not have to import genui at all.
+      // annotated file does not have to import a2ui_core or a2ui_flutter.
       final String out = await generate(
         widget,
         imports: '''
@@ -336,16 +340,16 @@ import 'package:genui_gen/genui_gen.dart';
         generate(
           widget,
           imports: '''
+import 'package:a2ui_core/a2ui_core.dart';
 import 'package:flutter/widgets.dart';
-import 'package:genui/genui.dart';
 import 'package:genui_gen/genui_gen.dart' show GenUiWidget;
 import 'package:json_schema_builder/json_schema_builder.dart';
 ''',
         ),
         failsWith([
           "import 'package:genui_gen/genui_gen.dart';    // provides "
-              'GenUiBindings, GenUiBinding, genUiActionHandler, '
-              'genUiReportMissing',
+              'CatalogItem, genUiActionHandler, genUiReportMissing, '
+              'genUiAsString',
         ]),
       );
     });
@@ -357,8 +361,8 @@ import 'package:json_schema_builder/json_schema_builder.dart';
         generate(
           widget.replaceAll('@GenUiWidget(', '@gg.GenUiWidget('),
           imports: '''
+import 'package:a2ui_core/a2ui_core.dart';
 import 'package:flutter/widgets.dart';
-import 'package:genui/genui.dart';
 import 'package:genui_gen/genui_gen.dart' as gg;
 ''',
         ),
@@ -375,7 +379,6 @@ import 'package:genui_gen/genui_gen.dart' as gg;
           widget,
           imports: '''
 import 'package:flutter/widgets.dart';
-import 'package:genui/genui.dart';
 import 'package:genui_gen/genui_gen.dart' hide S, Schema;
 ''',
         ),
@@ -390,7 +393,6 @@ import 'package:genui_gen/genui_gen.dart' hide S, Schema;
         widget,
         imports: '''
 import 'package:flutter/widgets.dart';
-import 'package:genui/genui.dart';
 import 'package:genui_gen/genui_gen.dart' hide S, Schema;
 import 'package:json_schema_builder/json_schema_builder.dart';
 ''',
@@ -410,7 +412,7 @@ class Card extends StatelessWidget {
       warnings.single,
       allOf([
         contains('Component name `Card`'),
-        contains('genui basic catalog item'),
+        contains('a component of the A2UI basic catalog'),
         contains('@GenUiWidget(name: ...)'),
       ]),
     );

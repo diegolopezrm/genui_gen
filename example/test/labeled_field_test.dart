@@ -1,60 +1,70 @@
-import 'package:a2ui_core/a2ui_core.dart' as core;
+import 'package:a2ui_core/a2ui_core.dart';
+import 'package:a2ui_flutter/a2ui_flutter.dart';
 import 'package:example/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:genui/genui.dart';
 
 /// Renders one surface holding a LabeledField with the agent's rules on it.
-Future<SurfaceController> show(WidgetTester tester, {String? seed}) async {
-  final controller = SurfaceController(catalogs: [exampleCatalog]);
-  addTearDown(controller.dispose);
-  controller.handleMessage(
-    core.UpdateComponentsMessage(
-      surfaceId: 's',
-      components: [
-        {
-          'id': 'root',
-          'component': 'LabeledField',
-          'label': 'Email',
-          'value': {'path': '/form/email'},
-          'checks': [
-            {
-              'condition': {
-                'call': 'required',
-                'args': {
-                  'value': {'path': '/form/email'},
+Future<MessageProcessor<ComponentImplementation>> show(
+  WidgetTester tester, {
+  String? seed,
+}) async {
+  final processor = MessageProcessor<ComponentImplementation>(
+    catalogs: [exampleCatalog],
+    validationConfig: ValidationConfig.strict,
+  );
+  addTearDown(processor.dispose);
+  final String version = A2uiProtocolVersion.v0_9.jsonValue;
+  processor.processMessages([
+    {
+      'version': version,
+      'createSurface': {'surfaceId': 's', 'catalogId': exampleCatalog.id},
+    },
+    if (seed != null)
+      {
+        'version': version,
+        'updateDataModel': {
+          'surfaceId': 's',
+          'value': {
+            'form': {'email': seed},
+          },
+        },
+      },
+    {
+      'version': version,
+      'updateComponents': {
+        'surfaceId': 's',
+        'components': [
+          {
+            'id': 'root',
+            'component': 'LabeledField',
+            'label': 'Email',
+            'value': {'path': '/form/email'},
+            'checks': [
+              {
+                'condition': {
+                  'call': 'required',
+                  'args': {
+                    'value': {'path': '/form/email'},
+                  },
                 },
+                'message': 'We need an email to reach you.',
               },
-              'message': 'We need an email to reach you.',
-            },
-          ],
-        },
-      ],
-    ),
-  );
-  controller.handleMessage(
-    core.CreateSurfaceMessage(
-      surfaceId: 's',
-      catalogId: exampleCatalog.catalogId!,
-    ),
-  );
-  if (seed != null) {
-    controller.handleMessage(
-      core.UpdateDataModelMessage(
-        surfaceId: 's',
-        value: {
-          'form': {'email': seed},
-        },
-      ),
-    );
-  }
+            ],
+          },
+        ],
+      },
+    },
+  ]);
   await tester.pumpWidget(
     MaterialApp(
-      home: Scaffold(body: Surface(surfaceContext: controller.contextFor('s'))),
+      home: Scaffold(
+        body: A2uiSurface(surface: processor.model.getSurface('s')!),
+      ),
     ),
   );
   await tester.pumpAndSettle();
-  return controller;
+  return processor;
 }
 
 void main() {

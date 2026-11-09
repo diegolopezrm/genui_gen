@@ -1,45 +1,45 @@
+import 'dart:async';
+
+import 'package:a2ui_core/a2ui_core.dart';
+import 'package:a2ui_flutter/a2ui_flutter.dart';
 import 'package:flutter/foundation.dart';
-import 'package:genui/genui.dart';
 
 /// Builds the callback that writes a control's new value into the surface's
-/// data model, the way genui's own `TextField`, `Slider` and `CheckBox` do.
+/// data model.
 ///
-/// [reference] is the raw value the model sent for the property the control
-/// reflects. When it is a `{"path": ...}` binding the value is written to that
-/// path, so the model reads the result back from the place it named. When it
-/// is a literal — or missing — there is no path to write to, and the value
-/// goes to `<componentId>.<property>` instead, matching the fallback the core
-/// catalog uses. The returned callback is therefore never `null`: a control
-/// always has somewhere to put the user's answer.
+/// [props] are the resolved properties of the component [node] renders, and
+/// [property] the one the control reflects. When the model bound it to a
+/// `{"path": ...}`, the value is written to that path, so the model reads the
+/// result back from the place it named. When it sent a literal — or nothing —
+/// there is no path to write to, and the value goes to
+/// `<componentId>.<property>` instead, relative to the component's data
+/// context, which is where genui's core catalog put it. The returned callback
+/// is therefore never `null`: a control always has somewhere to put the user's
+/// answer, and [genUiWrittenValue] reads it back from there.
 ///
 /// [encode] converts the Dart value into something the data model can carry;
 /// generated code passes it for enums, which travel as their name.
 ///
-/// The returned callback never throws. genui 0.10 made data model writes
-/// stricter, and a path the model chose badly — writing through a primitive,
-/// say — now raises. That is the model's error to see, not a crash inside a
-/// gesture handler, so it is reported through `ctx.reportError` exactly as a
-/// failed action is.
+/// The returned callback never throws. A path the model chose badly — writing
+/// through a primitive, say — makes the data model raise. That is the model's
+/// error to see, not a crash inside a gesture handler, so it is dispatched on
+/// the surface, which reports it to the app's `onError` listener.
 ValueChanged<T> genUiValueWriter<T>(
-  CatalogItemContext ctx,
-  Object? reference,
+  ComponentNode<ComponentImplementation> node,
+  ComponentProps props,
   String property, {
   Object? Function(T value)? encode,
 }) {
-  final String path = genUiWritePath(ctx, reference, property);
+  final String path = genUiWritePath(node, props, property);
   return (T value) {
+    final ComponentContext? context = node.context;
+    if (context == null) return;
     try {
-      ctx.dataContext.update(
-        DataPath(path),
-        encode == null ? value : encode(value),
-      );
-    } catch (error, stackTrace) {
-      genUiLogger.severe(
-        'Writing "$property" of component "${ctx.id}" to `$path` failed',
-        error,
-        stackTrace,
-      );
-      _report(ctx, error, stackTrace, path: path, property: property);
+      // Relative to the component's data context, which is how the renderer
+      // resolves the binding too.
+      context.dataContext.set(path, encode == null ? value : encode(value));
+    } catch (error) {
+      _report(context, node, error, path: path, property: property);
     }
   };
 }
@@ -50,59 +50,70 @@ ValueChanged<T> genUiValueWriter<T>(
 /// when it sent a literal. Exposed because a widget that writes more than one
 /// property at once may want the path itself.
 String genUiWritePath(
-  CatalogItemContext ctx,
-  Object? reference,
+  ComponentNode<ComponentImplementation> node,
+  ComponentProps props,
+  String property,
+) => _boundPath(props, property) ?? _fallbackPath(node, property);
+
+/// The value a control shows for a [property] it also writes to.
+///
+/// A property some callback writes to cannot be read from the literal the
+/// model sent: once the user has changed it, the answer lives in the data
+/// model. When the model bound the property, that is the bound value. When it
+/// sent a literal, it is what [genUiValueWriter] wrote to
+/// `<componentId>.<property>`, and the literal for as long as that path holds
+/// nothing — which is what a text field does with its initial value.
+///
+/// Called while the component builds, the read is tracked, so the component
+/// rebuilds when the user writes a new value.
+Object? genUiWrittenValue(
+  ComponentNode<ComponentImplementation> node,
+  ComponentProps props,
   String property,
 ) {
-  if (reference is Map) {
-    final Object? path = reference['path'];
-    if (path is String && path.isNotEmpty) return path;
+  if (_boundPath(props, property) != null) return props.value(property);
+  final ComponentContext? context = node.context;
+  if (context != null) {
+    final String path = context.dataContext.resolvePath(
+      _fallbackPath(node, property),
+    );
+    final Object? written = context.surface.dataModel
+        .watch<Object?>(path)
+        .value;
+    if (written != null) return written;
   }
-  return '${ctx.id}.$property';
+  return props.value(property);
 }
 
-/// The `{"path": ...}` reference a writable property is *read* through.
-///
-/// A property some callback writes to cannot be read from the raw value the
-/// model sent: once the user has changed it, the answer lives in the data
-/// model, not in the literal the model wrote. Reading through the same path
-/// the value is written to keeps the two in step, and generated code falls
-/// back to the literal for as long as that path holds nothing — which is what
-/// genui's own `TextField` does with its initial value.
-JsonMap genUiWriteReference(
-  CatalogItemContext ctx,
-  Object? raw,
+/// The path the model bound [property] to, unless it bound it to nothing.
+String? _boundPath(ComponentProps props, String property) {
+  final String? path = props.writable(property)?.path;
+  return path == null || path.isEmpty ? null : path;
+}
+
+String _fallbackPath(
+  ComponentNode<ComponentImplementation> node,
   String property,
-) => <String, Object?>{'path': genUiWritePath(ctx, raw, property)};
+) => '${node.componentId}.$property';
 
 void _report(
-  CatalogItemContext ctx,
-  Object error,
-  StackTrace stackTrace, {
+  ComponentContext context,
+  ComponentNode<ComponentImplementation> node,
+  Object error, {
   required String path,
   required String property,
 }) {
-  // Wrapped so the model receives the actual message: genui forwards error
-  // types it does not recognise as a generic internal error. The original
-  // message is interpolated rather than the error passed through, because the
-  // data model's own exceptions come from `a2ui_core`, which this package
-  // does not depend on directly.
-  final reported = error is A2uiValidationException
-      ? error
-      : A2uiValidationException(
-          'Component "${ctx.id}" could not write "$property" to `$path`: '
-          '$error',
-          surfaceId: ctx.surfaceId,
-          path: ctx.id,
-        );
-  try {
-    ctx.reportError(reported, stackTrace);
-  } catch (reportingError, reportingStackTrace) {
-    genUiLogger.severe(
-      'reportError threw while handling a failed write for component '
-      '"${ctx.id}"',
-      reportingError,
-      reportingStackTrace,
-    );
-  }
+  final String message =
+      'Component "${node.componentId}" could not write "$property" to '
+      '`$path`: ${error is A2uiError ? error.message : error}';
+  unawaited(
+    context.surface.dispatchError(
+      A2uiRendererError(
+        code: error is A2uiDataError ? error.code : 'DATA_ERROR',
+        surfaceId: context.surface.id,
+        message: message,
+        path: error is A2uiDataError ? error.path : path,
+      ),
+    ),
+  );
 }

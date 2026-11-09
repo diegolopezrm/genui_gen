@@ -31,14 +31,11 @@ EmittedCode emitCatalogItem(WidgetSpec spec) {
   out.writeln('/// Generated [CatalogItem] for [${spec.className}].');
   out.writeln('final CatalogItem ${spec.variableName} = CatalogItem(');
   out.writeln('  name: ${dartString(spec.catalogName)},');
-  if (spec.isImplicitlyFlexible) {
-    out.writeln('  isImplicitlyFlexible: true,');
-  }
-  out.writeln('  dataSchema: ${_schema(spec, symbols)},');
+  out.writeln('  schema: ${_schema(spec, symbols)},');
   out.writeln(
     '  exampleData: [() => ${_exampleLiteral(buildExampleJson(spec))}],',
   );
-  out.writeln('  widgetBuilder: ${_widgetBuilder(spec, symbols)},');
+  out.writeln('  builder: ${_widgetBuilder(spec, symbols)},');
   out.write(');');
 
   return EmittedCode(out.toString(), symbols);
@@ -56,9 +53,46 @@ String _exampleLiteral(String json) {
 // --- Schema --------------------------------------------------------------
 
 /// The `checks` property, present only when the widget asked for the answer.
+///
+/// A list of `CheckRule`s, which is what makes the renderer evaluate them and
+/// hand the result to the builder.
 String _checksSchema(Set<String> symbols) {
-  symbols.add('A2uiSchemas');
-  return "'checks': A2uiSchemas.checkable(),";
+  symbols.add('CommonSchemas');
+  return "'checks': S.list(description: 'Validation rules for this "
+      "component.', items: CommonSchemas.checkRule),";
+}
+
+/// [commonSchema], a `CommonSchemas` member, described by [description], a
+/// Dart string literal, when there is one.
+///
+/// The members are values rather than functions, so a description is added by
+/// copying the schema, the way a data class's schema gets a use-site
+/// description.
+String _common(String commonSchema, String? description, Set<String> symbols) {
+  symbols.add('CommonSchemas');
+  if (description == null) return 'CommonSchemas.$commonSchema';
+  return 'S.fromMap({...CommonSchemas.$commonSchema.value, '
+      "'description': $description})";
+}
+
+/// A literal of [literal]'s shape, a data binding or a function call, which is
+/// what the renderer resolves a property of that shape from.
+///
+/// `anyOf` rather than `oneOf`, as in the `CommonSchemas` dynamic types: a
+/// `{"path": ...}` is also an object, so it can match an object or map literal
+/// with no required keys as well as the binding, and the renderer validates a
+/// component before applying it.
+String _literalOrReference(
+  String literal,
+  String description,
+  Set<String> symbols,
+) {
+  symbols.add('CommonSchemas');
+  final args = [
+    if (description.isNotEmpty) description,
+    'anyOf: [$literal, CommonSchemas.dataBinding, CommonSchemas.functionCall]',
+  ].join(', ');
+  return 'S.combined($args)';
 }
 
 String _schema(WidgetSpec spec, Set<String> symbols) {
@@ -68,7 +102,6 @@ String _schema(WidgetSpec spec, Set<String> symbols) {
   final written = spec.writtenProperties;
   final bool checkable = spec.checkProp != null;
   if (properties.isNotEmpty || checkable) {
-    symbols.add('A2uiSchemas');
     out.write('properties: {');
     for (final prop in properties) {
       final schema = _propertySchema(
@@ -95,8 +128,8 @@ String _schema(WidgetSpec spec, Set<String> symbols) {
 ///
 /// The nested class's own generated `ObjectSchema` variable is referenced, so
 /// the JSON produced is the fully inlined object schema and never a `$ref` —
-/// `A2uiSchemas.updateComponentsSchema` consumes `dataSchema` as a `oneOf`
-/// branch and there is no registry we control to resolve a reference against.
+/// the catalog document holds the component's schema as it is, and there is
+/// no registry we control to resolve a reference against.
 ///
 /// When the use site carries its own description — a doc comment or
 /// `@GenUiProp(description:)` on the parameter — the schema is copied with
@@ -126,8 +159,9 @@ const _writeBackNote =
 
 /// The schema one value of a `Map<String, V>` takes.
 ///
-/// Plain `S.*` rather than a reference form: the binding applies to the map as
-/// a whole, the way it does for a list, so an individual value is a literal.
+/// Plain `S.*` rather than a `CommonSchemas` form: the binding applies to the
+/// map as a whole, the way it does for a list, so an individual value is a
+/// literal.
 String _mapValueSchema(PropSpec prop, Set<String> symbols) {
   symbols.add('S');
   return switch (prop.mapValueKind) {
@@ -214,93 +248,85 @@ String _propertySchema(
     if (prop.description != null) prop.description!,
     if (isWritten) _writeBackNote,
   ].join(' ');
-  final description = text.isEmpty
-      ? ''
-      : 'description: ${dartWrappedString(text)}';
+  final String? literal = text.isEmpty ? null : dartWrappedString(text);
+  final description = literal == null ? '' : 'description: $literal';
+  String common(String name) => _common(name, literal, symbols);
   switch (prop.kind) {
     case PropKind.string:
-      return 'A2uiSchemas.stringReference($description)';
+      return common('dynamicString');
     case PropKind.integer:
     case PropKind.decimal:
     case PropKind.number:
-      return 'A2uiSchemas.numberReference($description)';
+      return common('dynamicNumber');
     case PropKind.boolean:
-      return 'A2uiSchemas.booleanReference($description)';
+      return common('dynamicBoolean');
     case PropKind.enumeration:
+      // The constants, or a binding or a call that resolves to one of them.
       final values = prop.enumValues.map(dartString).join(', ');
-      final args = [
-        if (description.isNotEmpty) description,
-        'enumValues: [$values]',
-      ].join(', ');
-      return 'A2uiSchemas.stringReference($args)';
+      return _literalOrReference(
+        'S.string(enumValues: [$values])',
+        description,
+        symbols,
+      );
     case PropKind.stringList:
-      return 'A2uiSchemas.stringArrayReference($description)';
+      return common('dynamicStringList');
     case PropKind.integerList:
     case PropKind.decimalList:
     case PropKind.numberList:
-      // `A2uiSchemas` has no numeric array reference, so the list is built
-      // from `listOrReference`, the same helper `dataList` uses: it allows a
-      // literal list, a `{"path": ...}` and a `{"call": ...}`, which is what
-      // `BoundList` resolves.
-      symbols.add('S');
-      final numberItems = [
-        if (description.isNotEmpty) description,
-        'items: S.number()',
-      ].join(', ');
-      return 'A2uiSchemas.listOrReference($numberItems)';
+      // `CommonSchemas` has no numeric list, so the list is spelled out with
+      // the same three forms `DynamicStringList` allows: a literal list, a
+      // `{"path": ...}` and a `{"call": ...}`.
+      return _literalOrReference(
+        'S.list(items: S.number())',
+        description,
+        symbols,
+      );
     case PropKind.enumerationList:
-      symbols.add('S');
       final enumItemValues = prop.enumValues.map(dartString).join(', ');
-      final enumItems = [
-        if (description.isNotEmpty) description,
-        'items: S.string(enumValues: [$enumItemValues])',
-      ].join(', ');
-      return 'A2uiSchemas.listOrReference($enumItems)';
+      return _literalOrReference(
+        'S.list(items: S.string(enumValues: [$enumItemValues]))',
+        description,
+        symbols,
+      );
     case PropKind.map:
-      // Same three forms as a data object, since it folds through the same
-      // `BoundObject`. The keys are the model's to choose, so the schema
-      // constrains the values and says nothing about the names.
-      symbols.add('S');
-      final mapArgs = [
-        if (description.isNotEmpty) description,
-        'oneOf: [S.object(additionalProperties: '
-            '${_mapValueSchema(prop, symbols)}), '
-            'A2uiSchemas.dataBindingSchema(), A2uiSchemas.functionCall()]',
-      ].join(', ');
-      return 'S.combined($mapArgs)';
+      // The keys are the model's to choose, so the schema constrains the
+      // values and says nothing about the names.
+      return _literalOrReference(
+        'S.object(additionalProperties: ${_mapValueSchema(prop, symbols)})',
+        description,
+        symbols,
+      );
     case PropKind.data:
-      // Folded through `BoundObject`, which resolves `{"path": ...}` and
-      // `{"call": ...}` as well as a literal, so the schema has to allow all
-      // three. Same shape the core catalog uses for `ChoicePicker.value`.
-      final objectArgs = [
-        if (description.isNotEmpty) description,
-        'oneOf: [${prop.data!.schemaVariableName}, '
-            'A2uiSchemas.dataBindingSchema(), A2uiSchemas.functionCall()]',
-      ].join(', ');
-      return 'S.combined($objectArgs)';
+      // The renderer resolves `{"path": ...}` and `{"call": ...}` as well as a
+      // literal, so the schema has to allow all three. Same shape the core
+      // catalog uses for `ChoicePicker.value`.
+      return _literalOrReference(
+        prop.data!.schemaVariableName,
+        description,
+        symbols,
+      );
     case PropKind.dataList:
-      // Folded through `BoundList`, so the same three forms apply;
-      // `listOrReference` is the core helper for exactly that.
-      final args = [
-        if (description.isNotEmpty) description,
-        'items: ${prop.data!.schemaVariableName}',
-      ].join(', ');
-      return 'A2uiSchemas.listOrReference($args)';
+      return _literalOrReference(
+        'S.list(items: ${prop.data!.schemaVariableName})',
+        description,
+        symbols,
+      );
     case PropKind.widget:
-      return 'A2uiSchemas.componentReference($description)';
+      return common('componentId');
     case PropKind.widgetList:
       if (prop.isTemplate) {
         // Both shapes: the list of ids the agent writes out, and the template
         // it repeats over a path.
-        return 'A2uiSchemas.componentArrayReference($description)';
+        return common('childList');
       }
+      symbols.add('CommonSchemas');
       final args = [
         if (description.isNotEmpty) description,
-        'items: A2uiSchemas.componentReference()',
+        'items: CommonSchemas.componentId',
       ].join(', ');
       return 'S.list($args)';
     case PropKind.action:
-      return 'A2uiSchemas.action($description)';
+      return common('action');
     case PropKind.valueWriter:
     case PropKind.checkResult:
       throw StateError('${prop.kind} is not a schema property');
@@ -309,14 +335,17 @@ String _propertySchema(
 
 // --- Widget builder ------------------------------------------------------
 
+/// The parameters of the generated builder, which is an a2ui_flutter
+/// `ComponentWidgetBuilder`: the renderer hands it the properties already
+/// resolved against the data model, and rebuilds it when one of them changes.
+const _builderParameters = '(context, node, props, buildChild)';
+
 String _widgetBuilder(WidgetSpec spec, Set<String> symbols) {
   if (spec.props.isEmpty) {
-    return '(ctx) => ${spec.constructorReference}()';
+    return '$_builderParameters => ${spec.constructorReference}()';
   }
 
-  symbols.add('JsonMap');
-  final out = StringBuffer('(ctx) {\n');
-  out.writeln('final data = ctx.data as JsonMap;');
+  final out = StringBuffer('$_builderParameters {\n');
 
   if (spec.requiredProps.isNotEmpty) {
     out.writeln(_missingHelper(spec, symbols));
@@ -326,59 +355,17 @@ String _widgetBuilder(WidgetSpec spec, Set<String> symbols) {
     out.writeln(_missingFieldHelper(spec, symbols));
   }
 
-  for (final prop in spec.childProps) {
-    out.writeln(
-      'final ${_childLocal(prop)} = data[${dartString(prop.schemaName)}];',
-    );
+  // A component the agent may attach rules to reads what the renderer made of
+  // them before anything else, so the answer is in scope for every property
+  // that follows.
+  if (spec.checkProp != null) {
+    symbols.add('GenUiCheckResult');
+    out.writeln('final $_checkLocal = GenUiCheckResult.of(props);');
   }
 
-  final construction =
-      '${spec.constructorReference}(${_arguments(spec, symbols)})';
-
-  // A component the agent may attach rules to evaluates them outside the
-  // bindings, so the answer is in scope for every property that follows and
-  // the widget rebuilds when a rule changes its mind.
-  final PropSpec? check = spec.checkProp;
-  if (check != null) {
-    symbols.add('GenUiChecks');
-    out.writeln('return GenUiChecks(');
-    out.writeln('dataContext: ctx.dataContext,');
-    out.writeln("checks: data['checks'],");
-    out.writeln('builder: (context, $_checkLocal) =>');
-  }
-
-  final bound = spec.boundProps.toList();
-  if (bound.isEmpty) {
-    out.writeln(check == null ? 'return $construction;' : '$construction,);');
-  } else {
-    symbols.addAll(['GenUiBindings', 'GenUiBinding']);
-    if (spec.writtenProperties.isNotEmpty) {
-      symbols.add('genUiWriteReference');
-    }
-    out.writeln('${check == null ? 'return ' : ''}GenUiBindings(');
-    out.writeln('dataContext: ctx.dataContext,');
-    out.writeln('bindings: {');
-    final written = spec.writtenProperties;
-    for (final prop in bound) {
-      final key = dartString(prop.schemaName);
-      // A property a callback writes to is read back through the same path it
-      // is written to, so the control reflects what the user just did. The
-      // literal the model sent is still honoured until that path holds
-      // something (see `_argument`).
-      if (prop.isTemplate) {
-        symbols.add('genUiTemplatePath');
-        out.writeln('$key: GenUiBinding.value(genUiTemplatePath(data[$key])),');
-        continue;
-      }
-      final raw = written.contains(prop.schemaName)
-          ? 'genUiWriteReference(ctx, data[$key], $key)'
-          : 'data[$key]';
-      out.writeln('$key: GenUiBinding.${_bindingFactory(prop)}($raw),');
-    }
-    out.writeln('},');
-    out.writeln('builder: (context, v) => $construction,');
-    out.writeln(check == null ? ');' : '),);');
-  }
+  out.writeln(
+    'return ${spec.constructorReference}(${_arguments(spec, symbols)});',
+  );
   out.write('}');
   return out.toString();
 }
@@ -392,11 +379,11 @@ const _checkLocal = 'checked';
 /// instead. Never throws.
 String _missingHelper(WidgetSpec spec, Set<String> symbols) {
   symbols.add('genUiReportMissing');
-  return '''
+  return """
 T missing<T>(String property, T fallback) {
-  genUiReportMissing(ctx, ${dartString(spec.catalogName)}, property);
+  genUiReportMissing(node, ${dartString(spec.catalogName)}, property);
   return fallback;
-}''';
+}""";
 }
 
 /// A local helper that builds the reporter handed to a generated decoder, so
@@ -405,7 +392,7 @@ T missing<T>(String property, T fallback) {
 String _missingFieldHelper(WidgetSpec spec, Set<String> symbols) {
   symbols.addAll(['genUiReportMissing', 'GenUiMissingFieldReporter']);
   return 'GenUiMissingFieldReporter missingIn(String property) => '
-      '(field) => genUiReportMissing(ctx, '
+      '(field) => genUiReportMissing(node, '
       '${dartString(spec.catalogName)}'
       r""", '$property.$field');""";
 }
@@ -426,29 +413,6 @@ final _atomicDefault = RegExp(
   r"""^([A-Za-z0-9_.]+|'[^'$\\]*'|"[^"$\\]*"|const\s[^?:]*)$""",
 );
 
-String _childLocal(PropSpec prop) => '_${prop.dartName}';
-
-String _bindingFactory(PropSpec prop) => switch (prop.kind) {
-  PropKind.string || PropKind.enumeration => 'string',
-  PropKind.integer || PropKind.decimal || PropKind.number => 'number',
-  PropKind.boolean => 'bool',
-  PropKind.stringList || PropKind.enumerationList => 'stringList',
-  PropKind.integerList ||
-  PropKind.decimalList ||
-  PropKind.numberList => 'numberList',
-  PropKind.data || PropKind.map => 'object',
-  PropKind.dataList => 'objectList',
-  PropKind.widget ||
-  PropKind.widgetList ||
-  PropKind.action ||
-  PropKind.checkResult => throw StateError(
-    'a check result is not bound; it comes from GenUiChecks',
-  ),
-  PropKind.valueWriter => throw StateError(
-    '${prop.kind} is not a bound property',
-  ),
-};
-
 String _arguments(WidgetSpec spec, Set<String> symbols) {
   final out = StringBuffer();
   final written = spec.writtenProperties;
@@ -465,26 +429,29 @@ String _arguments(WidgetSpec spec, Set<String> symbols) {
 
 /// The expression passed to the constructor for [prop].
 ///
-/// Required properties fall back to a neutral value (and report through
-/// `missing`), properties with a default fall back to that default so the
-/// Dart default applies, and everything else is passed through as nullable.
+/// Every value is read from `props`, which the renderer has resolved, and
+/// coerced through the `genUiAs*` helpers rather than cast. Required
+/// properties fall back to a neutral value (and report through `missing`),
+/// properties with a default fall back to that default so the Dart default
+/// applies, and everything else is passed through as nullable.
 ///
 /// `missing` always gets an explicit type argument: inside parentheses the
 /// `??` operand would otherwise be inferred from the nullable left-hand side.
 String _argument(PropSpec prop, Set<String> symbols, {bool isWritten = false}) {
   final key = dartString(prop.schemaName);
 
-  /// Falls back to the literal the model sent, for a property that is read
-  /// through the path it is written to.
-  ///
-  /// Until the user touches the control, that path holds nothing and the
-  /// binding resolves to `null`; the literal is what the model meant as the
-  /// starting value. Parenthesised so `?.` and `??` after it still apply to
-  /// the whole expression.
-  String orLiteral(String value, String coercion) {
-    if (!isWritten) return value;
-    symbols.add(coercion);
-    return '($value ?? $coercion(data[$key]))';
+  /// The resolved value of the property. A property some callback writes to
+  /// is read from where the callback writes it, so the control reflects what
+  /// the user just did; until then that is the literal the model sent.
+  String value() {
+    if (!isWritten) return 'props.value($key)';
+    symbols.add('genUiWrittenValue');
+    return 'genUiWrittenValue(node, props, $key)';
+  }
+
+  String coerce(String helper) {
+    symbols.add(helper);
+    return '$helper(${value()})';
   }
 
   String withFallback(String value, String type, String fallback) {
@@ -497,84 +464,83 @@ String _argument(PropSpec prop, Set<String> symbols, {bool isWritten = false}) {
     return value;
   }
 
+  /// The fallback of a property that is not a value, such as a child.
+  String orElse(String type, String requiredFallback) {
+    if (prop.isSchemaRequired) return 'missing<$type>($key, $requiredFallback)';
+    if (prop.defaultValueCode != null) return _defaultExpression(prop);
+    return 'null';
+  }
+
   switch (prop.kind) {
     case PropKind.string:
-      return withFallback(
-        orLiteral('v.string($key)', 'genUiAsString'),
-        'String',
-        "''",
-      );
+      return withFallback(coerce('genUiAsString'), 'String', "''");
     case PropKind.integer:
-      final intValue = orLiteral('v.number($key)', 'genUiAsNum');
+      final intValue = coerce('genUiAsNum');
       if (prop.isSchemaRequired) {
         return '($intValue ?? missing<num>($key, 0)).toInt()';
       }
       return withFallback('$intValue?.toInt()', 'int', '0');
     case PropKind.decimal:
-      final doubleValue = orLiteral('v.number($key)', 'genUiAsNum');
+      final doubleValue = coerce('genUiAsNum');
       if (prop.isSchemaRequired) {
         return '($doubleValue ?? missing<num>($key, 0)).toDouble()';
       }
       return withFallback('$doubleValue?.toDouble()', 'double', '0');
     case PropKind.number:
-      return withFallback(
-        orLiteral('v.number($key)', 'genUiAsNum'),
-        'num',
-        '0',
-      );
+      return withFallback(coerce('genUiAsNum'), 'num', '0');
     case PropKind.boolean:
-      return withFallback(
-        orLiteral('v.boolean($key)', 'genUiAsBool'),
-        'bool',
-        'false',
-      );
+      return withFallback(coerce('genUiAsBool'), 'bool', 'false');
     case PropKind.enumeration:
       final enumType = prop.enumTypeName!;
-      final name = orLiteral('v.string($key)', 'genUiAsString');
       return withFallback(
-        '$enumType.values.asNameMap()[$name]',
+        '$enumType.values.asNameMap()[${coerce('genUiAsString')}]',
         enumType,
         '$enumType.values.first',
       );
     case PropKind.stringList:
       return withFallback(
-        'v.stringList($key)',
+        coerce('genUiAsStringList'),
         'List<String>',
         'const <String>[]',
       );
     case PropKind.integerList:
       return withFallback(
-        'v.numberList($key)?.map((n) => n.toInt()).toList()',
+        '${coerce('genUiAsNumList')}?.map((n) => n.toInt()).toList()',
         'List<int>',
         'const <int>[]',
       );
     case PropKind.decimalList:
       return withFallback(
-        'v.numberList($key)?.map((n) => n.toDouble()).toList()',
+        '${coerce('genUiAsNumList')}?.map((n) => n.toDouble()).toList()',
         'List<double>',
         'const <double>[]',
       );
     case PropKind.numberList:
-      return withFallback('v.numberList($key)', 'List<num>', 'const <num>[]');
+      return withFallback(
+        coerce('genUiAsNumList'),
+        'List<num>',
+        'const <num>[]',
+      );
     case PropKind.enumerationList:
       // A name the enum does not declare is dropped rather than defaulted:
       // the list is the model's, and one bad entry should not silently become
       // a valid value the author never wrote.
       final listEnumType = prop.enumTypeName!;
       return withFallback(
-        'v.stringList($key)?.map((name) => '
+        '${coerce('genUiAsStringList')}?.map((name) => '
             '$listEnumType.values.asNameMap()[name]).nonNulls.toList()',
         'List<$listEnumType>',
         'const <$listEnumType>[]',
       );
     case PropKind.map:
       return withFallback(
-        _mapExpression(prop, symbols, 'v.object($key)'),
+        _mapExpression(prop, symbols, value()),
         _mapDartType(prop),
         _mapEmptyLiteral(prop),
       );
     case PropKind.data:
       final decoder = prop.data!.decoderName;
+      final object = coerce('genUiAsObject');
       if (prop.isSchemaRequired) {
         // The reporter is passed only when the object actually resolved. A
         // `{"path": ...}` that has not resolved yet is reported once by
@@ -582,63 +548,44 @@ String _argument(PropSpec prop, Set<String> symbols, {bool isWritten = false}) {
         // empty fallback with a reporter would instead send the model one
         // false `<property>.<field>` error per required field of a component
         // that was never malformed.
-        return 'switch (v.object($key)) { '
+        return 'switch ($object) { '
             'final Map<String, Object?> json => '
             '$decoder(json, missingIn($key)), '
             '_ => $decoder('
-            'missing<JsonMap>($key, const <String, Object?>{})) }';
+            'missing<Map<String, Object?>>($key, const <String, Object?>{})) }';
       }
       final fallback = prop.defaultValueCode == null
           ? 'null'
           : _defaultExpression(prop);
-      return 'switch (v.object($key)) { '
+      return 'switch ($object) { '
           'final Map<String, Object?> json => '
           '$decoder(json, missingIn($key)), '
           '_ => $fallback }';
     case PropKind.dataList:
       final type = prop.data!.className;
       return withFallback(
-        'v.objectList($key)?.map((json) => '
+        '${coerce('genUiAsObjectList')}?.map((json) => '
             '${prop.data!.decoderName}(json, missingIn($key))).toList()',
         'List<$type>',
         'const <$type>[]',
       );
     case PropKind.widget:
-      final local = _childLocal(prop);
-      final String fallback;
-      if (prop.isSchemaRequired) {
-        symbols.addAll(['Widget', 'SizedBox']);
-        fallback = 'missing<Widget>($key, const SizedBox.shrink())';
-      } else {
-        fallback = prop.defaultValueCode == null
-            ? 'null'
-            : _defaultExpression(prop);
-      }
-      return '$local is String ? ctx.buildChild($local) : $fallback';
+      // The renderer has already turned the id into a node; a child it could
+      // not resolve yet is a node too, which renders nothing until it can.
+      if (prop.isSchemaRequired) symbols.addAll(['Widget', 'SizedBox']);
+      final fallback = orElse('Widget', 'const SizedBox.shrink()');
+      return 'switch (props.child($key)) { '
+          'final child? => buildChild(child), '
+          '_ => $fallback }';
     case PropKind.widgetList:
-      final local = _childLocal(prop);
-      final String fallback;
-      if (prop.isSchemaRequired) {
-        symbols.add('Widget');
-        fallback = 'missing<List<Widget>>($key, const <Widget>[])';
-      } else {
-        fallback = prop.defaultValueCode == null
-            ? 'null'
-            : _defaultExpression(prop);
-      }
-      if (prop.isTemplate) {
-        symbols.add('genUiTemplateChildren');
-        final children = 'genUiTemplateChildren(ctx, $local, v.raw($key))';
-        if (prop.isSchemaRequired) return children;
-        // An empty result means the model sent neither a list nor a template,
-        // so the property was not set and its default stands.
-        return '$local == null ? $fallback : $children';
-      }
-      return '$local is List '
-          '? $local.whereType<String>().map((id) => ctx.buildChild(id)).toList() '
+      // A list of ids and a template both arrive as a list of nodes, one per
+      // child, the template's already expanded over its path.
+      if (prop.isSchemaRequired) symbols.add('Widget');
+      final fallback = orElse('List<Widget>', 'const <Widget>[]');
+      return 'props.value($key) is List '
+          '? [for (final child in props.children($key)) buildChild(child)] '
           ': $fallback';
     case PropKind.checkResult:
-      symbols.add('GenUiCheckResult');
       return switch (prop.checkShape!) {
         CheckResultShape.message => '$_checkLocal.message',
         CheckResultShape.isValid => '$_checkLocal.isValid',
@@ -646,7 +593,7 @@ String _argument(PropSpec prop, Set<String> symbols, {bool isWritten = false}) {
       };
     case PropKind.valueWriter:
       // Not a schema property: the callback is derived from the one it writes
-      // to, so the raw value of *that* property is what carries the path.
+      // to, so the binding of *that* property is what carries the path.
       symbols.add('genUiValueWriter');
       final target = dartString(prop.writesProperty!);
       final encode = prop.writerValueKind == PropKind.enumeration
@@ -655,11 +602,11 @@ String _argument(PropSpec prop, Set<String> symbols, {bool isWritten = false}) {
           ? ', encode: (value) => value.name'
           : '';
       return 'genUiValueWriter<${prop.writerTypeName}>'
-          '(ctx, data[$target], $target$encode)';
+          '(node, props, $target$encode)';
     case PropKind.action:
       symbols.add('genUiActionHandler');
       return withFallback(
-        'genUiActionHandler(ctx, data[$key])',
+        'genUiActionHandler(props.action($key))',
         'void Function()',
         '() {}',
       );
@@ -671,7 +618,7 @@ String _argument(PropSpec prop, Set<String> symbols, {bool isWritten = false}) {
 /// Emits the `ObjectSchema` and the decoder function for [spec].
 ///
 /// Fields of a data class use the plain `S.*` schemas rather than the
-/// `A2uiSchemas.*Reference` ones: the values inside a data object are literals
+/// `CommonSchemas.dynamic*` ones: the values inside a data object are literals
 /// the model emits, not per-field data bindings. The binding applies to the
 /// whole object, which is the widget property that carries it.
 EmittedCode emitDataClass(DataSpec spec) {
@@ -689,7 +636,7 @@ EmittedCode emitDataClass(DataSpec spec) {
   );
   out.writeln('///');
   out.writeln(
-    '/// Values are coerced the same way genui\'s `Bound*` widgets coerce a',
+    '/// Values are coerced the same way the generated builder coerces a',
   );
   out.writeln(
     '/// widget property, so a field of the wrong type degrades instead of',
@@ -748,7 +695,7 @@ String _fieldSchema(PropSpec field, Set<String> symbols) {
     case PropKind.integer:
       // A field of a data class is a literal the model emits, so the schema
       // can say "integer" and have it validated. A widget property cannot:
-      // `A2uiSchemas` only offers `numberReference`.
+      // `CommonSchemas` only offers `dynamicNumber`.
       return 'S.integer($description)';
     case PropKind.decimal:
     case PropKind.number:
@@ -829,7 +776,7 @@ String _decodeArguments(DataSpec spec, Set<String> symbols) {
 /// The expression that reads one field out of the decoded JSON map.
 ///
 /// Nothing is cast: the raw value goes through the `genUiAs*` coercions, which
-/// apply the very rules genui's `Bound*` widgets apply to a widget property.
+/// apply the very rules the generated builder applies to a widget property.
 /// A model that puts a number where a string was declared therefore degrades
 /// the same way in both places instead of throwing a `TypeError` inside
 /// `build`.
@@ -964,8 +911,8 @@ String _decodeArgument(PropSpec field, Set<String> symbols) {
   }
 }
 
-/// Emits the `final ClientFunction <name>GenUiFunction = ...;` declaration
-/// for [spec].
+/// Emits the `final FunctionImplementation <name>GenUiFunction = ...;`
+/// declaration for [spec].
 ///
 /// The body reads each argument out of the `args` map through the same
 /// coercions a `@GenUiData` field uses, so a model that sends a string where a
@@ -973,10 +920,9 @@ String _decodeArgument(PropSpec field, Set<String> symbols) {
 /// throwing inside the expression that called the function.
 EmittedCode emitFunction(FunctionSpec spec) {
   final symbols = <String>{
-    'ClientFunction',
+    'FunctionImplementation',
     'GenUiClientFunction',
-    'ClientFunctionReturnType',
-    'A2uiSchemas',
+    'A2uiReturnType',
     'S',
   };
   final out = StringBuffer();
@@ -989,13 +935,13 @@ EmittedCode emitFunction(FunctionSpec spec) {
 
   out
     ..writeln('/// Generated catalog function for [${spec.dartName}].')
-    ..writeln('final ClientFunction ${spec.variableName} = $constructor(')
+    ..writeln(
+      'final FunctionImplementation ${spec.variableName} = $constructor(',
+    )
     ..writeln('  name: ${dartString(spec.functionName)},')
     ..writeln('  description: ${dartWrappedString(spec.description)},')
     ..writeln('  argumentSchema: ${_argumentSchema(spec, symbols)},')
-    ..writeln(
-      '  returnType: ClientFunctionReturnType.${spec.returns.constantName},',
-    )
+    ..writeln('  returnType: A2uiReturnType.${spec.returns.constantName},')
     ..writeln('  body: (args, context) {');
 
   if (spec.args.isEmpty) {

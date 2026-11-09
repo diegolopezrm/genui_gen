@@ -1,4 +1,4 @@
-import 'package:genui/genui.dart';
+import 'package:a2ui_core/a2ui_core.dart';
 
 /// The component id A2UI renders a surface from.
 const String genUiRootComponentId = 'root';
@@ -34,7 +34,7 @@ const String genUiRowWildcard = '*';
 /// up as the hole it leaves on screen, not here.
 class GenUiSurfaceGraph {
   GenUiSurfaceGraph._({
-    required this.definition,
+    required this.surface,
     required Map<String, Set<String>> children,
     required Map<String, Set<String>> boundPaths,
     required this.order,
@@ -43,9 +43,9 @@ class GenUiSurfaceGraph {
   }) : _children = children,
        _boundPaths = boundPaths;
 
-  /// Reads the graph out of [definition].
-  factory GenUiSurfaceGraph.of(SurfaceDefinition definition) {
-    final Set<String> ids = definition.components.keys.toSet();
+  /// Reads the graph out of the components [surface] holds now.
+  factory GenUiSurfaceGraph.of(SurfaceModel surface) {
+    final Set<String> ids = surface.componentsModel.keys.toSet();
     final children = <String, Set<String>>{};
     final boundPaths = <String, Set<String>>{};
 
@@ -55,7 +55,7 @@ class GenUiSurfaceGraph {
     final templates = <String, Map<String, String>>{};
     final rawPaths = <String, Set<String>>{};
 
-    for (final Component component in definition.components.values) {
+    for (final ComponentModel component in surface.componentsModel.values) {
       final found = <String>{};
       final paths = <String>{};
       final repeated = <String, String>{};
@@ -101,7 +101,7 @@ class GenUiSurfaceGraph {
     }
 
     return GenUiSurfaceGraph._(
-      definition: definition,
+      surface: surface,
       children: children,
       boundPaths: boundPaths,
       order: List<String>.unmodifiable(order),
@@ -113,7 +113,10 @@ class GenUiSurfaceGraph {
   }
 
   /// The surface this graph was read from.
-  final SurfaceDefinition definition;
+  ///
+  /// It is live: its components may have changed since, and the graph has
+  /// not. Read a new graph to see them.
+  final SurfaceModel surface;
 
   final Map<String, Set<String>> _children;
   final Map<String, Set<String>> _boundPaths;
@@ -134,7 +137,7 @@ class GenUiSurfaceGraph {
   final Set<String> cyclic;
 
   /// Whether the surface has the component the renderer starts from.
-  bool get hasRoot => definition.components.containsKey(genUiRootComponentId);
+  bool get hasRoot => surface.componentsModel.get(genUiRootComponentId) != null;
 
   /// The children of [id], in the order its properties name them.
   Set<String> childrenOf(String id) => _children[id] ?? const <String>{};
@@ -181,13 +184,13 @@ class GenUiSurfaceGraph {
     final out = StringBuffer();
     if (!hasRoot) {
       out.writeln(
-        '${definition.surfaceId} has no "$genUiRootComponentId" component, so '
+        '${surface.id} has no "$genUiRootComponentId" component, so '
         'nothing renders.',
       );
     }
     out.writeln(
       '${order.length} component${order.length == 1 ? '' : 's'} on '
-      '${definition.surfaceId}, bound to ${pathBindings.length} '
+      '${surface.id}, bound to ${pathBindings.length} '
       'path${pathBindings.length == 1 ? '' : 's'}.',
     );
     if (unreachable.isNotEmpty) {

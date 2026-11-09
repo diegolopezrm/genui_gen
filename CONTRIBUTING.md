@@ -27,7 +27,7 @@ all of them.
 ## Running tests
 
 ```sh
-# Runtime helpers (GenUiBindings, genUiActionHandler)
+# Runtime helpers (genUiActionHandler, genUiValueWriter)
 cd packages/genui_gen && flutter test
 
 # Generator: golden output per supported type, plus error cases
@@ -54,7 +54,7 @@ dart run build_runner build
 ```
 
 Then run the app to see the generated examples rendered offline through
-genui's `DebugCatalogView` (no API key or network needed):
+a2ui_flutter's `A2uiSurface` (no API key or network needed):
 
 ```sh
 flutter run
@@ -93,13 +93,15 @@ Checklist:
   `ConstructorElement`, `FormalParameterElement`, ...). Do not reintroduce the
   legacy element API.
 - Verify third-party behaviour against the package sources in your pub cache
-  rather than from memory; genui is pre-1.0 and changes between minors.
-- Keep generated code free of dependencies beyond `genui`, `genui_gen` and
+  rather than from memory; a2ui_core and a2ui_flutter are pre-1.0 and change
+  between minors.
+- Keep generated code free of dependencies beyond `genui_gen`, which
+  re-exports what it needs from `a2ui_core`, `a2ui_flutter` and
   `json_schema_builder`; everything it calls must be reachable through the
   annotated file's imports.
 
 ## Reporting issues
 
 Open an issue at <https://github.com/diegolopezrm/genui_gen/issues> with the
-genui version, the annotated constructor, and the generated output or the
-build error.
+a2ui_flutter version, the annotated constructor, and the generated output or
+the build error.

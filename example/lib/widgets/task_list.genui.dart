@@ -13,18 +13,21 @@ part of 'task_list.dart';
 /// Generated [CatalogItem] for [TaskList].
 final CatalogItem taskListCatalogItem = CatalogItem(
   name: 'TaskList',
-  dataSchema: S.object(
+  schema: S.object(
     description: 'A titled list of rows, one per item in the data.',
     properties: {
-      'title': A2uiSchemas.stringReference(
-        description: 'The heading above the list.',
-      ),
-      'rows': A2uiSchemas.componentArrayReference(
-        description: 'One row per task.',
-      ),
-      'emptyLabel': A2uiSchemas.stringReference(
-        description: 'Shown when there are no rows.',
-      ),
+      'title': S.fromMap({
+        ...CommonSchemas.dynamicString.value,
+        'description': 'The heading above the list.',
+      }),
+      'rows': S.fromMap({
+        ...CommonSchemas.childList.value,
+        'description': 'One row per task.',
+      }),
+      'emptyLabel': S.fromMap({
+        ...CommonSchemas.dynamicString.value,
+        'description': 'Shown when there are no rows.',
+      }),
     },
     required: ['title', 'rows'],
   ),
@@ -52,26 +55,20 @@ final CatalogItem taskListCatalogItem = CatalogItem(
   }
 ]''',
   ],
-  widgetBuilder: (ctx) {
-    final data = ctx.data as JsonMap;
+  builder: (context, node, props, buildChild) {
     T missing<T>(String property, T fallback) {
-      genUiReportMissing(ctx, 'TaskList', property);
+      genUiReportMissing(node, 'TaskList', property);
       return fallback;
     }
 
-    final _rows = data['rows'];
-    return GenUiBindings(
-      dataContext: ctx.dataContext,
-      bindings: {
-        'title': GenUiBinding.string(data['title']),
-        'rows': GenUiBinding.value(genUiTemplatePath(data['rows'])),
-        'emptyLabel': GenUiBinding.string(data['emptyLabel']),
-      },
-      builder: (context, v) => TaskList(
-        title: v.string('title') ?? missing<String>('title', ''),
-        rows: genUiTemplateChildren(ctx, _rows, v.raw('rows')),
-        emptyLabel: v.string('emptyLabel') ?? 'Nothing here yet.',
-      ),
+    return TaskList(
+      title:
+          genUiAsString(props.value('title')) ?? missing<String>('title', ''),
+      rows: props.value('rows') is List
+          ? [for (final child in props.children('rows')) buildChild(child)]
+          : missing<List<Widget>>('rows', const <Widget>[]),
+      emptyLabel:
+          genUiAsString(props.value('emptyLabel')) ?? 'Nothing here yet.',
     );
   },
 );

@@ -29,26 +29,32 @@ class DataTable extends StatelessWidget {
       expect(
         out,
         contains(
-          "'rows': A2uiSchemas.componentArrayReference("
-          "description: 'One row per entry.')",
+          "'rows': S.fromMap({...CommonSchemas.childList.value, "
+          "'description': 'One row per entry.'})",
         ),
       );
     });
 
-    test('binds the path the template repeats over', () {
+    test('builds one child per node the renderer expanded the template to', () {
       expect(
         out,
-        contains("'rows': GenUiBinding.value(genUiTemplatePath(data['rows']))"),
+        contains(
+          "rows: props.value('rows') is List "
+          "? [for (final child in props.children('rows')) buildChild(child)] "
+          ": missing<List<Widget>>('rows', const <Widget>[])",
+        ),
       );
     });
 
-    test('builds the children from what that path holds', () {
-      expect(out, contains("genUiTemplateChildren(ctx,"));
-      expect(out, contains("v.raw('rows')"));
-    });
-
     test('an optional template keeps its fallback', () {
-      expect(out, contains('_footers == null ? null'));
+      expect(
+        out,
+        contains(
+          "footers: props.value('footers') is List "
+          "? [for (final child in props.children('footers')) "
+          'buildChild(child)] : null',
+        ),
+      );
     });
 
     test('a plain list of children is left as it was', () async {
@@ -63,9 +69,9 @@ class Strip extends StatelessWidget {
 
       expect(
         plain,
-        contains("'children': S.list(items: A2uiSchemas.componentReference())"),
+        contains("'children': S.list(items: CommonSchemas.componentId)"),
       );
-      expect(plain, isNot(contains('genUiTemplateChildren')));
+      expect(plain, isNot(contains('childList')));
     });
   });
 

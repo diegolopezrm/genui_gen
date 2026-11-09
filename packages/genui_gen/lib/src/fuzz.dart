@@ -1,9 +1,11 @@
 import 'dart:convert';
 
-import 'package:a2ui_core/a2ui_core.dart' as core;
+import 'package:a2ui_core/a2ui_core.dart';
+import 'package:a2ui_flutter/a2ui_flutter.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:genui/genui.dart';
+
+import 'catalog_item.dart';
 
 /// How the caller puts a widget on screen.
 ///
@@ -128,8 +130,15 @@ String genUiFuzzSummary(List<GenUiFuzzFinding> findings) {
 /// The cases are built by mutating each item's own generated example rather
 /// than by reading the schema, because the example is valid by construction
 /// and already names every required property. That also means a hand-written
-/// `CatalogItem` is fuzzed as well as a generated one, as long as it carries
-/// example data.
+/// [CatalogItem] is fuzzed as well as a generated one, as long as it carries
+/// example data. Components without examples, such as the basic catalog's,
+/// are left out.
+///
+/// The renderer checks every component against its schema before applying
+/// it, so a case the schema does not allow — a string where a number was
+/// declared, say — never reaches the widget: the processor reports it, and the
+/// app sends that error to the agent. Such a case is not a finding. What is
+/// left is what the schema allows and the widget did not expect.
 ///
 /// ```dart
 /// testWidgets('the catalog survives what its schema allows', (tester) async {
@@ -171,7 +180,7 @@ String genUiFuzzSummary(List<GenUiFuzzFinding> findings) {
 /// cases are generated in a fixed order, so a run is reproducible and a bound
 /// always drops the same tail.
 Future<List<GenUiFuzzFinding>> genUiFuzz({
-  required Catalog catalog,
+  required CatalogImplementation catalog,
   required GenUiPump pump,
   GenUiFuzzHost host = _plainHost,
   Set<String> only = const <String>{},
@@ -179,28 +188,19 @@ Future<List<GenUiFuzzFinding>> genUiFuzz({
   int maxCasesPerComponent = 80,
   bool reportEmpty = false,
 }) async {
-  final String? catalogId = catalog.catalogId;
-  if (catalogId == null) {
-    throw ArgumentError.value(
-      catalog,
-      'catalog',
-      'has no catalogId, and a surface names the catalog it was built '
-          'against. Give the catalog an id before fuzzing it.',
-    );
-  }
-
   final findings = <GenUiFuzzFinding>[];
   var surface = 0;
 
-  for (final CatalogItem item in catalog.items) {
+  for (final CatalogItem item
+      in catalog.components.values.whereType<CatalogItem>()) {
     if (skip.contains(item.name)) continue;
     if (only.isNotEmpty && !only.contains(item.name)) continue;
 
-    final List<JsonMap>? example = _parseExample(item);
+    final List<Map<String, Object?>>? example = _parseExample(item);
     if (example == null) continue;
 
     final int rootIndex = example.indexWhere((c) => c['id'] == 'root');
-    final JsonMap root = example[rootIndex < 0 ? 0 : rootIndex];
+    final Map<String, Object?> root = example[rootIndex < 0 ? 0 : rootIndex];
     final int index = rootIndex < 0 ? 0 : rootIndex;
 
     // The untouched example first: it is the baseline every case is compared
@@ -210,10 +210,21 @@ Future<List<GenUiFuzzFinding>> genUiFuzz({
       pump,
       host,
       catalog,
-      catalogId,
       example,
       's${surface++}',
     );
+    if (baseline.rejection != null) {
+      findings.add(
+        GenUiFuzzFinding(
+          component: item.name,
+          mutation: 'its own generated example',
+          kind: GenUiFuzzKind.threw,
+          detail: 'the renderer rejected it: ${baseline.rejection}',
+          componentJson: jsonEncode(root),
+        ),
+      );
+      continue;
+    }
     if (baseline.error != null) {
       findings.add(
         GenUiFuzzFinding(
@@ -228,17 +239,19 @@ Future<List<GenUiFuzzFinding>> genUiFuzz({
     }
 
     for (final _Case c in _casesFor(root).take(maxCasesPerComponent)) {
-      final List<JsonMap> components = <JsonMap>[...example];
+      final List<Map<String, Object?>> components = <Map<String, Object?>>[
+        ...example,
+      ];
       components[index] = c.component;
 
       final _Render r = await _render(
         pump,
         host,
         catalog,
-        catalogId,
         components,
         's${surface++}',
       );
+      if (r.rejection != null) continue;
       if (r.error != null) {
         findings.add(
           GenUiFuzzFinding(
@@ -271,15 +284,18 @@ class _Case {
   const _Case(this.label, this.component);
 
   final String label;
-  final JsonMap component;
+  final Map<String, Object?> component;
 }
 
 /// What one render produced.
 class _Render {
-  const _Render(this.error, this.hasSize);
+  const _Render(this.error, this.hasSize, {this.rejection});
 
   final String? error;
   final bool hasSize;
+
+  /// Why the renderer refused the components, when it did.
+  final String? rejection;
 }
 
 /// The cases for one component, in a fixed order.
@@ -288,7 +304,7 @@ class _Render {
 /// a property left out, a null, the wrong scalar, an empty or enormous list,
 /// a binding that resolves to nothing, a string longer than any layout
 /// expects. None of them is exotic; all of them arrive eventually.
-Iterable<_Case> _casesFor(JsonMap root) sync* {
+Iterable<_Case> _casesFor(Map<String, Object?> root) sync* {
   final keys = root.keys.where((k) => k != 'id' && k != 'component').toList()
     ..sort();
 
@@ -339,24 +355,26 @@ final List<_Value> _values = <_Value>[
   const _Value('a list of the wrong element type', <Object?>[1, 'two', true]),
 ];
 
-JsonMap _without(JsonMap root, String key) => <String, Object?>{
-  for (final e in root.entries)
-    if (e.key != key) e.key: e.value,
-};
+Map<String, Object?> _without(Map<String, Object?> root, String key) =>
+    <String, Object?>{
+      for (final e in root.entries)
+        if (e.key != key) e.key: e.value,
+    };
 
-JsonMap _with(JsonMap root, String key, Object? value) => <String, Object?>{
-  ...root,
-  key: value,
-};
+Map<String, Object?> _with(
+  Map<String, Object?> root,
+  String key,
+  Object? value,
+) => <String, Object?>{...root, key: value};
 
 /// Parses the first example an item carries, or `null` when it has none that
 /// can be read as a list of components.
-List<JsonMap>? _parseExample(CatalogItem item) {
+List<Map<String, Object?>>? _parseExample(CatalogItem item) {
   for (final String Function() example in item.exampleData) {
     try {
       final Object? decoded = jsonDecode(example());
       if (decoded is List && decoded.isNotEmpty) {
-        return <JsonMap>[
+        return <Map<String, Object?>>[
           for (final Object? c in decoded)
             if (c is Map) c.cast<String, Object?>(),
         ];
@@ -373,12 +391,14 @@ List<JsonMap>? _parseExample(CatalogItem item) {
 Future<_Render> _render(
   GenUiPump pump,
   GenUiFuzzHost host,
-  Catalog catalog,
-  String catalogId,
-  List<JsonMap> components,
+  CatalogImplementation catalog,
+  List<Map<String, Object?>> components,
   String surfaceId,
 ) async {
-  final controller = SurfaceController(catalogs: [catalog]);
+  final processor = MessageProcessor<ComponentImplementation>(
+    catalogs: [catalog],
+    reportErrorsOnly: true,
+  );
   final probe = GlobalKey();
   final errors = <Object>[];
 
@@ -390,42 +410,58 @@ Future<_Render> _render(
       errors.add(details.exception);
 
   Size? size;
+  String? rejection;
   try {
-    controller.handleMessage(
-      core.UpdateComponentsMessage(
-        surfaceId: surfaceId,
-        components: components,
-      ),
+    final String version = A2uiProtocolVersion.v0_9.jsonValue;
+    final List<ErrorMessage> rejected = processor.processMessagesWithErrors(
+      <Object?>[
+        <String, Object?>{
+          'version': version,
+          'createSurface': <String, Object?>{
+            'surfaceId': surfaceId,
+            'catalogId': catalog.id,
+          },
+        },
+        <String, Object?>{
+          'version': version,
+          'updateComponents': <String, Object?>{
+            'surfaceId': surfaceId,
+            'components': components,
+          },
+        },
+      ],
     );
-    controller.handleMessage(
-      core.CreateSurfaceMessage(surfaceId: surfaceId, catalogId: catalogId),
-    );
-    await pump(
-      host(
-        KeyedSubtree(
-          key: probe,
-          child: Surface(surfaceContext: controller.contextFor(surfaceId)),
+    if (rejected.isNotEmpty) {
+      rejection = rejected.first.error.message;
+    } else {
+      await pump(
+        host(
+          KeyedSubtree(
+            key: probe,
+            child: A2uiSurface(surface: processor.model.getSurface(surfaceId)!),
+          ),
         ),
-      ),
-    );
-    size = probe.currentContext?.size;
+      );
+      size = probe.currentContext?.size;
+    }
   } catch (error) {
     errors.add(error);
   }
 
   // Unmount before disposing, so a widget still on screen cannot reach a
-  // controller that is going away and report that instead of the real case.
+  // processor that is going away and report that instead of the real case.
   try {
     await pump(const SizedBox.shrink());
   } catch (error) {
     errors.add(error);
   }
   FlutterError.onError = previous;
-  controller.dispose();
+  processor.dispose();
 
   return _Render(
     errors.isEmpty ? null : _describe(errors.first),
     size != null && size.width > 0 && size.height > 0,
+    rejection: rejection,
   );
 }
 

@@ -38,20 +38,20 @@ class Thing extends StatelessWidget {
         out,
         contains(
           "'labels': S.combined(description: 'One label per key.', "
-          'oneOf: [S.object(additionalProperties: S.string())',
+          'anyOf: [S.object(additionalProperties: S.string())',
         ),
       );
       expect(
         out,
         contains(
-          "'counts': S.combined(oneOf: [S.object("
+          "'counts': S.combined(anyOf: [S.object("
           'additionalProperties: S.integer())',
         ),
       );
       expect(
         out,
         contains(
-          "'flags': S.combined(oneOf: [S.object("
+          "'flags': S.combined(anyOf: [S.object("
           'additionalProperties: S.boolean())',
         ),
       );
@@ -70,7 +70,7 @@ class Thing extends StatelessWidget {
       expect(
         out,
         contains(
-          "'raw': S.combined(oneOf: [S.object("
+          "'raw': S.combined(anyOf: [S.object("
           'additionalProperties: true)',
         ),
       );
@@ -79,20 +79,20 @@ class Thing extends StatelessWidget {
     test('accepts a binding or a call for the map as a whole', () {
       expect(
         out,
-        contains('A2uiSchemas.dataBindingSchema(), A2uiSchemas.functionCall()'),
+        contains('CommonSchemas.dataBinding, CommonSchemas.functionCall'),
       );
     });
 
-    test('resolves through the object binding', () {
-      expect(out, contains("'labels': GenUiBinding.object(data['labels'])"));
+    test('reads the resolved map', () {
+      expect(out, contains("labels: genUiAsStringMap(props.value('labels'))"));
     });
 
     test('coerces the values rather than casting them', () {
-      expect(out, contains("genUiAsStringMap(v.object('labels'))"));
-      expect(out, contains("genUiAsNumMap(v.object('counts'))"));
+      expect(out, contains("genUiAsStringMap(props.value('labels'))"));
+      expect(out, contains("genUiAsNumMap(props.value('counts'))"));
       expect(out, contains('value.toInt()'));
       expect(out, contains('value.toDouble()'));
-      expect(out, contains("genUiAsBoolMap(v.object('flags'))"));
+      expect(out, contains("genUiAsBoolMap(props.value('flags'))"));
     });
 
     test(
@@ -106,7 +106,7 @@ class Thing extends StatelessWidget {
     );
 
     test('an optional one is just null', () {
-      expect(out, contains("raw: genUiAsObject(v.object('raw'))"));
+      expect(out, contains("raw: genUiAsObject(props.value('raw'))"));
     });
   });
 
@@ -177,7 +177,7 @@ String lookUp(Map<String, String> labels, String key) => '';
     expect(
       out,
       contains(
-        "'labels': S.combined(oneOf: [S.object("
+        "'labels': S.combined(anyOf: [S.object("
         'additionalProperties: S.string())',
       ),
     );

@@ -23,23 +23,26 @@ String shortenName(
 
     test('declares the name the model calls it by', () {
       expect(out, contains("name: 'shortenName'"));
-      expect(out, contains('final ClientFunction shortenNameGenUiFunction'));
+      expect(
+        out,
+        contains('final FunctionImplementation shortenNameGenUiFunction'),
+      );
     });
 
     test('derives the argument schema from the parameters', () {
       expect(
         out,
         contains(
-          "'name': A2uiSchemas.stringReference("
-          "description: 'The name to shorten.')",
+          "'name': S.fromMap({...CommonSchemas.dynamicString.value, "
+          "'description': 'The name to shorten.'})",
         ),
       );
       expect(
         out,
         contains(
-          "'casing': A2uiSchemas.stringReference("
-          "description: 'How to case the result.', "
-          "enumValues: ['upper', 'lower'])",
+          "'casing': S.combined(description: 'How to case the result.', "
+          "anyOf: [S.string(enumValues: ['upper', 'lower']), "
+          'CommonSchemas.dataBinding, CommonSchemas.functionCall])',
         ),
       );
     });
@@ -49,7 +52,7 @@ String shortenName(
     });
 
     test('takes the return type from the Dart return type', () {
-      expect(out, contains('returnType: ClientFunctionReturnType.string'));
+      expect(out, contains('returnType: A2uiReturnType.string'));
     });
 
     test('coerces each argument instead of casting it', () {
@@ -78,7 +81,7 @@ String shortenName(
 Future<int> priceOf(String sku) async => 0;
 ''');
       expect(out, contains('GenUiClientFunction.async'));
-      expect(out, contains('returnType: ClientFunctionReturnType.number'));
+      expect(out, contains('returnType: A2uiReturnType.number'));
     });
 
     test('a Stream is emitted through the streaming constructor', () async {
@@ -98,12 +101,12 @@ String greeting() => '';
       expect(out, contains('return greeting();'));
     });
 
-    test('void becomes the empty return type', () async {
+    test('void becomes the void return type', () async {
       final out = await generate('''
 @GenUiFunction(description: 'Does something.')
 void ping() {}
 ''');
-      expect(out, contains('returnType: ClientFunctionReturnType.empty'));
+      expect(out, contains('returnType: A2uiReturnType.void_'));
     });
   });
 
@@ -215,8 +218,8 @@ String formatAll(List<Address> addresses) => '';
       expect(
         out,
         contains(
-          "'address': S.combined(oneOf: [addressGenUiSchema, "
-          'A2uiSchemas.dataBindingSchema(), A2uiSchemas.functionCall()])',
+          "'address': S.combined(anyOf: [addressGenUiSchema, "
+          'CommonSchemas.dataBinding, CommonSchemas.functionCall])',
         ),
       );
     });
@@ -225,7 +228,8 @@ String formatAll(List<Address> addresses) => '';
       expect(
         out,
         contains(
-          "'addresses': A2uiSchemas.listOrReference(items: addressGenUiSchema)",
+          "'addresses': S.combined(anyOf: [S.list(items: addressGenUiSchema), "
+          'CommonSchemas.dataBinding, CommonSchemas.functionCall])',
         ),
       );
     });

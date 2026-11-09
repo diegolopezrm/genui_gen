@@ -4,7 +4,7 @@
 // pubspec.yaml:
 //
 //   dependencies:
-//     genui: ^0.10.0
+//     a2ui_flutter: ^0.1.0
 //     genui_gen: ^0.4.0
 //
 //   dev_dependencies:
@@ -19,12 +19,12 @@
 // `buildCatalog()` below; in an app with several, spreading
 // `...genUiCatalogItems` is what keeps the catalog from falling behind.
 //
-// A full app, with six annotated widgets rendered through genui's
-// DebugCatalogView, is in the repository's top-level `example/` directory:
+// A full app, with six annotated widgets rendered through a2ui_flutter's
+// A2uiSurface, is in the repository's top-level `example/` directory:
 // https://github.com/diegolopezrm/genui_gen/tree/main/example
 
+import 'package:a2ui_flutter/v0_9/basic_catalog.dart';
 import 'package:flutter/material.dart';
-import 'package:genui/genui.dart';
 import 'package:genui_gen/genui_gen.dart';
 
 part 'main.genui.dart';
@@ -87,12 +87,14 @@ class ProductCard extends StatelessWidget {
   }
 }
 
-/// Registers the generated item next to genui's basic catalog.
+/// Registers the generated item next to a2ui_flutter's basic catalog.
 ///
-/// The basic items have to be there: a generated example composes genui's own
-/// `Text` for its child components, so a catalog without them fails validation.
-Catalog buildCatalog() {
-  return BasicCatalogItems.asCatalog().copyWith(
-    newItems: [productCardCatalogItem],
+/// The basic components have to be there: a generated example composes the
+/// basic `Text` for its child components, so a catalog without them fails
+/// validation.
+CatalogImplementation buildCatalog() {
+  return basicCatalog().derive(
+    catalogId: 'com.example.products',
+    addComponents: [productCardCatalogItem],
   );
 }

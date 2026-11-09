@@ -1,8 +1,10 @@
 /// Regression guard for the 0.1 output shape.
 ///
 /// A widget that uses only the types 0.1 supported must keep generating
-/// exactly the same file after `@GenUiData` support was added in 0.2. The
-/// golden below is the byte-for-byte output of the 0.1.2 builder.
+/// exactly the same file as features are added. The golden below was the
+/// byte-for-byte output of the 0.1.2 builder until the move from genui to
+/// a2ui_flutter, which changed every line of it; it is now the output of the
+/// first builder on a2ui_flutter.
 library;
 
 import 'package:test/test.dart';
@@ -71,21 +73,33 @@ part of 'widget.dart';
 /// Generated [CatalogItem] for [ProductCard].
 final CatalogItem productCardCatalogItem = CatalogItem(
   name: 'ProductCard',
-  dataSchema: S.object(
+  schema: S.object(
     description: 'A product card with price and image.',
     properties: {
-      'title': A2uiSchemas.stringReference(description: 'Product name.'),
-      'price': A2uiSchemas.numberReference(description: 'Price in USD.'),
-      'quantity': A2uiSchemas.numberReference(),
-      'rating': A2uiSchemas.numberReference(),
-      'inStock': A2uiSchemas.booleanReference(),
-      'trend': A2uiSchemas.stringReference(enumValues: ['up', 'down', 'flat']),
-      'tags': A2uiSchemas.stringArrayReference(),
-      'leading': A2uiSchemas.componentReference(),
-      'children': S.list(items: A2uiSchemas.componentReference()),
-      'imageUrl': A2uiSchemas.stringReference(),
-      'subtitle': A2uiSchemas.stringReference(),
-      'onTap': A2uiSchemas.action(),
+      'title': S.fromMap({
+        ...CommonSchemas.dynamicString.value,
+        'description': 'Product name.',
+      }),
+      'price': S.fromMap({
+        ...CommonSchemas.dynamicNumber.value,
+        'description': 'Price in USD.',
+      }),
+      'quantity': CommonSchemas.dynamicNumber,
+      'rating': CommonSchemas.dynamicNumber,
+      'inStock': CommonSchemas.dynamicBoolean,
+      'trend': S.combined(
+        anyOf: [
+          S.string(enumValues: ['up', 'down', 'flat']),
+          CommonSchemas.dataBinding,
+          CommonSchemas.functionCall,
+        ],
+      ),
+      'tags': CommonSchemas.dynamicStringList,
+      'leading': CommonSchemas.componentId,
+      'children': S.list(items: CommonSchemas.componentId),
+      'imageUrl': CommonSchemas.dynamicString,
+      'subtitle': CommonSchemas.dynamicString,
+      'onTap': CommonSchemas.action,
     },
     required: [
       'title',
@@ -144,53 +158,40 @@ final CatalogItem productCardCatalogItem = CatalogItem(
   }
 ]''',
   ],
-  widgetBuilder: (ctx) {
-    final data = ctx.data as JsonMap;
+  builder: (context, node, props, buildChild) {
     T missing<T>(String property, T fallback) {
-      genUiReportMissing(ctx, 'ProductCard', property);
+      genUiReportMissing(node, 'ProductCard', property);
       return fallback;
     }
 
-    final _leading = data['leading'];
-    final _children = data['children'];
-    return GenUiBindings(
-      dataContext: ctx.dataContext,
-      bindings: {
-        'title': GenUiBinding.string(data['title']),
-        'price': GenUiBinding.number(data['price']),
-        'quantity': GenUiBinding.number(data['quantity']),
-        'rating': GenUiBinding.number(data['rating']),
-        'inStock': GenUiBinding.bool(data['inStock']),
-        'trend': GenUiBinding.string(data['trend']),
-        'tags': GenUiBinding.stringList(data['tags']),
-        'imageUrl': GenUiBinding.string(data['imageUrl']),
-        'subtitle': GenUiBinding.string(data['subtitle']),
+    return ProductCard(
+      title:
+          genUiAsString(props.value('title')) ?? missing<String>('title', ''),
+      price: (genUiAsNum(props.value('price')) ?? missing<num>('price', 0))
+          .toDouble(),
+      quantity:
+          (genUiAsNum(props.value('quantity')) ?? missing<num>('quantity', 0))
+              .toInt(),
+      rating: genUiAsNum(props.value('rating')) ?? missing<num>('rating', 0),
+      inStock:
+          genUiAsBool(props.value('inStock')) ??
+          missing<bool>('inStock', false),
+      trend:
+          Trend.values.asNameMap()[genUiAsString(props.value('trend'))] ??
+          missing<Trend>('trend', Trend.values.first),
+      tags:
+          genUiAsStringList(props.value('tags')) ??
+          missing<List<String>>('tags', const <String>[]),
+      leading: switch (props.child('leading')) {
+        final child? => buildChild(child),
+        _ => missing<Widget>('leading', const SizedBox.shrink()),
       },
-      builder: (context, v) => ProductCard(
-        title: v.string('title') ?? missing<String>('title', ''),
-        price: (v.number('price') ?? missing<num>('price', 0)).toDouble(),
-        quantity: (v.number('quantity') ?? missing<num>('quantity', 0)).toInt(),
-        rating: v.number('rating') ?? missing<num>('rating', 0),
-        inStock: v.boolean('inStock') ?? missing<bool>('inStock', false),
-        trend:
-            Trend.values.asNameMap()[v.string('trend')] ??
-            missing<Trend>('trend', Trend.values.first),
-        tags:
-            v.stringList('tags') ??
-            missing<List<String>>('tags', const <String>[]),
-        leading: _leading is String
-            ? ctx.buildChild(_leading)
-            : missing<Widget>('leading', const SizedBox.shrink()),
-        children: _children is List
-            ? _children
-                  .whereType<String>()
-                  .map((id) => ctx.buildChild(id))
-                  .toList()
-            : missing<List<Widget>>('children', const <Widget>[]),
-        imageUrl: v.string('imageUrl'),
-        subtitle: v.string('subtitle') ?? 'None',
-        onTap: genUiActionHandler(ctx, data['onTap']),
-      ),
+      children: props.value('children') is List
+          ? [for (final child in props.children('children')) buildChild(child)]
+          : missing<List<Widget>>('children', const <Widget>[]),
+      imageUrl: genUiAsString(props.value('imageUrl')),
+      subtitle: genUiAsString(props.value('subtitle')) ?? 'None',
+      onTap: genUiActionHandler(props.action('onTap')),
     );
   },
 );

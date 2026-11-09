@@ -28,31 +28,35 @@ class TapCard extends StatelessWidget {
 ''');
     });
 
-    test('schema uses A2uiSchemas.action', () {
+    test('schema uses the common Action type', () {
       expect(
         out,
         contains(
-          "'onTap': A2uiSchemas.action(description: 'Fired when the card is tapped.')",
+          "'onTap': S.fromMap({...CommonSchemas.action.value, "
+          "'description': 'Fired when the card is tapped.'})",
         ),
       );
       expect(
         out,
-        contains("'onConfirm': A2uiSchemas.action(description: 'Confirms.')"),
+        contains(
+          "'onConfirm': S.fromMap({...CommonSchemas.action.value, "
+          "'description': 'Confirms.'})",
+        ),
       );
-      expect(out, contains("'onDismiss': A2uiSchemas.action()"));
+      expect(out, contains("'onDismiss': CommonSchemas.action}"));
       expect(out, contains("required: ['onConfirm']"));
     });
 
     test('callbacks go through genUiActionHandler', () {
-      expect(out, contains("onTap: genUiActionHandler(ctx, data['onTap'])"));
+      expect(out, contains("onTap: genUiActionHandler(props.action('onTap'))"));
       expect(
         out,
-        contains("onDismiss: genUiActionHandler(ctx, data['onDismiss'])"),
+        contains("onDismiss: genUiActionHandler(props.action('onDismiss'))"),
       );
       expect(
         out,
         contains(
-          "genUiActionHandler(ctx, data['onConfirm']) ?? "
+          "genUiActionHandler(props.action('onConfirm')) ?? "
           "missing<void Function()>('onConfirm', () {})",
         ),
       );
@@ -64,8 +68,8 @@ class TapCard extends StatelessWidget {
       expect(out, contains('"onDismiss":{"event":{"name":"dismissed"}}'));
     });
 
-    test('actions alone do not need GenUiBindings', () {
-      expect(out, isNot(contains('GenUiBindings(')));
+    test('actions are read from the resolved properties, not the raw data', () {
+      expect(out, isNot(contains('data[')));
     });
   });
 }

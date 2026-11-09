@@ -1,7 +1,8 @@
+import 'package:a2ui_core/a2ui_core.dart';
 import 'package:example/main.dart';
 import 'package:example/scripted_agent.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:genui/genui.dart';
+import 'package:genui_gen/genui_gen.dart';
 import 'package:genui_gen/testing.dart';
 import 'package:genui_gen/tracing.dart';
 
@@ -10,20 +11,22 @@ import 'package:genui_gen/tracing.dart';
 List<GenUiTrace> recordEveryTurn() {
   final traces = <GenUiTrace>[];
   for (var i = 0; i < ScriptedAgent.turns.length; i++) {
-    final controller = SurfaceController(catalogs: [exampleCatalog]);
+    final processor = MessageProcessor<ComponentImplementation>(
+      catalogs: [exampleCatalog],
+    );
     final recorder = GenUiTraceRecorder.attach(
-      controller,
-      catalogId: exampleCatalog.catalogId,
+      processor,
+      catalogId: exampleCatalog.id,
     );
     for (final message in ScriptedAgent.turns[i].messages(
       'session-$i',
-      exampleCatalog.catalogId!,
+      exampleCatalog.id,
     )) {
       recorder.handleMessage(message);
     }
     traces.add(recorder.build());
     recorder.dispose();
-    controller.dispose();
+    processor.dispose();
   }
   return traces;
 }
@@ -62,6 +65,6 @@ void main() {
     );
     expect(coverage.sessions, 0);
     expect(coverage.componentShare, 0);
-    expect(coverage.unusedComponents.length, exampleCatalog.items.length);
+    expect(coverage.unusedComponents.length, exampleCatalog.components.length);
   });
 }

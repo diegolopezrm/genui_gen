@@ -1,9 +1,9 @@
 /// Test harness: runs the builder against in-memory sources.
 ///
-/// The real `package:flutter`, `package:genui`, `package:genui_gen` and
-/// `package:json_schema_builder` are replaced by minimal stubs declaring
-/// only the symbols the generator looks at, so the suite runs with plain
-/// `dart test` and no Flutter SDK.
+/// The real `package:flutter`, `package:a2ui_core`, `package:a2ui_flutter`,
+/// `package:genui_gen` and `package:json_schema_builder` are replaced by
+/// minimal stubs declaring only the symbols the generator looks at, so the
+/// suite runs with plain `dart test` and no Flutter SDK.
 library;
 
 import 'package:build/build.dart';
@@ -50,13 +50,18 @@ class Schema {
     List<String>? required,
   }) = ObjectSchema;
   factory Schema.list({String? description, Schema? items}) => const Schema();
+  factory Schema.fromMap(Map<String, Object?> value) => const Schema();
   factory Schema.string({String? description, List<Object?>? enumValues}) =>
       const Schema();
   factory Schema.number({String? description}) => const Schema();
   factory Schema.integer({String? description}) => const Schema();
   factory Schema.boolean({String? description}) => const Schema();
-  factory Schema.combined({String? description, List<Object?>? oneOf}) =>
-      const Schema();
+  factory Schema.combined({
+    String? description,
+    List<Object?>? oneOf,
+    List<Object?>? anyOf,
+  }) => const Schema();
+  factory Schema.any() => const Schema();
   const Schema._();
   Map<String, Object?> get value => const {};
 }
@@ -71,73 +76,105 @@ class ObjectSchema extends Schema {
 
 typedef S = Schema;
 ''',
-  'genui|lib/genui.dart': '''
+  'a2ui_core|lib/a2ui_core.dart': '''
 library;
 
 import 'package:json_schema_builder/json_schema_builder.dart';
 
-typedef JsonMap = Map<String, Object?>;
+abstract final class CommonSchemas {
+  static const Schema dataBinding = Schema();
+  static const Schema functionCall = Schema();
+  static const Schema dynamicString = Schema();
+  static const Schema dynamicNumber = Schema();
+  static const Schema dynamicBoolean = Schema();
+  static const Schema dynamicStringList = Schema();
+  static const Schema componentId = Schema();
+  static const Schema childList = Schema();
+  static const Schema action = Schema();
+  static const Schema checkRule = Schema();
+}
 
-class Catalog {}
+enum A2uiReturnType {
+  string,
+  number,
+  boolean,
+  array,
+  object,
+  validationResult,
+  any,
+  void_,
+}
 
 class DataContext {}
 
-class CatalogItemContext {
-  final Object data;
-  final DataContext dataContext;
-  final Object Function(String id, [DataContext? ctx]) buildChild;
-  final void Function(Object error, StackTrace? stack) reportError;
-  CatalogItemContext(
-    this.data,
-    this.dataContext,
-    this.buildChild,
-    this.reportError,
-  );
+typedef NodeAction = Future<void> Function();
+
+abstract class FunctionImplementation {
+  const FunctionImplementation();
+}
+''',
+  'a2ui_flutter|lib/a2ui_flutter.dart': '''
+library;
+
+import 'package:json_schema_builder/json_schema_builder.dart';
+
+class ComponentNode {}
+
+class ComponentProps {
+  Object? value(String key) => null;
+  ComponentNode? child(String key) => null;
+  List<ComponentNode> children(String key) => const [];
+  Object? action(String key) => null;
 }
 
-class CatalogItem {
-  const CatalogItem({
+class ComponentImplementation {
+  const ComponentImplementation({
     required this.name,
-    required this.dataSchema,
-    required this.widgetBuilder,
-    this.exampleData = const [],
-    this.isImplicitlyFlexible = false,
+    required this.schema,
+    required this.builder,
   });
   final String name;
-  final Schema dataSchema;
-  final Object Function(CatalogItemContext ctx) widgetBuilder;
-  final List<String Function()> exampleData;
-  final bool isImplicitlyFlexible;
+  final Schema schema;
+  final Object Function(
+    Object context,
+    ComponentNode node,
+    ComponentProps props,
+    Object Function(ComponentNode child) buildChild,
+  ) builder;
 }
 
-abstract final class A2uiSchemas {
-  static Schema stringReference({
-    String? description,
-    List<String>? enumValues,
-  }) => const Schema();
-  static Schema numberReference({String? description}) => const Schema();
-  static Schema booleanReference({String? description}) => const Schema();
-  static Schema stringArrayReference({String? description}) =>
-      const Schema();
-  static Schema componentReference({String? description}) => const Schema();
-  static Schema componentArrayReference({String? description}) =>
-      const Schema();
-  static Schema action({String? description}) => const Schema();
-  static Schema checkable({String? description}) => const Schema();
-  static Schema dataBindingSchema({String? description}) => const Schema();
-  static Schema functionCall() => const Schema();
-  static Schema listOrReference({
-    required Schema items,
-    String? description,
-  }) => const Schema();
+class CatalogImplementation {
+  CatalogImplementation({
+    required this.id,
+    required List<ComponentImplementation> components,
+    List<Object> functions = const [],
+  });
+  final String id;
 }
 ''',
   'genui_gen|lib/genui_gen.dart': '''
 library;
 
-export 'package:genui/genui.dart' show A2uiSchemas, Catalog, CatalogItem, JsonMap;
+import 'package:a2ui_core/a2ui_core.dart';
+import 'package:a2ui_flutter/a2ui_flutter.dart';
+import 'package:flutter/widgets.dart';
+
+export 'package:a2ui_core/a2ui_core.dart'
+    show A2uiReturnType, CommonSchemas, FunctionImplementation;
+export 'package:a2ui_flutter/a2ui_flutter.dart'
+    show CatalogImplementation, ComponentImplementation;
 export 'package:json_schema_builder/json_schema_builder.dart'
     show ObjectSchema, S, Schema;
+
+class CatalogItem extends ComponentImplementation {
+  const CatalogItem({
+    required super.name,
+    required super.schema,
+    required super.builder,
+    this.exampleData = const [],
+  });
+  final List<String Function()> exampleData;
+}
 
 class GenUiWidget {
   const GenUiWidget({
@@ -183,19 +220,10 @@ class GenUiChecked {
 
 class GenUiCheckResult {
   const GenUiCheckResult({required this.isValid, required this.message});
+  factory GenUiCheckResult.of(ComponentProps props) =>
+      const GenUiCheckResult(isValid: true, message: null);
   final bool isValid;
   final String? message;
-}
-
-class GenUiChecks {
-  const GenUiChecks({
-    required this.dataContext,
-    required this.checks,
-    required this.builder,
-  });
-  final Object? dataContext;
-  final Object? checks;
-  final Object Function(Object context, GenUiCheckResult result) builder;
 }
 
 class GenUiWrites {
@@ -209,111 +237,59 @@ class GenUiFunction {
   final String? name;
 }
 
-enum ClientFunctionReturnType {
-  string,
-  number,
-  boolean,
-  array,
-  object,
-  any,
-  empty,
-}
-
-abstract interface class ClientFunction {}
-
-class GenUiClientFunction implements ClientFunction {
+class GenUiClientFunction extends FunctionImplementation {
   GenUiClientFunction({
     required this.name,
     required this.description,
     required this.argumentSchema,
-    this.returnType = ClientFunctionReturnType.any,
+    this.returnType = A2uiReturnType.any,
     required this.body,
   });
   GenUiClientFunction.async({
     required this.name,
     required this.description,
     required this.argumentSchema,
-    this.returnType = ClientFunctionReturnType.any,
+    this.returnType = A2uiReturnType.any,
     required this.body,
   });
   GenUiClientFunction.streaming({
     required this.name,
     required this.description,
     required this.argumentSchema,
-    this.returnType = ClientFunctionReturnType.any,
+    this.returnType = A2uiReturnType.any,
     required this.body,
   });
   final String name;
   final String description;
   final Schema argumentSchema;
-  final ClientFunctionReturnType returnType;
-  final Object? Function(Map<String, Object?> args, Object? context) body;
-}
-
-class GenUiBindings {
-  const GenUiBindings({
-    required this.dataContext,
-    required this.bindings,
-    required this.builder,
-  });
-  final Object dataContext;
-  final Map<String, GenUiBinding> bindings;
-  final Object Function(Object context, GenUiValues values) builder;
-}
-
-sealed class GenUiBinding {
-  const factory GenUiBinding.string(Object? raw) = _Binding;
-  const factory GenUiBinding.number(Object? raw) = _Binding;
-  const factory GenUiBinding.bool(Object? raw) = _Binding;
-  const factory GenUiBinding.stringList(Object? raw) = _Binding;
-  const factory GenUiBinding.value(Object? raw) = _Binding;
-  const factory GenUiBinding.object(Object? raw) = _Binding;
-  const factory GenUiBinding.objectList(Object? raw) = _Binding;
-}
-
-class _Binding implements GenUiBinding {
-  const _Binding(this.raw);
-  final Object? raw;
-}
-
-class GenUiValues {
-  Object? raw(String key) => null;
-  String? string(String key) => null;
-  num? number(String key) => null;
-  bool? boolean(String key) => null;
-  List<String>? stringList(String key) => null;
-  Map<String, Object?>? object(String key) => null;
-  List<Map<String, Object?>>? objectList(String key) => null;
+  final A2uiReturnType returnType;
+  final Object? Function(Map<String, Object?> args, DataContext context) body;
 }
 
 typedef GenUiDecoder<T> = T Function(Map<String, Object?> json);
 
 typedef GenUiMissingFieldReporter = void Function(String field);
 
-void Function()? genUiActionHandler(Object ctx, Object? actionData) => null;
+void Function()? genUiActionHandler(Object? action) => null;
 
-Map<String, Object?> genUiWriteReference(
-  Object ctx,
-  Object? raw,
+Object? genUiWrittenValue(
+  ComponentNode node,
+  ComponentProps props,
   String property,
-) => const {};
+) => null;
 
 void Function(T) genUiValueWriter<T>(
-  Object ctx,
-  Object? reference,
+  ComponentNode node,
+  ComponentProps props,
   String property, {
   Object? Function(T value)? encode,
 }) => (T value) {};
 
-void genUiReportMissing(Object ctx, String component, String property) {}
-
-Object? genUiTemplatePath(Object? reference) => null;
-
-List<Widget> genUiTemplateChildren(
-  Object ctx,
-  Object? reference,
-  Object? resolved,
-) => const <Widget>[];
+void genUiReportMissing(
+  ComponentNode node,
+  String component,
+  String property,
+) {}
 
 String? genUiAsString(Object? value) => null;
 num? genUiAsNum(Object? value) => null;
@@ -342,7 +318,6 @@ GenUiMissingFieldReporter? genUiNestedField(
 /// The default imports prepended to every widget source by [generate].
 const defaultImports = '''
 import 'package:flutter/widgets.dart';
-import 'package:genui/genui.dart';
 import 'package:genui_gen/genui_gen.dart';
 ''';
 

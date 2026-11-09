@@ -1,9 +1,11 @@
+import 'package:a2ui_core/a2ui_core.dart';
+import 'package:a2ui_flutter/a2ui_flutter.dart';
 import 'package:example/main.dart';
 import 'package:example/models/metric_row.dart';
 import 'package:example/models/trend.dart';
+import 'package:example/widgets/metrics_table.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:genui/genui.dart';
 import 'package:genui_gen/genui_gen.dart';
 
 /// Every widget the example annotates, in catalog order.
@@ -17,13 +19,13 @@ const generatedItems = <String>[
 
 void main() {
   testWidgets('catalog contains every generated item', (tester) async {
-    final names = exampleCatalog.items.map((item) => item.name).toSet();
+    final names = exampleCatalog.components.keys.toSet();
     expect(names, containsAll(generatedItems));
   });
 
   testWidgets('every generated item has a parseable example', (tester) async {
     for (final name in generatedItems) {
-      final item = exampleCatalog.items.singleWhere((i) => i.name == name);
+      final item = exampleCatalog.components[name]! as CatalogItem;
       expect(item.exampleData, isNotEmpty, reason: name);
       for (final example in item.exampleData) {
         expect(example(), contains('"id": "root"'), reason: name);
@@ -88,34 +90,58 @@ void main() {
   testWidgets('a bound object list reaches the widget as MetricRow', (
     tester,
   ) async {
-    final model = InMemoryDataModel();
-    addTearDown(model.dispose);
-    final captured = <MetricRow>[];
-    await tester.pumpWidget(
-      MaterialApp(
-        home: GenUiBindings(
-          dataContext: DataContext(model, DataPath.root),
-          bindings: {
-            'rows': GenUiBinding.objectList(const <Object?>[
+    final processor = MessageProcessor<ComponentImplementation>(
+      catalogs: [exampleCatalog],
+      validationConfig: ValidationConfig.strict,
+    );
+    addTearDown(processor.dispose);
+    final String version = A2uiProtocolVersion.v0_9.jsonValue;
+    processor.processMessages([
+      {
+        'version': version,
+        'createSurface': {'surfaceId': 's', 'catalogId': exampleCatalog.id},
+      },
+      {
+        'version': version,
+        'updateDataModel': {
+          'surfaceId': 's',
+          'value': {
+            'rows': [
               {'label': 'Revenue', 'value': 10, 'trend': 'up'},
               {'label': 'Churn', 'value': 2, 'trend': 'down'},
-            ]),
+            ],
           },
-          builder: (context, v) {
-            captured
-              ..clear()
-              ..addAll(
-                v.objectList('rows')?.map(metricRowFromGenUiJson).toList() ??
-                    const <MetricRow>[],
-              );
-            return const SizedBox();
-          },
+        },
+      },
+      {
+        'version': version,
+        'updateComponents': {
+          'surfaceId': 's',
+          'components': [
+            {
+              'id': 'root',
+              'component': 'MetricsTable',
+              'title': 'Quarter',
+              'rows': {'path': '/rows'},
+            },
+          ],
+        },
+      },
+    ]);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: A2uiSurface(surface: processor.model.getSurface('s')!),
         ),
       ),
     );
-    expect(captured, hasLength(2));
-    expect(captured.first.label, 'Revenue');
-    expect(captured.last.trend, Trend.down);
+
+    final List<MetricRow> rows = tester
+        .widget<MetricsTable>(find.byType(MetricsTable))
+        .rows;
+    expect(rows, hasLength(2));
+    expect(rows.first.label, 'Revenue');
+    expect(rows.last.trend, Trend.down);
   });
 
   testWidgets('the app opens on the catalog, with a tab per capability', (

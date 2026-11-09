@@ -22,14 +22,14 @@ const _propChecker = TypeChecker.typeNamedLiterally(
   inPackage: 'genui_gen',
 );
 
-/// Function names genui's own basic catalog already registers.
+/// Function names the A2UI basic catalog already registers.
 ///
 /// A catalog is a map from name to function, so a second `required` would
 /// replace the one the basic catalog put there and change what every existing
 /// prompt means.
 ///
-/// Taken from `basic_functions.dart` and `format_string.dart` in genui 0.10,
-/// and the same fourteen the published basic catalog declares.
+/// The fourteen the published v0.9 basic catalog declares, which genui 0.10
+/// registered under the same names.
 const _basicCatalogFunctions = {
   'and',
   'email',
@@ -126,7 +126,7 @@ FunctionSpec buildFunctionSpec(
   }
   if (_basicCatalogFunctions.contains(functionName)) {
     throw InvalidGenerationSourceError(
-      '`$functionName` is the name of a function in genui\'s basic catalog. '
+      '`$functionName` is the name of a function in the A2UI basic catalog. '
       'Two functions cannot share a name in one catalog, and replacing that '
       'one changes what every prompt written against it means. Rename it '
       'with @GenUiFunction(name: ...).',

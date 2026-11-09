@@ -36,7 +36,7 @@ final ObjectSchema metricRowGenUiSchema = ObjectSchema(
 
 /// Decodes a [MetricRow] from the map the model produced.
 ///
-/// Values are coerced the same way genui's `Bound*` widgets coerce a
+/// Values are coerced the same way the generated builder coerces a
 /// widget property, so a field of the wrong type degrades instead of
 /// throwing. Every required field that had to fall back is reported
 /// through [onMissing], when one is given.

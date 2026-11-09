@@ -1,40 +1,62 @@
-import 'package:a2ui_core/a2ui_core.dart' as core;
+import 'package:a2ui_core/a2ui_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:genui/genui.dart';
 import 'package:genui_gen/genui_gen.dart';
 import 'package:genui_gen/testing.dart';
 import 'package:genui_gen/tracing.dart';
 
 CatalogItem item(String name, Map<String, Schema> properties) => CatalogItem(
   name: name,
-  dataSchema: S.object(description: name, properties: properties),
+  schema: S.object(description: name, properties: properties),
   exampleData: [() => '[{"id": "root", "component": "$name"}]'],
-  widgetBuilder: (ctx) => const SizedBox(),
+  builder: (context, node, props, buildChild) => const SizedBox(),
 );
 
-final Catalog catalog = Catalog([
-  item('Used', {
-    'title': A2uiSchemas.stringReference(),
-    'never': A2uiSchemas.stringReference(),
-    'tone': A2uiSchemas.stringReference(enumValues: ['warm', 'cold', 'grey']),
-  }),
-  item('Unused', {'title': A2uiSchemas.stringReference()}),
-], catalogId: 'test.coverage');
+final CatalogImplementation catalog = CatalogImplementation(
+  id: 'test.coverage',
+  components: [
+    item('Used', {
+      'title': CommonSchemas.dynamicString,
+      'never': CommonSchemas.dynamicString,
+      // The shape the generator gives an enum property.
+      'tone': S.combined(
+        anyOf: [
+          S.string(enumValues: ['warm', 'cold', 'grey']),
+          CommonSchemas.dataBinding,
+          CommonSchemas.functionCall,
+        ],
+      ),
+    }),
+    item('Unused', {'title': CommonSchemas.dynamicString}),
+  ],
+);
 
 /// A trace holding one surface composed of [components].
-GenUiTrace traceOf(List<JsonMap> components) {
-  final controller = SurfaceController(catalogs: [catalog]);
-  final recorder = GenUiTraceRecorder.attach(
-    controller,
-    catalogId: catalog.catalogId,
+GenUiTrace traceOf(List<Map<String, Object?>> components) {
+  final processor = MessageProcessor<ComponentImplementation>(
+    catalogs: [catalog],
+    reportErrorsOnly: true,
   );
-  recorder.handleMessage(
-    core.UpdateComponentsMessage(surfaceId: 's', components: components),
-  );
+  final recorder = GenUiTraceRecorder.attach(processor, catalogId: catalog.id);
+  final String version = A2uiProtocolVersion.v0_9.jsonValue;
+  recorder
+    ..handleMessage(
+      CreateSurfaceMessage(
+        version: version,
+        surfaceId: 's',
+        catalogId: catalog.id,
+      ),
+    )
+    ..handleMessage(
+      UpdateComponentsMessage(
+        version: version,
+        surfaceId: 's',
+        components: components,
+      ),
+    );
   final trace = recorder.build();
   recorder.dispose();
-  controller.dispose();
+  processor.dispose();
   return trace;
 }
 

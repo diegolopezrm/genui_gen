@@ -15,8 +15,8 @@
 ///
 /// ```dart
 /// final recorder = GenUiTraceRecorder.attach(
-///   controller,
-///   catalogId: catalog.catalogId,
+///   processor,
+///   catalogId: catalog.id,
 ///   redact: const ['/user/email'],
 /// );
 ///

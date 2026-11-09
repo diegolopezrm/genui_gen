@@ -1,5 +1,8 @@
+import 'dart:convert';
+
+import 'package:a2ui_core/a2ui_core.dart';
+import 'package:a2ui_flutter/a2ui_flutter.dart';
 import 'package:flutter/material.dart';
-import 'package:genui/genui.dart';
 import 'package:genui_gen/inspector.dart';
 import 'package:genui_gen/tracing.dart';
 
@@ -22,8 +25,9 @@ class SessionPage extends StatefulWidget {
 class _SessionPageState extends State<SessionPage> {
   static const String _surfaceId = 'session';
 
-  late SurfaceController _controller;
+  late MessageProcessor<ComponentImplementation> _processor;
   late GenUiTraceRecorder _recorder;
+  final List<Subscription> _subscriptions = <Subscription>[];
   final TextEditingController _prompt = TextEditingController();
   final List<_Entry> _log = <_Entry>[];
   ScriptedTurn? _turn;
@@ -37,27 +41,52 @@ class _SessionPageState extends State<SessionPage> {
 
   @override
   void dispose() {
-    _recorder.dispose();
-    _controller.dispose();
+    _stop();
     _prompt.dispose();
     super.dispose();
   }
 
   void _start() {
-    _controller = SurfaceController(catalogs: [exampleCatalog]);
+    _processor = MessageProcessor<ComponentImplementation>(
+      catalogs: [exampleCatalog],
+      reportErrorsOnly: true,
+    );
     _recorder = GenUiTraceRecorder.attach(
-      _controller,
-      catalogId: exampleCatalog.catalogId,
+      _processor,
+      catalogId: exampleCatalog.id,
       notes: const {'source': 'genui_gen example, session tab'},
     );
-    _controller.onSubmit.listen(_onSubmit);
+    // What a real app would send to the agent: the actions the user takes and
+    // the errors the surface reports, in the protocol's own envelopes.
+    final String version = A2uiProtocolVersion.v0_9.jsonValue;
+    _subscriptions
+      ..add(
+        _processor.model.onAction.subscribe(
+          (A2uiRendererAction action) =>
+              _onSubmit(ActionMessage(version: version, action: action)),
+        ),
+      )
+      ..add(
+        _processor.model.onError.subscribe(
+          (A2uiRendererError error) =>
+              _onSubmit(ErrorMessage(version: version, error: error)),
+        ),
+      );
   }
 
-  void _onSubmit(ChatMessage message) {
-    final String text = message.parts.uiInteractionParts
-        .map((part) => part.interaction)
-        .join('\n');
-    if (text.isEmpty) return;
+  /// Unsubscribes before disposing, since disposing the processor deletes its
+  /// surfaces and nothing here should hear about that.
+  void _stop() {
+    for (final Subscription subscription in _subscriptions) {
+      subscription.unsubscribe();
+    }
+    _subscriptions.clear();
+    _recorder.dispose();
+    _processor.dispose();
+  }
+
+  void _onSubmit(RendererToAgentMessage message) {
+    final String text = jsonEncode(message.toJson());
     setState(() => _log.add(_Entry.fromApp(text)));
     recordedTrace.value = _recorder.build();
   }
@@ -75,7 +104,7 @@ class _SessionPageState extends State<SessionPage> {
       _turn = turn;
     });
 
-    for (final message in turn.messages(surfaceId, exampleCatalog.catalogId!)) {
+    for (final message in turn.messages(surfaceId, exampleCatalog.id)) {
       _recorder.handleMessage(message);
     }
     recordedTrace.value = _recorder.build();
@@ -86,13 +115,16 @@ class _SessionPageState extends State<SessionPage> {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final String? surfaceId = _turn == null ? null : '$_surfaceId-$_sessions';
+    final SurfaceModel<ComponentImplementation>? surface = surfaceId == null
+        ? null
+        : _processor.model.getSurface(surfaceId);
 
     // The panel over the session, which is where it belongs: it reports on a
     // surface while someone is using it. `enabled` is forced on here because
     // this example is built in release mode for the web; a real app leaves it
     // at `kDebugMode` and ships without it.
     return GenUiInspector(
-      controller: _controller,
+      processor: _processor,
       recorder: _recorder,
       enabled: true,
       child: Column(
@@ -115,9 +147,12 @@ class _SessionPageState extends State<SessionPage> {
                     clipBehavior: Clip.antiAlias,
                     child: Padding(
                       padding: const EdgeInsets.all(12),
-                      child: Surface(
-                        surfaceContext: _controller.contextFor(surfaceId!),
-                      ),
+                      child: surface == null
+                          ? const SizedBox.shrink()
+                          : A2uiSurface(
+                              key: ObjectKey(surface),
+                              surface: surface,
+                            ),
                     ),
                   ),
                 ],
@@ -152,8 +187,7 @@ class _SessionPageState extends State<SessionPage> {
                     tooltip: 'Start over',
                     icon: const Icon(Icons.refresh),
                     onPressed: () {
-                      _recorder.dispose();
-                      _controller.dispose();
+                      _stop();
                       setState(() {
                         _log.clear();
                         _turn = null;

@@ -7,20 +7,20 @@ import 'package:genui_gen/testing.dart';
 /// for: valid against its own schema, and fatal on anything else.
 final CatalogItem fragile = CatalogItem(
   name: 'Fragile',
-  dataSchema: S.object(
+  schema: S.object(
     description: 'Casts its property instead of coercing it.',
-    properties: {'label': A2uiSchemas.stringReference()},
+    properties: {'label': CommonSchemas.dynamicString},
     required: ['label'],
   ),
   exampleData: [
     () => '[{"id": "root", "component": "Fragile", "label": "hello"}]',
   ],
-  widgetBuilder: (ctx) => _Fragile((ctx.data as JsonMap)['label']),
+  builder: (context, node, props, buildChild) => _Fragile(props.value('label')),
 );
 
 /// The cast happens while the widget builds, which is where a real one
-/// happens: genui hands the property over untouched and `Slider`,
-/// `TextField` and the rest read it with `as`.
+/// happens: a binding that resolves to nothing hands the widget a null, and a
+/// widget that reads it with `as` throws.
 class _Fragile extends StatelessWidget {
   const _Fragile(this.raw);
 
@@ -33,26 +33,20 @@ class _Fragile extends StatelessWidget {
 /// The same component, written the way the generator writes one.
 final CatalogItem sturdy = CatalogItem(
   name: 'Sturdy',
-  dataSchema: S.object(
+  schema: S.object(
     description: 'Coerces its property.',
-    properties: {'label': A2uiSchemas.stringReference()},
+    properties: {'label': CommonSchemas.dynamicString},
     required: ['label'],
   ),
   exampleData: [
     () => '[{"id": "root", "component": "Sturdy", "label": "hello"}]',
   ],
-  widgetBuilder: (ctx) {
-    final data = ctx.data as JsonMap;
-    return GenUiBindings(
-      dataContext: ctx.dataContext,
-      bindings: {'label': GenUiBinding.string(data['label'])},
-      builder: (context, v) => Text(v.string('label') ?? 'missing'),
-    );
-  },
+  builder: (context, node, props, buildChild) =>
+      Text(genUiAsString(props.value('label')) ?? 'missing'),
 );
 
-Catalog catalogOf(List<CatalogItem> items) =>
-    Catalog(items, catalogId: 'test.fuzz');
+CatalogImplementation catalogOf(List<CatalogItem> items) =>
+    CatalogImplementation(id: 'test.fuzz', components: items);
 
 void main() {
   testWidgets('a component that casts is reported, with the case to paste', (
@@ -141,12 +135,21 @@ void main() {
     expect(on.length, greaterThanOrEqualTo(off.length));
   });
 
-  testWidgets('a catalog with no id says so instead of guessing', (
-    tester,
-  ) async {
+  testWidgets('a case the renderer refuses is not a finding', (tester) async {
+    // A number where the schema declared a string never reaches the widget:
+    // the processor rejects the component, and the agent hears about it.
+    final findings = await genUiFuzz(
+      catalog: catalogOf([fragile]),
+      pump: tester.pumpWidget,
+    );
+
     expect(
-      () => genUiFuzz(catalog: Catalog([sturdy]), pump: tester.pumpWidget),
-      throwsA(isA<ArgumentError>()),
+      findings.map((f) => f.mutation),
+      isNot(contains('`label` as a number')),
+    );
+    expect(
+      findings.map((f) => f.mutation),
+      contains('`label` as an unresolved binding'),
     );
   });
 
@@ -211,23 +214,16 @@ class _Brand extends ThemeExtension<_Brand> {
 /// inside an app that has it.
 final CatalogItem branded = CatalogItem(
   name: 'Branded',
-  dataSchema: S.object(
+  schema: S.object(
     description: 'A label on the brand colour.',
-    properties: {'label': A2uiSchemas.stringReference()},
+    properties: {'label': CommonSchemas.dynamicString},
     required: ['label'],
   ),
   exampleData: [
     () => '[{"id": "root", "component": "Branded", "label": "hello"}]',
   ],
-  widgetBuilder: (ctx) {
-    final data = ctx.data as JsonMap;
-    return GenUiBindings(
-      dataContext: ctx.dataContext,
-      bindings: {'label': GenUiBinding.string(data['label'])},
-      builder: (context, v) => ColoredBox(
-        color: Theme.of(context).extension<_Brand>()!.color,
-        child: Text(v.string('label') ?? ''),
-      ),
-    );
-  },
+  builder: (context, node, props, buildChild) => ColoredBox(
+    color: Theme.of(context).extension<_Brand>()!.color,
+    child: Text(genUiAsString(props.value('label')) ?? ''),
+  ),
 );

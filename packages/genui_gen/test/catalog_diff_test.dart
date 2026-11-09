@@ -10,17 +10,20 @@ Map<String, Object?> catalogWith({
   String catalogId = 'dev.dlsoft.test',
   String description = 'A product card.',
 }) => genUiCatalogJson(
-  Catalog([
-    CatalogItem(
-      name: 'ProductCard',
-      dataSchema: S.object(
-        description: description,
-        properties: {'title': S.string(), ...properties},
-        required: required,
+  CatalogImplementation(
+    id: catalogId,
+    components: [
+      CatalogItem(
+        name: 'ProductCard',
+        schema: S.object(
+          description: description,
+          properties: {'title': S.string(), ...properties},
+          required: required,
+        ),
+        builder: (context, node, props, buildChild) => const SizedBox.shrink(),
       ),
-      widgetBuilder: (ctx) => const SizedBox.shrink(),
-    ),
-  ], catalogId: catalogId),
+    ],
+  ),
 );
 
 void main() {
@@ -117,13 +120,17 @@ void main() {
 
   test('a component that disappears is breaking', () {
     final before = genUiCatalogJson(
-      Catalog([
-        CatalogItem(
-          name: 'Gone',
-          dataSchema: S.object(description: 'A component.', properties: {}),
-          widgetBuilder: (ctx) => const SizedBox.shrink(),
-        ),
-      ], catalogId: 'dev.dlsoft.test'),
+      CatalogImplementation(
+        id: 'dev.dlsoft.test',
+        components: [
+          CatalogItem(
+            name: 'Gone',
+            schema: S.object(description: 'A component.', properties: {}),
+            builder: (context, node, props, buildChild) =>
+                const SizedBox.shrink(),
+          ),
+        ],
+      ),
     );
 
     final changes = genUiCatalogDiff(before, catalogWith());

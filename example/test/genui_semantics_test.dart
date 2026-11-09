@@ -15,13 +15,15 @@ import 'dart:io';
 import 'package:example/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:genui_gen/genui_gen.dart';
 import 'package:genui_gen/testing.dart';
 
 void main() {
   testWidgets('the catalog exposes what it exposed before', (tester) async {
     final recorded = <String, List<GenUiSemanticNode>>{};
 
-    for (final item in exampleCatalog.items) {
+    for (final CatalogItem item
+        in exampleCatalog.components.values.whereType<CatalogItem>()) {
       final SemanticsHandle handle = tester.ensureSemantics();
       await tester.pumpWidget(
         MaterialApp(

@@ -25,19 +25,24 @@ class LabeledField extends StatelessWidget {
     });
 
     test('publishes a checks property so the model may send rules', () {
-      expect(out, contains("'checks': A2uiSchemas.checkable()"));
+      expect(
+        out,
+        contains(
+          "'checks': S.list(description: 'Validation rules for this "
+          "component.', items: CommonSchemas.checkRule)",
+        ),
+      );
     });
 
     test('does not require the rules', () {
       expect(out, contains("required: ['label', 'value']"));
     });
 
-    test('evaluates them outside the bindings', () {
+    test('reads what the renderer made of them before the properties', () {
       expect(
         out,
         contains(
-          "return GenUiChecks(dataContext: ctx.dataContext, "
-          "checks: data['checks'], builder: (context, checked) =>",
+          'final checked = GenUiCheckResult.of(props); return LabeledField(',
         ),
       );
     });
@@ -128,7 +133,7 @@ class Field extends StatelessWidget {
   final String? error;
 }
 ''');
-    expect(out, contains("'checks': A2uiSchemas.checkable()"));
+    expect(out, contains('items: CommonSchemas.checkRule'));
     expect(out, contains('error: checked.message'));
   });
 }
