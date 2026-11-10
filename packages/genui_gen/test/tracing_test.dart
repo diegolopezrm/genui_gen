@@ -1,6 +1,7 @@
 import 'package:a2ui_core/a2ui_core.dart';
 import 'package:a2ui_flutter/a2ui_flutter.dart';
-import 'package:a2ui_flutter/basic_catalog.dart';
+import 'package:a2ui_flutter/basic_catalog.dart' as v1_0;
+import 'package:a2ui_flutter/v0_9/basic_catalog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genui_gen/testing.dart';
@@ -9,15 +10,8 @@ import 'package:genui_gen/tracing.dart';
 typedef JsonMap = Map<String, Object?>;
 
 /// The basic catalog, under an id of the test's own.
-CatalogImplementation get _catalog {
-  final CatalogImplementation basic = basicCatalog();
-  return CatalogImplementation(
-    id: 'dev.dlsoft.trace',
-    components: basic.components.values.toList(),
-    functions: basic.functions.values.toList(),
-    themeSchema: basic.themeSchema,
-  );
-}
+CatalogImplementation get _catalog =>
+    basicCatalog().derive(catalogId: 'dev.dlsoft.trace');
 
 MessageProcessor<ComponentImplementation> _processor() {
   final processor = MessageProcessor<ComponentImplementation>(
@@ -93,7 +87,7 @@ Future<GenUiTrace> recordSession(
   await tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
-        body: A2uiSurface(surface: processor.groupModel.getSurface('s')!),
+        body: A2uiSurface(surface: processor.model.getSurface('s')!),
       ),
     ),
   );
@@ -139,6 +133,56 @@ void main() {
       final events = trace.steps.whereType<GenUiEventStep>().toList();
       expect(events, hasLength(1));
       expect(events.single.event.toString(), contains('confirm'));
+    });
+
+    testWidgets('keeps what the app sent back in the surface\'s version', (
+      tester,
+    ) async {
+      final processor = MessageProcessor<ComponentImplementation>(
+        catalogs: [v1_0.basicCatalog().derive(catalogId: 'dev.dlsoft.trace')],
+        defaultVersion: A2uiProtocolVersion.v1_0,
+      );
+      addTearDown(processor.dispose);
+      final recorder = GenUiTraceRecorder.attach(processor);
+      addTearDown(recorder.dispose);
+
+      recorder.processMessages(<JsonMap>[
+        for (final JsonMap message in [
+          _createSurface(),
+          _message('updateComponents', {
+            'components': [
+              {
+                'id': 'root',
+                'component': 'Button',
+                'child': 'sendLabel',
+                'action': {
+                  'event': {'name': 'confirm'},
+                },
+              },
+              // v1.0 ids are identifiers, so no hyphen as in the v0.9 session.
+              {'id': 'sendLabel', 'component': 'Text', 'text': 'Confirm'},
+            ],
+          }),
+        ])
+          {...message, 'version': '1.0'},
+      ]);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: A2uiSurface(surface: processor.model.getSurface('s')!),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Confirm'));
+      await tester.pumpAndSettle();
+
+      final GenUiEventStep event = recorder
+          .build()
+          .steps
+          .whereType<GenUiEventStep>()
+          .single;
+      expect((event.event! as Map<String, Object?>)['version'], '1.0');
     });
 
     testWidgets('leaves out what it was told to redact', (tester) async {
@@ -290,7 +334,7 @@ void main() {
       recorder.processMessages(_updateData(<String, Object?>{'note': ''}));
       // The person types. The data model may be holding the very map the
       // message carried.
-      processor.groupModel.getSurface('s')!.dataModel.set('/note', 'typed');
+      processor.model.getSurface('s')!.dataModel.set('/note', 'typed');
 
       expect(sentValue()['note'], '');
     });

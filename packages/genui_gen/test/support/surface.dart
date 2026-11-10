@@ -1,6 +1,6 @@
 import 'package:a2ui_core/a2ui_core.dart';
 import 'package:a2ui_flutter/a2ui_flutter.dart';
-import 'package:a2ui_flutter/basic_catalog.dart';
+import 'package:a2ui_flutter/v0_9/basic_catalog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -14,11 +14,10 @@ const String catalogId = 'dev.dlsoft.genui_gen.test';
 CatalogImplementation testCatalog({
   List<ComponentImplementation> components = const [],
   List<FunctionImplementation> functions = const [],
-}) => CatalogImplementation(
-  id: catalogId,
-  components: [...BasicComponents.all, ...components],
-  functions: [...BasicCatalog.v0_9().functions.values, ...functions],
-  themeSchema: BasicComponents.api.themeSchema,
+}) => basicCatalog().derive(
+  catalogId: catalogId,
+  addComponents: components,
+  addFunctions: functions,
 );
 
 Map<String, Object?> _message(String kind, Map<String, Object?> body) => {
@@ -48,14 +47,14 @@ class TestSurface {
   final MessageProcessor<ComponentImplementation> processor;
 
   /// The actions the surface dispatched.
-  final List<A2uiClientAction> actions = [];
+  final List<A2uiRendererAction> actions = [];
 
   /// The errors reported on the surface's `onError`.
-  final List<A2uiClientError> errors = [];
+  final List<A2uiRendererError> errors = [];
 
   /// The surface.
   SurfaceModel<ComponentImplementation> get model =>
-      processor.groupModel.getSurface(surfaceId)!;
+      processor.model.getSurface(surfaceId)!;
 
   /// The data model value at [path].
   Object? read(String path) => model.dataModel.get(path);
@@ -84,10 +83,10 @@ class TestSurface {
   }) async {
     final surface = TestSurface._(tester, catalog);
     final SurfaceGroupModel<ComponentImplementation> group =
-        surface.processor.groupModel;
-    group.onAction.addListener(surface.actions.add);
-    group.onSurfaceCreated.addListener(
-      (model) => model.onError.addListener(surface.errors.add),
+        surface.processor.model;
+    group.onAction.subscribe(surface.actions.add);
+    group.onSurfaceCreated.subscribe(
+      (model) => model.onError.subscribe(surface.errors.add),
     );
     addTearDown(group.dispose);
     surface._process([

@@ -21,7 +21,7 @@ class GenUiCatalogView extends StatelessWidget {
   final CatalogImplementation catalog;
 
   /// Called with each action an example sends.
-  final ValueChanged<A2uiClientAction>? onAction;
+  final ValueChanged<A2uiRendererAction>? onAction;
 
   @override
   Widget build(BuildContext context) {

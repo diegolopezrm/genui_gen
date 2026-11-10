@@ -44,11 +44,11 @@ class GenUiTraceRecorder {
     Map<String, Object?> notes = const <String, Object?>{},
   }) : _redact = redact.map(_segmentsOf).toList(),
        _notes = notes {
-    final SurfaceGroupModel<ComponentImplementation> group =
-        processor.groupModel;
-    group.onAction.addListener(_recordAction);
-    group.onSurfaceCreated.addListener(_watch);
-    group.onSurfaceDeleted.addListener(_forget);
+    final SurfaceGroupModel<ComponentImplementation> group = processor.model;
+    _subscriptions
+      ..add(group.onAction.subscribe(_recordAction))
+      ..add(group.onSurfaceCreated.subscribe(_watch))
+      ..add(group.onSurfaceDeleted.subscribe(_forget));
     group.allSurfaces.forEach(_watch);
   }
 
@@ -63,6 +63,7 @@ class GenUiTraceRecorder {
   final List<GenUiTraceStep> _steps = <GenUiTraceStep>[];
   final Stopwatch _clock = Stopwatch()..start();
   final Map<String, _Watched> _watched = <String, _Watched>{};
+  final List<Subscription> _subscriptions = <Subscription>[];
   final _Changes _changes = _Changes();
 
   /// Fires whenever a step is recorded.
@@ -103,11 +104,10 @@ class GenUiTraceRecorder {
 
   /// Stops recording and releases what the recorder listens to.
   void dispose() {
-    final SurfaceGroupModel<ComponentImplementation> group =
-        processor.groupModel;
-    group.onAction.removeListener(_recordAction);
-    group.onSurfaceCreated.removeListener(_watch);
-    group.onSurfaceDeleted.removeListener(_forget);
+    for (final Subscription subscription in _subscriptions) {
+      subscription.unsubscribe();
+    }
+    _subscriptions.clear();
     for (final _Watched watched in _watched.values) {
       watched.cancel();
     }
@@ -133,27 +133,29 @@ class GenUiTraceRecorder {
       _steps.add(GenUiDataStep(_clock.elapsed, surface.id, _snapshot(data)));
       _changes.notify();
     });
-    void onError(A2uiClientError error) => _recordEvent(
-      ErrorMessage(
-        version: A2uiProtocolVersion.v0_9.jsonValue,
-        error: error,
-      ).toJson(),
+    void onError(A2uiRendererError error) => _recordEvent(
+      ErrorMessage(version: _versionOf(surface), error: error).toJson(),
     );
-    surface.onError.addListener(onError);
+    final Subscription errors = surface.onError.subscribe(onError);
     _watched[surface.id] = _Watched(root, () {
       unsubscribe();
-      surface.onError.removeListener(onError);
+      errors.unsubscribe();
     });
   }
 
   void _forget(String surfaceId) => _watched.remove(surfaceId)?.cancel();
 
-  void _recordAction(A2uiClientAction action) => _recordEvent(
+  void _recordAction(A2uiRendererAction action) => _recordEvent(
     ActionMessage(
-      version: A2uiProtocolVersion.v0_9.jsonValue,
+      version: _versionOf(processor.model.getSurface(action.surfaceId)),
       action: action,
     ).toJson(),
   );
+
+  /// The version an event from [surface] goes back to the agent in: the one
+  /// the surface was created with.
+  static String _versionOf(SurfaceModel<ComponentImplementation>? surface) =>
+      surface?.protocolVersion ?? A2uiProtocolVersion.v0_9.jsonValue;
 
   void _recordEvent(Map<String, Object?> message) {
     _steps.add(GenUiEventStep(_clock.elapsed, _redacted(_copy(message))));

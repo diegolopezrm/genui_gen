@@ -23,7 +23,7 @@
 // the repository's top-level `example/` directory:
 // https://github.com/diegolopezrm/genui_gen/tree/main/example
 
-import 'package:a2ui_flutter/basic_catalog.dart';
+import 'package:a2ui_flutter/v0_9/basic_catalog.dart';
 import 'package:flutter/material.dart';
 import 'package:genui_gen/genui_gen.dart';
 
@@ -91,12 +91,7 @@ class ProductCard extends StatelessWidget {
 ///
 /// A v0.9 surface draws on one catalog, so the basic components an agent
 /// composes the card with, a `Row` or a `Text`, belong in the same one.
-CatalogImplementation buildCatalog() {
-  final CatalogImplementation basic = basicCatalog();
-  return CatalogImplementation(
-    id: 'com.example.shop',
-    components: [...basic.components.values, productCardCatalogItem],
-    functions: basic.functions.values.toList(),
-    themeSchema: basic.themeSchema,
-  );
-}
+CatalogImplementation buildCatalog() => basicCatalog().derive(
+  catalogId: 'com.example.shop',
+  addComponents: [productCardCatalogItem],
+);

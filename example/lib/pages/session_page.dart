@@ -56,11 +56,11 @@ class _SessionPageState extends State<SessionPage> {
       catalogId: exampleCatalog.id,
       notes: const {'source': 'genui_gen example, session tab'},
     );
-    _processor.groupModel.onAction.addListener(_onAction);
+    _processor.model.onAction.subscribe(_onAction);
   }
 
   /// What the app sends back to the agent when the user acts on the surface.
-  void _onAction(A2uiClientAction action) {
+  void _onAction(A2uiRendererAction action) {
     setState(
       () => _log.add(_Entry.fromApp(jsonEncode({'action': action.toJson()}))),
     );
@@ -120,7 +120,7 @@ class _SessionPageState extends State<SessionPage> {
                       padding: const EdgeInsets.all(12),
                       child: A2uiSurface(
                         key: ValueKey(surfaceId),
-                        surface: _processor.groupModel.getSurface(surfaceId!)!,
+                        surface: _processor.model.getSurface(surfaceId!)!,
                       ),
                     ),
                   ),

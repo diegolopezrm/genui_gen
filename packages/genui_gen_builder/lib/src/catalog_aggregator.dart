@@ -285,17 +285,10 @@ class CatalogAggregatingBuilder implements Builder {
       ..writeln('/// uses the basic components needs them in the same one:')
       ..writeln('///')
       ..writeln('/// ```dart')
-      ..writeln('/// final catalog = CatalogImplementation(')
-      ..writeln('///   id: $aggregateCatalogVariableName.id,')
-      ..writeln(
-        '///   components: [...BasicComponents.all, '
-        '...$aggregateVariableName],',
-      )
-      ..writeln('///   functions: [')
-      ..writeln('///     ...BasicCatalog.v0_9().functions.values,')
-      ..writeln('///     ...$aggregateFunctionsVariableName,')
-      ..writeln('///   ],')
-      ..writeln('///   themeSchema: BasicComponents.api.themeSchema,')
+      ..writeln('/// final catalog = basicCatalog().derive(')
+      ..writeln('///   catalogId: $aggregateCatalogVariableName.id,')
+      ..writeln('///   addComponents: $aggregateVariableName,')
+      ..writeln('///   addFunctions: $aggregateFunctionsVariableName,')
       ..writeln(
         '///   instructions: $aggregateCatalogVariableName.instructions,',
       )

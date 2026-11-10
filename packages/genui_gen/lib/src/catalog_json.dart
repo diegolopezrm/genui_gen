@@ -30,17 +30,17 @@ import 'package:a2ui_core/a2ui_core.dart';
 /// [title] and [description], when given, replace the catalog's own. An agent
 /// that is handed three catalogs has little else to tell them apart by.
 ///
-/// This is `Catalog.catalogSchema`, which a2ui_core builds for every catalog,
-/// with the title and description applied.
+/// This is `Catalog.validationSchema`, which a2ui_core builds for every
+/// catalog, with the title and description applied.
 Map<String, Object?> genUiCatalogJson(
   Catalog<ComponentApi, FunctionApi> catalog, {
   String? title,
   String? description,
 }) {
-  // Copied rather than edited in place: `catalogSchema` is computed once and
+  // Copied rather than edited in place: `validationSchema` is computed once and
   // kept, and a2ui_core reads it again to resolve the catalog's references.
   final Map<String, Object?> json = Map<String, Object?>.of(
-    catalog.catalogSchema,
+    catalog.validationSchema,
   );
   if (title != null) json['title'] = title;
   if (description != null) json['description'] = description;

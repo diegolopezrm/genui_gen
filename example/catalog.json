@@ -8,7 +8,8 @@
       "description": "A labelled text input. Bind `value` to a data path and the field writes what the user types there. Attach `checks` and the message of the first failing rule is shown under the field.",
       "properties": {
         "id": {
-          "$ref": "#/$defs/ComponentId"
+          "$ref": "#/$defs/ComponentId",
+          "description": "The unique identifier for a component, used for both definitions and references within the same surface."
         },
         "component": {
           "const": "LabeledField"
@@ -25,11 +26,13 @@
           "type": "array",
           "description": "Validation rules for this component. Each one is a condition and the message shown while the condition is false.",
           "items": {
-            "$ref": "#/$defs/CheckRule"
+            "$ref": "#/$defs/CheckRule",
+            "description": "A single validation rule applied to an input component."
           }
         },
         "accessibility": {
-          "$ref": "#/$defs/AccessibilityAttributes"
+          "$ref": "#/$defs/AccessibilityAttributes",
+          "description": "Attributes to enhance accessibility when using assistive technologies like screen readers."
         },
         "weight": {
           "type": "number",
@@ -42,14 +45,15 @@
         "value",
         "component"
       ],
-      "additionalProperties": false
+      "unevaluatedProperties": false
     },
     "MetricsTable": {
       "type": "object",
       "description": "A titled table of metrics. Each row has a label, a numeric value, a trend (up, down or flat) and an optional note. Use it to compare several KPIs at once, for example a quarterly summary or the health of a set of services.",
       "properties": {
         "id": {
-          "$ref": "#/$defs/ComponentId"
+          "$ref": "#/$defs/ComponentId",
+          "description": "The unique identifier for a component, used for both definitions and references within the same surface."
         },
         "component": {
           "const": "MetricsTable"
@@ -107,7 +111,8 @@
           ]
         },
         "accessibility": {
-          "$ref": "#/$defs/AccessibilityAttributes"
+          "$ref": "#/$defs/AccessibilityAttributes",
+          "description": "Attributes to enhance accessibility when using assistive technologies like screen readers."
         },
         "weight": {
           "type": "number",
@@ -116,18 +121,19 @@
       },
       "required": [
         "id",
-        "title",
         "rows",
+        "title",
         "component"
       ],
-      "additionalProperties": false
+      "unevaluatedProperties": false
     },
     "Panel": {
       "type": "object",
       "description": "A titled panel that wraps any other component. It has a header with the title and a close button, a body and an optional row of action components (typically buttons) along the bottom edge. Use it to group related content under a heading.",
       "properties": {
         "id": {
-          "$ref": "#/$defs/ComponentId"
+          "$ref": "#/$defs/ComponentId",
+          "description": "The unique identifier for a component, used for both definitions and references within the same surface."
         },
         "component": {
           "const": "Panel"
@@ -172,7 +178,8 @@
           ]
         },
         "accessibility": {
-          "$ref": "#/$defs/AccessibilityAttributes"
+          "$ref": "#/$defs/AccessibilityAttributes",
+          "description": "Attributes to enhance accessibility when using assistive technologies like screen readers."
         },
         "weight": {
           "type": "number",
@@ -181,18 +188,19 @@
       },
       "required": [
         "id",
-        "title",
         "child",
+        "title",
         "component"
       ],
-      "additionalProperties": false
+      "unevaluatedProperties": false
     },
     "PreferenceRow": {
       "type": "object",
       "description": "One preference the user can turn on or off, with a label and an optional line of explanation. Use it when you need the user to answer yes or no and you want to read the answer back: bind `enabled` to a data path, and the switch writes the new state there.",
       "properties": {
         "id": {
-          "$ref": "#/$defs/ComponentId"
+          "$ref": "#/$defs/ComponentId",
+          "description": "The unique identifier for a component, used for both definitions and references within the same surface."
         },
         "component": {
           "const": "PreferenceRow"
@@ -210,7 +218,8 @@
           "$ref": "#/$defs/DynamicString"
         },
         "accessibility": {
-          "$ref": "#/$defs/AccessibilityAttributes"
+          "$ref": "#/$defs/AccessibilityAttributes",
+          "description": "Attributes to enhance accessibility when using assistive technologies like screen readers."
         },
         "weight": {
           "type": "number",
@@ -219,18 +228,19 @@
       },
       "required": [
         "id",
-        "label",
         "enabled",
+        "label",
         "component"
       ],
-      "additionalProperties": false
+      "unevaluatedProperties": false
     },
     "ProductCard": {
       "type": "object",
       "description": "A card that presents a single product with its name, price in USD and an optional image. Use it to show one item of a catalog or a search result. Tapping the card fires its onTap action.",
       "properties": {
         "id": {
-          "$ref": "#/$defs/ComponentId"
+          "$ref": "#/$defs/ComponentId",
+          "description": "The unique identifier for a component, used for both definitions and references within the same surface."
         },
         "component": {
           "const": "ProductCard"
@@ -252,7 +262,8 @@
           "$ref": "#/$defs/Action"
         },
         "accessibility": {
-          "$ref": "#/$defs/AccessibilityAttributes"
+          "$ref": "#/$defs/AccessibilityAttributes",
+          "description": "Attributes to enhance accessibility when using assistive technologies like screen readers."
         },
         "weight": {
           "type": "number",
@@ -261,18 +272,19 @@
       },
       "required": [
         "id",
-        "title",
         "price",
+        "title",
         "component"
       ],
-      "additionalProperties": false
+      "unevaluatedProperties": false
     },
     "StatTile": {
       "type": "object",
       "description": "A compact tile that shows one numeric metric (a KPI) with a label and a trend indicator: up, down or flat. Use it to summarize a statistic such as revenue, active users or conversion rate.",
       "properties": {
         "id": {
-          "$ref": "#/$defs/ComponentId"
+          "$ref": "#/$defs/ComponentId",
+          "description": "The unique identifier for a component, used for both definitions and references within the same surface."
         },
         "component": {
           "const": "StatTile"
@@ -326,7 +338,8 @@
           ]
         },
         "accessibility": {
-          "$ref": "#/$defs/AccessibilityAttributes"
+          "$ref": "#/$defs/AccessibilityAttributes",
+          "description": "Attributes to enhance accessibility when using assistive technologies like screen readers."
         },
         "weight": {
           "type": "number",
@@ -336,18 +349,19 @@
       "required": [
         "id",
         "label",
-        "value",
         "trend",
+        "value",
         "component"
       ],
-      "additionalProperties": false
+      "unevaluatedProperties": false
     },
     "TagRow": {
       "type": "object",
       "description": "A row of short text tags rendered as chips. Exactly one tag is highlighted as selected. Use it to show categories, filters or keywords attached to an item.",
       "properties": {
         "id": {
-          "$ref": "#/$defs/ComponentId"
+          "$ref": "#/$defs/ComponentId",
+          "description": "The unique identifier for a component, used for both definitions and references within the same surface."
         },
         "component": {
           "const": "TagRow"
@@ -361,7 +375,8 @@
           "$ref": "#/$defs/DynamicNumber"
         },
         "accessibility": {
-          "$ref": "#/$defs/AccessibilityAttributes"
+          "$ref": "#/$defs/AccessibilityAttributes",
+          "description": "Attributes to enhance accessibility when using assistive technologies like screen readers."
         },
         "weight": {
           "type": "number",
@@ -373,14 +388,15 @@
         "tags",
         "component"
       ],
-      "additionalProperties": false
+      "unevaluatedProperties": false
     },
     "TaskList": {
       "type": "object",
       "description": "A titled list of rows, one per item in the data.",
       "properties": {
         "id": {
-          "$ref": "#/$defs/ComponentId"
+          "$ref": "#/$defs/ComponentId",
+          "description": "The unique identifier for a component, used for both definitions and references within the same surface."
         },
         "component": {
           "const": "TaskList"
@@ -398,7 +414,8 @@
           "$ref": "#/$defs/DynamicString"
         },
         "accessibility": {
-          "$ref": "#/$defs/AccessibilityAttributes"
+          "$ref": "#/$defs/AccessibilityAttributes",
+          "description": "Attributes to enhance accessibility when using assistive technologies like screen readers."
         },
         "weight": {
           "type": "number",
@@ -407,11 +424,11 @@
       },
       "required": [
         "id",
-        "title",
         "rows",
+        "title",
         "component"
       ],
-      "additionalProperties": false
+      "unevaluatedProperties": false
     }
   },
   "functions": {
@@ -472,7 +489,8 @@
           },
           "required": [
             "row"
-          ]
+          ],
+          "unevaluatedProperties": false
         },
         "returnType": {
           "const": "string"
@@ -505,7 +523,8 @@
           },
           "required": [
             "cents"
-          ]
+          ],
+          "unevaluatedProperties": false
         },
         "returnType": {
           "const": "string"
@@ -554,7 +573,8 @@
           },
           "required": [
             "name"
-          ]
+          ],
+          "unevaluatedProperties": false
         },
         "returnType": {
           "const": "string"
@@ -729,7 +749,7 @@
       ],
       "oneOf": [
         {
-          "$ref": "catalog.json#/$defs/anyFunction"
+          "$ref": "#/$defs/anyFunction"
         }
       ]
     },
@@ -864,10 +884,10 @@
       "oneOf": [
         {
           "type": "array",
+          "description": "A static list of child component IDs.",
           "items": {
             "$ref": "#/$defs/ComponentId"
-          },
-          "description": "A static list of child component IDs."
+          }
         },
         {
           "type": "object",

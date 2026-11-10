@@ -99,6 +99,10 @@ class _GenUiInspectorState extends State<GenUiInspector> {
 
   GenUiTrace? _trace;
 
+  // The processor's surface group events the panel follows, cancelled when it
+  // detaches.
+  final List<Subscription> _groupSubscriptions = <Subscription>[];
+
   @override
   void initState() {
     super.initState();
@@ -110,7 +114,7 @@ class _GenUiInspectorState extends State<GenUiInspector> {
   void didUpdateWidget(GenUiInspector old) {
     super.didUpdateWidget(old);
     if (old.processor != widget.processor || old.enabled != widget.enabled) {
-      _detach(old.processor);
+      _detach();
       if (widget.enabled) _attach();
     }
     if (old.recorder != widget.recorder) {
@@ -122,15 +126,16 @@ class _GenUiInspectorState extends State<GenUiInspector> {
 
   @override
   void dispose() {
-    _detach(widget.processor);
+    _detach();
     super.dispose();
   }
 
   void _attach() {
     final SurfaceGroupModel<ComponentImplementation> group =
-        widget.processor.groupModel;
-    group.onSurfaceCreated.addListener(_onSurfaceCreated);
-    group.onSurfaceDeleted.addListener(_onSurfaceDeleted);
+        widget.processor.model;
+    _groupSubscriptions
+      ..add(group.onSurfaceCreated.subscribe(_onSurfaceCreated))
+      ..add(group.onSurfaceDeleted.subscribe(_onSurfaceDeleted));
     for (final SurfaceModel<ComponentImplementation> surface
         in group.allSurfaces) {
       _watch(surface);
@@ -140,11 +145,11 @@ class _GenUiInspectorState extends State<GenUiInspector> {
     _onTrace();
   }
 
-  void _detach(MessageProcessor<ComponentImplementation> processor) {
-    final SurfaceGroupModel<ComponentImplementation> group =
-        processor.groupModel;
-    group.onSurfaceCreated.removeListener(_onSurfaceCreated);
-    group.onSurfaceDeleted.removeListener(_onSurfaceDeleted);
+  void _detach() {
+    for (final Subscription subscription in _groupSubscriptions) {
+      subscription.unsubscribe();
+    }
+    _groupSubscriptions.clear();
     widget.recorder?.changes.removeListener(_onTrace);
     for (final _Watch watch in _watches.values) {
       watch.cancel();
@@ -174,23 +179,20 @@ class _GenUiInspectorState extends State<GenUiInspector> {
     if (_watches.containsKey(surface.id)) return;
     _surfaces[surface.id] = surface;
     final SurfaceComponentsModel components = surface.componentsModel;
-    final Map<ComponentModel, void Function(ComponentModel)> updates =
-        <ComponentModel, void Function(ComponentModel)>{};
-    void onUpdated(ComponentModel _) => _changed();
+    final List<Subscription> subscriptions = <Subscription>[];
     void follow(ComponentModel component) {
-      component.onUpdated.addListener(onUpdated);
-      updates[component] = onUpdated;
+      subscriptions.add(component.onUpdated.subscribe((_) => _changed()));
     }
 
-    void onCreated(ComponentModel component) {
-      follow(component);
-      _changed();
-    }
-
-    void onDeleted(String _) => _changed();
     components.values.forEach(follow);
-    components.onCreated.addListener(onCreated);
-    components.onDeleted.addListener(onDeleted);
+    subscriptions
+      ..add(
+        components.onCreated.subscribe((ComponentModel component) {
+          follow(component);
+          _changed();
+        }),
+      )
+      ..add(components.onDeleted.subscribe((_) => _changed()));
 
     final ReadonlySignal<Object?> root = surface.dataModel.watch<Object?>('/');
     final void Function() unsubscribe = root.subscribe((Object? value) {
@@ -200,11 +202,8 @@ class _GenUiInspectorState extends State<GenUiInspector> {
 
     _watches[surface.id] = _Watch(root, () {
       unsubscribe();
-      components.onCreated.removeListener(onCreated);
-      components.onDeleted.removeListener(onDeleted);
-      for (final MapEntry<ComponentModel, void Function(ComponentModel)> entry
-          in updates.entries) {
-        entry.key.onUpdated.removeListener(entry.value);
+      for (final Subscription subscription in subscriptions) {
+        subscription.unsubscribe();
       }
     });
   }

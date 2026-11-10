@@ -32,7 +32,7 @@ void main() {
 
       final alpha = components['Alpha']! as Map<String, Object?>;
       // What stops a model from inventing a property the widget does not take.
-      expect(alpha['additionalProperties'], isFalse);
+      expect(alpha['unevaluatedProperties'], isFalse);
       final properties = alpha['properties']! as Map<String, Object?>;
       expect(properties['component'], {'const': 'Alpha'});
       // A shared type is a reference, with this property's own description.
@@ -73,8 +73,11 @@ void main() {
       final catalog = _catalog();
       genUiCatalogJson(catalog, title: 'Edited')['components'] = 'gone';
 
-      expect(catalog.catalogSchema['title'], isNull);
-      expect(catalog.catalogSchema['components'], isA<Map<String, Object?>>());
+      expect(catalog.validationSchema['title'], isNull);
+      expect(
+        catalog.validationSchema['components'],
+        isA<Map<String, Object?>>(),
+      );
     });
   });
 

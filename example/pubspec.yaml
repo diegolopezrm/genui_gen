@@ -5,15 +5,15 @@ version: 0.1.0
 
 environment:
   sdk: ^3.10.0
-  flutter: ">=3.35.0"
+  flutter: ">=3.38.0"
 
 resolution: workspace
 
 dependencies:
-  a2ui_core: ^0.2.2
+  a2ui_core: ^0.6.0
   flutter:
     sdk: flutter
-  a2ui_flutter: ^0.1.0
+  a2ui_flutter: ^0.2.0
   genui_gen: ^0.14.0
 
 dev_dependencies:

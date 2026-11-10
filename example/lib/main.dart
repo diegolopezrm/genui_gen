@@ -1,6 +1,5 @@
-import 'package:a2ui_core/a2ui_core.dart';
 import 'package:a2ui_flutter/a2ui_flutter.dart';
-import 'package:a2ui_flutter/basic_catalog.dart';
+import 'package:a2ui_flutter/v0_9/basic_catalog.dart';
 import 'package:flutter/material.dart';
 import 'package:genui_gen/tracing.dart';
 
@@ -22,17 +21,13 @@ void main() {
 /// `catalog_id` set in `build.yaml` and the instructions that show the agent
 /// an example of each component. Adding a widget is one file; nothing here
 /// has to be touched.
-final CatalogImplementation exampleCatalog = CatalogImplementation(
-  id: genUiCatalog.id,
-  components: [...BasicComponents.all, ...genUiCatalogItems],
-  // The functions too, not just the components. A catalog holds both, and the
-  // basic ones are what a `checks` rule calls: without them
-  // `{"call": "required"}` names a function nobody registered.
-  functions: [
-    ...BasicCatalog.v0_9().functions.values,
-    ...genUiCatalogFunctions,
-  ],
-  themeSchema: BasicComponents.api.themeSchema,
+final CatalogImplementation exampleCatalog = basicCatalog().derive(
+  catalogId: genUiCatalog.id,
+  addComponents: genUiCatalogItems,
+  // The generated functions join the basic ones, which `derive` keeps: a
+  // `checks` rule calls them, and without them `{"call": "required"}` names
+  // a function nobody registered.
+  addFunctions: genUiCatalogFunctions,
   instructions: genUiCatalog.instructions,
 );
 

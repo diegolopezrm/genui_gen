@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'component.dart';
+import 'protocol_version.dart';
 
 /// How the caller puts a widget on screen.
 ///
@@ -395,18 +396,19 @@ Future<_Render> _render(
   List<_Json> components,
   String surfaceId,
 ) async {
+  final A2uiProtocolVersion version = protocolVersionOf(catalog);
   final processor = MessageProcessor<ComponentImplementation>(
     catalogs: [catalog],
-    defaultVersion: A2uiProtocolVersion.v0_9,
+    defaultVersion: version,
   );
   try {
     processor.processMessages(<Object?>[
       {
-        'version': 'v0.9',
+        'version': version.jsonValue,
         'createSurface': {'surfaceId': surfaceId, 'catalogId': catalog.id},
       },
       {
-        'version': 'v0.9',
+        'version': version.jsonValue,
         'updateComponents': {'surfaceId': surfaceId, 'components': components},
       },
     ]);
@@ -414,7 +416,7 @@ Future<_Render> _render(
     processor.dispose();
     return _Render(rejection: _describe(error));
   }
-  final SurfaceModel<ComponentImplementation> surface = processor.groupModel
+  final SurfaceModel<ComponentImplementation> surface = processor.model
       .getSurface(surfaceId)!;
   final probe = GlobalKey();
   final errors = <Object>[];

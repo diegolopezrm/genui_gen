@@ -73,10 +73,10 @@ const Map<String, List<JsonMap>> _basics = {
 
 /// What the basic components fail today, in the order the audit reports it.
 ///
-/// An image that fails to load, which every network image does in a test,
-/// shows a broken-image icon with nothing on it: the description the agent
-/// gave never reaches assistive technology.
-const List<String> _knownBasic = <String>['Image: exposesNothing'];
+/// Nothing, since a2ui_flutter 0.1.0: an image that fails to load, which
+/// every network image does in a test, labels its broken-image icon with the
+/// description the agent gave it.
+const List<String> _knownBasic = <String>[];
 
 void main() {
   testWidgets('the generated components announce what they show', (

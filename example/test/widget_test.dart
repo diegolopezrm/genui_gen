@@ -127,7 +127,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: A2uiSurface(surface: processor.groupModel.getSurface('s')!),
+          body: A2uiSurface(surface: processor.model.getSurface('s')!),
         ),
       ),
     );
