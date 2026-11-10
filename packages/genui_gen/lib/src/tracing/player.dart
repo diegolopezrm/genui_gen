@@ -105,7 +105,7 @@ class GenUiTracePlayer {
         // Written whole, at the root, because that is how it was recorded: the
         // state of a surface at a moment, not the difference from the one
         // before it.
-        _processor.groupModel
+        _processor.model
             .getSurface(step.surfaceId)
             ?.dataModel
             .set('/', step.data);
@@ -146,7 +146,7 @@ class GenUiTraceView extends StatelessWidget {
     final String? id = surfaceId ?? player.currentSurfaceId;
     final SurfaceModel<ComponentImplementation>? surface = id == null
         ? null
-        : player.processor.groupModel.getSurface(id);
+        : player.processor.model.getSurface(id);
     if (surface == null) return const SizedBox.shrink();
     return A2uiSurface(key: ObjectKey(surface), surface: surface);
   }

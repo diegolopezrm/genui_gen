@@ -51,14 +51,10 @@ final List<FunctionImplementation> genUiCatalogFunctions =
 /// uses the basic components needs them in the same one:
 ///
 /// ```dart
-/// final catalog = CatalogImplementation(
-///   id: genUiCatalog.id,
-///   components: [...BasicComponents.all, ...genUiCatalogItems],
-///   functions: [
-///     ...BasicCatalog.v0_9().functions.values,
-///     ...genUiCatalogFunctions,
-///   ],
-///   themeSchema: BasicComponents.api.themeSchema,
+/// final catalog = basicCatalog().derive(
+///   catalogId: genUiCatalog.id,
+///   addComponents: genUiCatalogItems,
+///   addFunctions: genUiCatalogFunctions,
 ///   instructions: genUiCatalog.instructions,
 /// );
 /// ```

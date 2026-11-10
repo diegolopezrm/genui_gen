@@ -47,7 +47,7 @@ ValueChanged<T>? genUiWriter<T>(
       if (surface == null) return;
       unawaited(
         surface.dispatchError(
-          A2uiClientError(
+          A2uiRendererError(
             code: error.code,
             surfaceId: surface.id,
             message: error.message,
@@ -98,8 +98,8 @@ GenUiMissingFieldReporter genUiMissingIn(
       if (node.disposed) return;
       unawaited(
         surface.dispatchError(
-          A2uiClientError(
-            code: A2uiClientError.validationFailedCode,
+          A2uiRendererError(
+            code: A2uiRendererError.validationFailedCode,
             surfaceId: surface.id,
             path: '/${[property, ...field.split('.')].map(_escape).join('/')}',
             message:

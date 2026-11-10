@@ -6,6 +6,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
 import 'component.dart';
+import 'protocol_version.dart';
 
 /// Renders one generated component's example, through a real surface.
 ///
@@ -29,8 +30,9 @@ class GenUiExampleSurface extends StatefulWidget {
 
   /// The catalog the example is composed against.
   ///
-  /// A v0.9 surface draws on one catalog, so it holds the basic components an
-  /// example composes with, such as the `Text` of a child.
+  /// A surface draws on one catalog, so it holds the basic components an
+  /// example composes with, such as the `Text` of a child. The example is sent
+  /// in the protocol version the catalog declares, v0.9 when it declares none.
   final CatalogImplementation catalog;
 
   /// The component whose example is rendered.
@@ -42,7 +44,7 @@ class GenUiExampleSurface extends StatefulWidget {
 
   /// Called with each action the example sends, such as a button press, which
   /// an app would hand to the agent.
-  final ValueChanged<A2uiClientAction>? onAction;
+  final ValueChanged<A2uiRendererAction>? onAction;
 
   @override
   State<GenUiExampleSurface> createState() => _GenUiExampleSurfaceState();
@@ -76,13 +78,14 @@ class _GenUiExampleSurfaceState extends State<GenUiExampleSurface> {
   }
 
   void _start() {
+    final A2uiProtocolVersion version = protocolVersionOf(widget.catalog);
     _processor = MessageProcessor<ComponentImplementation>(
       catalogs: [widget.catalog],
-      defaultVersion: A2uiProtocolVersion.v0_9,
+      defaultVersion: version,
     );
     // Read when the action arrives, so a rebuilt widget's callback is the one
     // called.
-    _processor.groupModel.onAction.addListener(
+    _processor.model.onAction.subscribe(
       (action) => widget.onAction?.call(action),
     );
     final surfaceId = '${widget.component.name}-${widget.exampleIndex}';
@@ -91,18 +94,18 @@ class _GenUiExampleSurfaceState extends State<GenUiExampleSurface> {
     );
     _processor.processMessages(<Object?>[
       {
-        'version': 'v0.9',
+        'version': version.jsonValue,
         'createSurface': {
           'surfaceId': surfaceId,
           'catalogId': widget.catalog.id,
         },
       },
       {
-        'version': 'v0.9',
+        'version': version.jsonValue,
         'updateComponents': {'surfaceId': surfaceId, 'components': components},
       },
     ]);
-    _surface = _processor.groupModel.getSurface(surfaceId)!;
+    _surface = _processor.model.getSurface(surfaceId)!;
   }
 
   @override

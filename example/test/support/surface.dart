@@ -49,9 +49,9 @@ MessageProcessor<ComponentImplementation> exampleProcessor() {
 /// would send it.
 class ExampleSurface {
   ExampleSurface._(this._tester, this.processor) {
-    processor.groupModel.onAction.addListener(actions.add);
-    processor.groupModel.onSurfaceCreated.addListener(
-      (surface) => surface.onError.addListener(errors.add),
+    processor.model.onAction.subscribe(actions.add);
+    processor.model.onSurfaceCreated.subscribe(
+      (surface) => surface.onError.subscribe(errors.add),
     );
   }
 
@@ -61,14 +61,14 @@ class ExampleSurface {
   final MessageProcessor<ComponentImplementation> processor;
 
   /// The actions the surface dispatched, in order.
-  final List<A2uiClientAction> actions = <A2uiClientAction>[];
+  final List<A2uiRendererAction> actions = <A2uiRendererAction>[];
 
   /// The errors reported on the surface's `onError`, in order.
-  final List<A2uiClientError> errors = <A2uiClientError>[];
+  final List<A2uiRendererError> errors = <A2uiRendererError>[];
 
   /// The surface.
   SurfaceModel<ComponentImplementation> get model =>
-      processor.groupModel.getSurface(surfaceId)!;
+      processor.model.getSurface(surfaceId)!;
 
   /// The data model value at [path].
   Object? read(String path) => model.dataModel.get(path);

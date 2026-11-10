@@ -1,6 +1,6 @@
 import 'package:a2ui_core/a2ui_core.dart';
 import 'package:a2ui_flutter/a2ui_flutter.dart';
-import 'package:a2ui_flutter/basic_catalog.dart';
+import 'package:a2ui_flutter/v0_9/basic_catalog.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genui_gen/inspector.dart';
 
@@ -29,7 +29,7 @@ SurfaceModel<ComponentImplementation> _surface(List<JsonMap> components) {
         'updateComponents': {'surfaceId': 's', 'components': components},
       },
   ]);
-  return processor.groupModel.getSurface('s')!;
+  return processor.model.getSurface('s')!;
 }
 
 void main() {

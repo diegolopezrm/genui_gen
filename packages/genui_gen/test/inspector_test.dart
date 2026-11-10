@@ -1,6 +1,6 @@
 import 'package:a2ui_core/a2ui_core.dart';
 import 'package:a2ui_flutter/a2ui_flutter.dart';
-import 'package:a2ui_flutter/basic_catalog.dart';
+import 'package:a2ui_flutter/v0_9/basic_catalog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genui_gen/inspector.dart';
@@ -9,15 +9,8 @@ import 'package:genui_gen/tracing.dart';
 typedef JsonMap = Map<String, Object?>;
 
 /// The basic catalog, under an id of the test's own.
-CatalogImplementation get _catalog {
-  final CatalogImplementation basic = basicCatalog();
-  return CatalogImplementation(
-    id: 'dev.dlsoft.inspect',
-    components: basic.components.values.toList(),
-    functions: basic.functions.values.toList(),
-    themeSchema: basic.themeSchema,
-  );
-}
+CatalogImplementation get _catalog =>
+    basicCatalog().derive(catalogId: 'dev.dlsoft.inspect');
 
 /// A surface with a checkbox bound to `/on`, a line of text bound to a path
 /// the agent never wrote, and a button.
@@ -65,23 +58,24 @@ class _LiveSurfaces extends StatefulWidget {
 
 class _LiveSurfacesState extends State<_LiveSurfaces> {
   SurfaceGroupModel<ComponentImplementation> get _group =>
-      widget.processor.groupModel;
+      widget.processor.model;
 
-  void _created(SurfaceModel<ComponentImplementation> _) => setState(() {});
-
-  void _deleted(String _) => setState(() {});
+  late final List<Subscription> _subscriptions;
 
   @override
   void initState() {
     super.initState();
-    _group.onSurfaceCreated.addListener(_created);
-    _group.onSurfaceDeleted.addListener(_deleted);
+    _subscriptions = <Subscription>[
+      _group.onSurfaceCreated.subscribe((_) => setState(() {})),
+      _group.onSurfaceDeleted.subscribe((_) => setState(() {})),
+    ];
   }
 
   @override
   void dispose() {
-    _group.onSurfaceCreated.removeListener(_created);
-    _group.onSurfaceDeleted.removeListener(_deleted);
+    for (final Subscription subscription in _subscriptions) {
+      subscription.unsubscribe();
+    }
     super.dispose();
   }
 
