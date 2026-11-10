@@ -489,6 +489,28 @@ class Wide extends StatelessWidget {
       expect(warnings, anyElement(contains('`weight`')));
     });
 
+    test('says a basic component name replaces the basic one', () async {
+      final warnings = await generateWarnings(
+        '''
+@GenUiWidget(description: 'A card of my own.')
+class Card extends StatelessWidget {
+  const Card({super.key, required this.title});
+  final String title;
+}
+''',
+        imports: a2uiImports,
+        extraAssets: {'genui_gen|lib/genui_gen.dart': a2uiGenUiGenStub},
+      );
+      expect(
+        warnings.single,
+        allOf([
+          contains('Component name `Card`'),
+          contains('replaces the basic component'),
+          contains('@GenUiWidget(name: ...)'),
+        ]),
+      );
+    });
+
     test('names the missing import for the a2ui_flutter types', () async {
       await expectLater(
         generateA2ui(
