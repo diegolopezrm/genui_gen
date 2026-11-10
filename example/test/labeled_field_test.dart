@@ -1,3 +1,4 @@
+// ignore: deprecated_member_use, until Flutter stable has package:material_ui.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

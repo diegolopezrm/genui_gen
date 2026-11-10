@@ -2,6 +2,7 @@
 // generated builder wired up puts the new value in the surface's data model,
 // and the component reads it back from there.
 
+// ignore: deprecated_member_use, until Flutter stable has package:material_ui.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
