@@ -102,14 +102,14 @@ void main() {
         out,
         contains(
           "value: (genUiAsNum(json['value']) ?? "
-          "genUiMissingField<num>(onMissing, 'value', 0)) .toDouble()",
+          "genUiMissingField<num>(onMissing, 'value', 0)).toDouble()",
         ),
       );
       expect(
         out,
         contains(
           "count: (genUiAsNum(json['count']) ?? "
-          "genUiMissingField<num>(onMissing, 'count', 0)) .toInt()",
+          "genUiMissingField<num>(onMissing, 'count', 0)).toInt()",
         ),
       );
       expect(
@@ -229,9 +229,9 @@ class Point {
           'Point pointFromGenUiJson(Map<String, Object?> json, '
           '[GenUiMissingFieldReporter? onMissing]) => Point('
           "(genUiAsNum(json['x']) ?? "
-          "genUiMissingField<num>(onMissing, 'x', 0)) .toDouble(), "
+          "genUiMissingField<num>(onMissing, 'x', 0)).toDouble(), "
           "(genUiAsNum(json['y']) ?? "
-          "genUiMissingField<num>(onMissing, 'y', 0)) .toDouble())",
+          "genUiMissingField<num>(onMissing, 'y', 0)).toDouble())",
         ),
       );
     });
@@ -276,8 +276,8 @@ class Row {
       expect(
         out,
         contains(
-          "badges: genUiAsObjectList(json['badges']) ?.map((nested) => "
-          "badgeFromGenUiJson(nested, genUiNestedField(onMissing, 'badges'))) "
+          "badges: genUiAsObjectList(json['badges'])?.map((nested) => "
+          "badgeFromGenUiJson(nested, genUiNestedField(onMissing, 'badges')))"
           '.toList() ?? const <Badge>[]',
         ),
       );
@@ -409,8 +409,8 @@ class BadgeList extends StatelessWidget {
       expect(
         out,
         contains(
-          "badges: v .objectList('badges') ?.map((json) => "
-          "badgeFromGenUiJson(json, missingIn('badges'))) .toList() ?? "
+          "badges: v.objectList('badges')?.map((json) => "
+          "badgeFromGenUiJson(json, missingIn('badges'))).toList() ?? "
           "missing<List<Badge>>('badges', const <Badge>[])",
         ),
       );
@@ -429,8 +429,8 @@ class BadgeList extends StatelessWidget {
       expect(
         out,
         contains(
-          "badges: v .objectList('badges') ?.map((json) => "
-          "badgeFromGenUiJson(json, missingIn('badges'))) .toList())",
+          "badges: v.objectList('badges')?.map((json) => "
+          "badgeFromGenUiJson(json, missingIn('badges'))).toList())",
         ),
       );
       expect(out, isNot(contains('missing<')));
@@ -757,7 +757,7 @@ class Table extends StatelessWidget {
       expect(
         out,
         contains(
-          "?.map((json) => rowFromGenUiJson(json, missingIn('rows'))) .toList()",
+          "?.map((json) => rowFromGenUiJson(json, missingIn('rows'))).toList()",
         ),
       );
       // The schema and decoder belong to the part of the other library.
@@ -897,7 +897,7 @@ class Badge {
       expect(
         out,
         contains(
-          "?.map((json) => rowFromGenUiJson(json, missingIn('rows'))) .toList()",
+          "?.map((json) => rowFromGenUiJson(json, missingIn('rows'))).toList()",
         ),
       );
       // The example still walks into the third file's fields.
@@ -923,7 +923,7 @@ class Table extends StatelessWidget {
       expect(
         out,
         contains(
-          "?.map((json) => rowFromGenUiJson(json, missingIn('rows'))) .toList()",
+          "?.map((json) => rowFromGenUiJson(json, missingIn('rows'))).toList()",
         ),
       );
     });
@@ -986,8 +986,8 @@ class Panel extends StatelessWidget {
       expect(
         out,
         contains(
-          '_children is List ? _children .whereType<String>()'
-          ' .map((id) => ctx.buildChild(id)) .toList()',
+          '_children is List ? _children.whereType<String>()'
+          '.map((id) => ctx.buildChild(id)).toList()',
         ),
       );
     });

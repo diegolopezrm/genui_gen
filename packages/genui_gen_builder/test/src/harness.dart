@@ -382,6 +382,9 @@ String normalize(String code) => code
     .replaceAllMapped(RegExp(r'([(\[{]) '), (m) => m[1]!)
     .replaceAllMapped(RegExp(r' ([)\]}])'), (m) => m[1]!)
     .replaceAllMapped(RegExp(r',([)\]}])'), (m) => m[1]!)
+    // A chain `dart format` splits over several lines, which newer formatters
+    // do sooner, reads the same as one kept on a line.
+    .replaceAll(RegExp(r'(?<=[\w)\]]) (?=\??\.[A-Za-z_])'), '')
     // Collapse indented JSON (`"key": value`, `}, {`) to its compact form.
     .replaceAll('": ', '":')
     .replaceAll(', "', ',"')
