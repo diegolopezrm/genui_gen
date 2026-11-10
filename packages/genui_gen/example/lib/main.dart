@@ -24,6 +24,7 @@
 // https://github.com/diegolopezrm/genui_gen/tree/main/example
 
 import 'package:a2ui_flutter/v0_9/basic_catalog.dart';
+// ignore: deprecated_member_use, until Flutter stable has package:material_ui.
 import 'package:flutter/material.dart';
 import 'package:genui_gen/genui_gen.dart';
 

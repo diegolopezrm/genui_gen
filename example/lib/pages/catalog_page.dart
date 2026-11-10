@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+// ignore: deprecated_member_use, until Flutter stable has package:material_ui.
 import 'package:flutter/material.dart';
 import 'package:genui_gen/inspector.dart';
 

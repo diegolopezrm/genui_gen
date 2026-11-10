@@ -1,5 +1,6 @@
 import 'package:a2ui_flutter/basic_catalog.dart' as v1_0;
 import 'package:a2ui_flutter/v0_9/basic_catalog.dart' as v0_9;
+// ignore: deprecated_member_use, until Flutter stable has package:material_ui.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genui_gen/genui_gen.dart';

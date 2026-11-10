@@ -4,6 +4,7 @@ import 'package:example/genui_catalog.g.dart';
 import 'package:example/main.dart';
 import 'package:example/models/metric_row.dart';
 import 'package:example/models/trend.dart';
+// ignore: deprecated_member_use, until Flutter stable has package:material_ui.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
