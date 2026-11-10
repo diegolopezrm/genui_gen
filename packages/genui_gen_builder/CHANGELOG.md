@@ -1,3 +1,22 @@
+## 0.14.0
+
+- Generates for a2ui_flutter when the genui_gen the annotations come from is
+  built on it, which 0.15.0 is: `GenUiComponent`s, `FunctionImplementation`s
+  and, with a `catalog_id`, a `CatalogImplementation`. With an earlier
+  genui_gen it keeps generating genui's `CatalogItem`s and `ClientFunction`s,
+  unchanged.
+- On a2ui_flutter, a property named for something a2ui_core already reads a
+  meaning into is a build error that says what to rename: `weight`,
+  `accessibility`, an object with an `event`, a list of `condition` and
+  `message`.
+- On a2ui_flutter, the example binds a property that a `@GenUiWrites` callback
+  writes to a path named after it, since only a bound property can be written
+  there, and an agent copies the examples it is shown.
+- On a2ui_flutter, `isImplicitlyFlexible` has nothing to set, and the builder
+  says so instead of dropping it silently.
+- The generated catalog is formatted with dart_style, so it passes
+  `dart format` whatever its names do to the line lengths.
+
 ## 0.13.0
 
 - The generated `genui_catalog.g.dart` imports `package:genui_gen/genui_gen.dart`
