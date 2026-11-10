@@ -1,5 +1,10 @@
 # genui_gen — Design
 
+This is the 0.1 design, written against genui. genui_gen_builder still
+generates this shape for an app on genui_gen 0.14. From genui_gen 0.15 the
+generated code targets a2ui_flutter instead, and the package READMEs describe
+it.
+
 Annotation-driven `CatalogItem` generation for Google's `genui` package.
 You annotate a widget you already have; `build_runner` derives the JSON schema,
 the widget builder, and the few-shot examples from its constructor. Because

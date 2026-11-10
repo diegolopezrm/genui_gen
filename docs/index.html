@@ -344,10 +344,10 @@
     <h1>genui_gen</h1>
     <p class="deck">Annotate a Flutter widget and the catalog an agent composes against is <b>derived from its constructor</b> — schema, builder and examples — so it cannot drift from the widget it describes.</p>
     <div class="meta">
-      <span class="pill"><b>genui_gen</b> 0.14.1</span>
-      <span class="pill"><b>genui_gen_builder</b> 0.13.0</span>
-      <span class="pill">genui ^0.10.0</span>
-      <span class="pill">Flutter ≥3.35</span>
+      <span class="pill"><b>genui_gen</b> 0.15.0</span>
+      <span class="pill"><b>genui_gen_builder</b> 0.14.0</span>
+      <span class="pill">a2ui_flutter ^0.2.0</span>
+      <span class="pill">Flutter ≥3.38</span>
       <a class="pill link" href="https://pub.dev/packages/genui_gen">pub.dev ↗</a>
       <a class="pill link" href="https://github.com/diegolopezrm/genui_gen">GitHub ↗</a>
       <a class="pill link" href="#quincena">In a real app ↓</a>
@@ -359,7 +359,7 @@
       <p class="eyebrow on">The problem</p>
       <h2>A hand-written catalog drifts, and nothing tells you</h2>
       <div class="prose">
-        <p>A <a href="https://pub.dev/packages/genui">genui</a> catalog needs three things per widget: a JSON schema the model composes against, a builder that turns that JSON back into a widget, and example data for tooling and few-shot prompts.</p>
+        <p>An <a href="https://pub.dev/packages/a2ui_flutter">a2ui_flutter</a> catalog needs three things per widget: a JSON schema the model composes against, a builder that turns the properties the renderer resolved back into a widget, and examples that show the model what a message using the widget looks like.</p>
         <p>Write them by hand and they drift in silence. Rename a constructor parameter, add a required one, change an enum — the app still compiles, and the model keeps composing against last month's contract. The first symptom is a malformed message in production.</p>
         <p>So don't write them. The generator reads the constructor with the analyzer and emits all three from it. The property names <i>are</i> the parameter names; the required list <i>is</i> the set of non-nullable parameters without defaults. There is no second source of truth to keep in sync.</p>
       </div>
@@ -395,23 +395,23 @@ class ProductCard extends StatelessWidget {
 
       <div class="step-panel">
         <p class="eyebrow">2 · build_runner emits this</p>
-        <pre>final CatalogItem productCardCatalogItem = CatalogItem(
+        <pre>final GenUiComponent productCardCatalogItem = GenUiComponent(
   name: <span class="s">'ProductCard'</span>,
-  dataSchema: S.object(
+  schema: GenUiSchemas.component(
     description: <span class="s">'A product card with price and image.'</span>,
     properties: {
-      <span class="s">'title'</span>: A2uiSchemas.stringReference(
+      <span class="s">'title'</span>: GenUiSchemas.string(
         description: <span class="s">'Product name.'</span>,
       ),
-      <span class="s">'price'</span>: A2uiSchemas.numberReference(
+      <span class="s">'price'</span>: GenUiSchemas.number(
         description: <span class="s">'Price in USD.'</span>,
       ),
-      <span class="s">'imageUrl'</span>: A2uiSchemas.stringReference(...),
-      <span class="s">'onTap'</span>: A2uiSchemas.action(...),
+      <span class="s">'imageUrl'</span>: GenUiSchemas.string(...),
+      <span class="s">'onTap'</span>: GenUiSchemas.action(...),
     },
     required: [<span class="s">'title'</span>, <span class="s">'price'</span>],
   ),
-  <span class="c">// + widgetBuilder, + exampleData</span>
+  <span class="c">// + examples, + builder</span>
 );</pre>
       </div>
 
@@ -445,18 +445,18 @@ class ProductCard extends StatelessWidget {
       <div class="prose">
         <p>Someone reports that the list came up empty. You open the code and there is no list: a model composed that screen, once, from a context that will not come back.</p>
         <p>A trace is that session kept on disk — every message the agent sent, the data model each time it changed, every action the app sent back. It replays with no model and no network, because A2UI describes interfaces as data.</p>
-        <p>Below is a real recording from the example app, five steps, exactly as <code>GenUiTraceRecorder</code> wrote it. Drag the scrubber.</p>
+        <p>Below is a real recording of the example app's first scripted turn, four steps, exactly as <code>GenUiTraceRecorder</code> wrote it. Drag the scrubber.</p>
       </div>
     </div>
 
     <div class="player">
       <div class="scrub">
         <div class="scrub-head">
-          <b id="stepLabel">Step 5 of 5</b>
-          <span id="stepAt">32 ms</span>
+          <b id="stepLabel">Step 4 of 4</b>
+          <span id="stepAt">71 ms</span>
         </div>
         <label for="scrubber" class="eyebrow" style="clip-path: inset(50%); position: absolute;">Step</label>
-        <input type="range" id="scrubber" min="1" max="5" step="1" value="5">
+        <input type="range" id="scrubber" min="1" max="4" step="1" value="4">
         <ol class="steps" id="stepList"></ol>
         <pre id="wire" aria-live="polite"></pre>
       </div>
@@ -472,19 +472,20 @@ class ProductCard extends StatelessWidget {
       <div class="stack">
         <p class="eyebrow">record</p>
         <pre>final recorder = GenUiTraceRecorder.attach(
-  controller,
-  catalogId: genUiCatalog.catalogId,
+  processor,
+  catalogId: catalog.id,
   redact: const [<span class="s">'/user/email'</span>],
 );
 
-transport.messages.listen(recorder.handleMessage);
+<span class="c">// records each message, then hands it to the processor</span>
+transport.messages.listen(recorder.processMessages);
 <span class="c">// ...</span>
 await File(<span class="s">'bug-4821.a2ui-trace'</span>)
     .writeAsString(recorder.build().encode());</pre>
       </div>
       <div class="stack">
         <p class="eyebrow">replay, in a test, against today's catalog</p>
-        <pre>final player = GenUiTracePlayer(trace, catalog: genUiCatalog)
+        <pre>final player = GenUiTracePlayer(trace, catalog: catalog)
   ..seek(<span class="n">4</span>);
 
 await tester.pumpWidget(
@@ -545,7 +546,7 @@ class TaskList extends StatelessWidget {
 
     <ul class="plain" style="margin-top:1.4rem">
       <li>Each child reads its own entry: the child at index 2 binds <code>label</code> against <code>/tasks/2/label</code>, so one component describes every row.</li>
-      <li>Children are keyed by entry, not by position, so a row removed from the middle takes its state with it instead of handing it to the row that moved up.</li>
+      <li>Children are keyed by their path, so a row's widget state belongs to its position in the list rather than to its entry.</li>
       <li>The property still accepts a plain list of ids, so an agent that writes the children out one by one keeps working.</li>
       <li>It is off by default — a template property publishes a schema a prompt tuned against the previous version was not written for, so turning it on is your call, not the generator's.</li>
     </ul>
@@ -557,7 +558,7 @@ class TaskList extends StatelessWidget {
       <h2>The other half of a catalog</h2>
       <div class="prose">
         <p>Everything above is one half. Components are what the agent composes a surface out of. <b>Functions are what it computes a value with</b>, through the <code>{"call": ...}</code> form every bound property already accepts.</p>
-        <p>genui registers fourteen of them, and adding one of your own meant writing a <code>ClientFunction</code> by hand: the name, the description, an argument schema spelled out in JSON schema, the return type, and an <code>execute</code> that digs each argument back out of a map and casts it. The schema sits beside the code that reads the arguments and is free to drift from it, which is the problem this package exists to remove.</p>
+        <p>The basic catalog registers fourteen of them, and adding one of your own meant writing a <code>FunctionImplementation</code> by hand: the name, the description, an argument schema spelled out in JSON schema, the return type, and an <code>execute</code> that digs each argument back out of a map and casts it. The schema sits beside the code that reads the arguments and is free to drift from it, which is the problem this package exists to remove.</p>
       </div>
     </div>
 
@@ -595,8 +596,8 @@ String shortenName(
 
     <ul class="plain" style="margin-top:1.4rem">
       <li>A <code>Future&lt;T&gt;</code> return becomes an async function and a <code>Stream&lt;T&gt;</code> a reactive one, which is how a function with its own source of change keeps answering.</li>
-      <li>Arguments are coerced the way a widget property is, so a model that sends a string where a number was declared degrades instead of throwing inside the expression that called it.</li>
-      <li>A name genui's basic catalog already registers is a build error. A catalog is a map from name to function, and a second <code>required</code> would change what every prompt written against it means.</li>
+      <li>Arguments are coerced the way a <code>@GenUiData</code> field is, so a value of the wrong type degrades instead of throwing inside the expression that called it.</li>
+      <li>A name the basic catalog already registers is a build error. A catalog is a map from name to function, and a second <code>required</code> would change what every prompt written against it means.</li>
       <li>The generated functions reach the assembled catalog and the exported <code>catalog.json</code> on their own, so adding one needs no other change anywhere.</li>
     </ul>
   </section>
@@ -648,9 +649,9 @@ String shortenName(
     <p class="note" style="margin-top:1.6rem">Together with <code>@GenUiWrites</code> the loop closes with the agent outside it. The user types, the value lands at <code>/form/email</code>, the rule is re-evaluated against that same path, and the message clears. Nothing goes back over the wire.</p>
 
     <ul class="plain" style="margin-top:1.4rem">
-      <li><b>The rules are evaluated one at a time, not folded together.</b> genui's own helper combines the conditions into a single <code>and</code> and keeps no messages, which is why the stock catalog can only colour a field red. The message is the only part of a rule a person ever reads.</li>
-      <li>A <code>String?</code> takes that message, a <code>bool</code> takes whether every rule passes, a <code>GenUiCheckResult</code> takes both. A non-nullable <code>String</code> is a build error: a passing rule has no message to give it.</li>
-      <li>A rule that has not resolved yet counts as passing, so a field is not called invalid before the data model arrives. One with no message is skipped rather than shown as an unexplained failure.</li>
+      <li><b>Each rule keeps its message.</b> a2ui_core evaluates the rules one at a time and hands the widget the messages of the ones that fail, in the order the agent wrote them. The message is the only part of a rule a person ever reads.</li>
+      <li>A <code>String?</code> takes the first of those messages, a <code>bool</code> takes whether every rule passes, a <code>GenUiCheckResult</code> takes both. A non-nullable <code>String</code> is a build error: a passing rule has no message to give it.</li>
+      <li>A rule fails while its condition is anything but true, including one whose binding holds nothing yet, so a required field shows its message until it is filled. The conditions call the basic catalog's functions, which <code>derive</code> keeps when the catalog is composed.</li>
     </ul>
   </section>
 
@@ -660,7 +661,7 @@ String shortenName(
       <h2>Render what the schema allows, not what you meant</h2>
       <div class="prose">
         <p>A catalog is a contract with something that cannot be recompiled, and the only thing holding a model to it is a JSON schema. <b>Every widget test you write checks the input you had in mind.</b> This checks the ones the schema permits and you did not.</p>
-        <p>It takes each component's own generated example and replaces one property at a time: a required one left out, a string where a number was declared, an empty list, two hundred entries, a binding that never resolves, a call to a function nobody registered.</p>
+        <p>It takes each component's own generated example and replaces one property at a time: a required one left out, a string where a number was declared, an empty list, two hundred entries, a binding that never resolves, a call to a function nobody registered. Every case goes through the catalog's own validation first. A case the schema rejects is the protocol doing its job and is skipped; what is reported is a case the schema accepts and the widget cannot take.</p>
       </div>
     </div>
 
@@ -668,7 +669,7 @@ String shortenName(
       <div class="stack">
         <p class="eyebrow">one line in a widget test</p>
         <pre>final findings = await genUiFuzz(
-  catalog: genUiCatalog,
+  catalog: catalog,
   pump: tester.pumpWidget,
 );
 
@@ -677,7 +678,7 @@ expect(findings, isEmpty,
         <p class="eyebrow">every finding hands you the case, not a description of it</p>
       </div>
       <div class="stack">
-        <p class="eyebrow">pointed at genui's own basic catalog</p>
+        <p class="eyebrow">pointed at genui's basic catalog, before the move to a2ui_flutter</p>
         <pre>69 in 5 components
     28  Slider  (28 threw)
     17  Tabs  (17 threw)
@@ -693,7 +694,7 @@ expect(findings, isEmpty,
       </div>
     </div>
 
-    <p class="note" style="margin-top:1.6rem">Two of those are input that is <b>valid against the component's own published schema</b>. A <code>Slider</code> whose value falls outside its own min and max asserts, and so does one whose max is negative. Nothing in the schema says a model may not pick those numbers. Filed as <a href="https://github.com/a2ui-project/a2ui/issues/2872">a2ui#2872</a>.</p>
+    <p class="note" style="margin-top:1.6rem">Two of those were input that is <b>valid against the component's own published schema</b>. A <code>Slider</code> whose value fell outside its own min and max asserted, and so did one whose max was negative. Nothing in the schema says a model may not pick those numbers. Filed as <a href="https://github.com/a2ui-project/a2ui/issues/2872">a2ui#2872</a>. a2ui_flutter's basic components carry no examples, so the fuzzer now runs over the components you generate.</p>
   </section>
 
   <section id="coverage">
@@ -710,7 +711,7 @@ expect(findings, isEmpty,
       <div class="stack">
         <p class="eyebrow">the whole call</p>
         <pre>final coverage = genUiCoverage(
-  catalog: genUiCatalog,
+  catalog: catalog,
   traces: recorded,
 );
 
@@ -721,17 +722,17 @@ print(coverage.describe());</pre>
         <pre>9 of 26 components used across 5 sessions
 
 never composed:
-    2340   6.9%  ChoicePicker
-    1312   3.9%  TextField
-    1101   3.3%  Icon
+     909   1.6%  AudioPlayer
+     993   1.7%  Card
+    1192   2.1%  CheckBox
      ...
-<span class="a">  14639  43.4%  in every request, for
+<span class="a">  21740  37.8%  in every request, for
                 components the agent
                 never asked for</span>
 
 composed, with properties never filled:
-  Button: checks
-  Panel: onClose
+  Panel: meta, onClose
+  StatTile: history
   TaskList: emptyLabel
 
 enum values never chosen:
@@ -756,14 +757,14 @@ enum values never chosen:
       <div class="stack">
         <p class="eyebrow">in debug, over the app you already have</p>
         <pre>GenUiInspector(
-  controller: controller,
+  processor: processor,
   recorder: recorder,
-  child: GenUiConversation(...),
+  child: MyConversation(...),
 )</pre>
         <p class="eyebrow">gone from a release build; <code>enabled</code> defaults to <code>kDebugMode</code></p>
       </div>
       <div class="stack">
-        <p class="eyebrow">the four tabs, on one real turn of the example app</p>
+        <p class="eyebrow">the four tabs, on the example app's first scripted turn</p>
         <div class="panel-shot">
           <div class="panel-tabs" role="tablist">
             <button type="button" role="tab" aria-selected="true" aria-controls="ins-tree" id="ins-t-tree">tree</button>
@@ -792,11 +793,10 @@ enum values never chosen:
               <div><span class="p-type">text_field</span> Ask for something</div>
             </div>
             <div id="ins-msg" role="tabpanel" aria-labelledby="ins-t-msg" hidden>
-              <div><span class="p-sub">5&nbsp;&nbsp;15229ms</span> <span class="p-type">data</span> session-1</div>
-              <div><span class="p-sub">4&nbsp;&nbsp;15229ms</span> <span class="p-type">message</span> updateDataModel</div>
-              <div><span class="p-sub">3&nbsp;&nbsp;15229ms</span> <span class="p-type">data</span> session-1</div>
-              <div><span class="p-sub">2&nbsp;&nbsp;15226ms</span> <span class="p-type">message</span> createSurface</div>
-              <div><span class="p-sub">1&nbsp;&nbsp;15226ms</span> <span class="p-type">message</span> updateComponents</div>
+              <div><span class="p-sub">4&nbsp;&nbsp;71ms</span> <span class="p-type">data</span> session-1</div>
+              <div><span class="p-sub">3&nbsp;&nbsp;2ms</span> <span class="p-type">message</span> updateDataModel</div>
+              <div><span class="p-sub">2&nbsp;&nbsp;2ms</span> <span class="p-type">message</span> updateComponents</div>
+              <div><span class="p-sub">1&nbsp;&nbsp;1ms</span> <span class="p-type">message</span> createSurface</div>
             </div>
           </div>
         </div>
@@ -824,7 +824,7 @@ enum values never chosen:
 
     <p class="note" style="margin-top:1.6rem">The Data tab reads bindings in both directions on purpose. <b>A path nothing on the surface reads is payload the agent paid for and nobody saw.</b> A path a component binds that the data model has no entry for is the usual reason a field renders empty with no error anywhere — neither one raises anything, and neither is visible from the code.</p>
 
-    <p class="note" style="margin-top:1rem"><code>GenUiSurfaceGraph</code> is the same reading with no widgets in it, for a test that wants to assert on the shape of a surface rather than look at it. It reports a component nothing reaches from the root and a component that contains itself. It does not report a child reference naming a component that was never created, because it cannot: A2UI names a child with a plain string, and nothing in the message tells that apart from text.</p>
+    <p class="note" style="margin-top:1rem"><code>GenUiSurfaceGraph</code> is the same reading with no widgets in it, for a test that wants to assert on the shape of a surface rather than look at it. It reports a component nothing reaches from the root, a component that contains itself, and a child reference naming a component the surface does not have. It reads which properties are children from the catalog's schemas, the way a2ui_core does when it renders the surface, so text is never taken for an id.</p>
   </section>
 
   <section id="ci">
@@ -871,22 +871,29 @@ enum values never chosen:
         <p class="eyebrow">the golden, as it is written</p>
         <pre>{
   <span class="k">"components"</span>: {
+    <span class="k">"Panel"</span>: [
+      { <span class="k">"role"</span>: <span class="s">"text"</span>, <span class="k">"name"</span>: <span class="s">"Quarterly report\n…"</span> },
+      {
+        <span class="k">"role"</span>: <span class="s">"button"</span>,
+        <span class="k">"tooltip"</span>: <span class="s">"Close"</span>,
+        <span class="k">"state"</span>: { <span class="k">"disabled"</span>: <span class="b">false</span> },
+        <span class="k">"actions"</span>: [<span class="s">"tap"</span>, <span class="s">"focus"</span>]
+      }
+    ],
     <span class="k">"PreferenceRow"</span>: [
       {
         <span class="k">"role"</span>: <span class="s">"switch"</span>,
         <span class="k">"name"</span>: <span class="s">"Sample label"</span>,
-        <span class="k">"state"</span>: { <span class="k">"on"</span>: <span class="b">true</span>, <span class="k">"disabled"</span>: <span class="b">false</span> },
+        <span class="k">"state"</span>: { <span class="k">"on"</span>: <span class="b">false</span>, <span class="k">"selected"</span>: <span class="b">false</span>, <span class="k">"disabled"</span>: <span class="b">false</span> },
         <span class="k">"actions"</span>: [<span class="s">"tap"</span>, <span class="s">"focus"</span>]
       }
-    ],
-    <span class="k">"Image"</span>: [],
-    <span class="k">"Icon"</span>: []
+    ]
   }
 }</pre>
-        <p class="eyebrow">two empty arrays: a screen reader is told nothing</p>
+        <p class="eyebrow">a close button announced by its tooltip alone, which nothing in the Dart shows</p>
       </div>
       <div class="stack">
-        <p class="eyebrow">the weight of the example's catalog, measured</p>
+        <p class="eyebrow">the weight of the example's generated catalog, measured</p>
         <div class="weight" id="weight"></div>
         <p class="eyebrow">characters, not tokens — a number that pretends to be exact about someone else's tokenizer is worse than an honest proportion</p>
       </div>
@@ -919,7 +926,7 @@ enum values never chosen:
           <tr>
             <td class="ref"><a href="https://github.com/a2ui-project/a2ui/issues/2740">a2ui#2740</a></td>
             <td><code>Image</code> and <code>Icon</code> record as <code>[]</code>. The catalog's own description is never applied as a label.</td>
-            <td class="fails">Open</td>
+            <td class="ref"><a href="https://github.com/flutter/genui/pull/1043">genui#1043</a></td>
           </tr>
           <tr>
             <td class="ref"><a href="https://github.com/a2ui-project/a2ui/issues/2736">a2ui#2736</a></td>
@@ -929,7 +936,7 @@ enum values never chosen:
           <tr>
             <td class="ref"><a href="https://github.com/a2ui-project/a2ui/issues/2737">a2ui#2737</a></td>
             <td><code>Slider</code> behaves as a two-position switch over its default range, and crashes below it.</td>
-            <td class="fails">Open</td>
+            <td class="ref"><a href="https://github.com/flutter/genui/pull/1039">genui#1039</a></td>
           </tr>
           <tr>
             <td class="ref"><a href="https://github.com/a2ui-project/a2ui/issues/2738">a2ui#2738</a></td>
@@ -949,7 +956,7 @@ enum values never chosen:
       <h2>Quincena: personal finance where every answer is an interface</h2>
       <div class="prose">
         <p>Ask where September's money went and an agent answers with a donut chart, the two things that moved and the five largest payments. Ask whether a December trip is within reach and it answers with a goal and a slider: drag it and the arrival date recalculates on the device, with no new message from the agent.</p>
-        <p>None of those screens is in the app's source. Its twenty components and six functions are annotated widgets and Dart functions, the catalog is generated from them, and the rest of this page is wired in: the inspector behind developer mode, real Gemini sessions recorded with the tracer and replayed with no network, and the fuzzer, the semantics audit and the catalog check in its tests.</p>
+        <p>None of those screens is in the app's source. Its twenty components and six functions are annotated widgets and Dart functions, the catalog is generated from them, and the rest of this page is wired in: the inspector behind developer mode, real Gemini sessions recorded with the tracer and replayed with no network, and the fuzzer, the semantics audit and the catalog check in its tests. It is built on genui_gen 0.14 and genui, the release before this one.</p>
       </div>
     </div>
 
@@ -984,12 +991,13 @@ enum values never chosen:
       <div class="box">
         <p class="eyebrow">1 · pubspec.yaml</p>
         <pre>dependencies:
-  genui: ^0.10.0
-  genui_gen: ^0.14.0
+  a2ui_flutter: ^0.2.0
+  genui_gen: ^0.15.0
 
 dev_dependencies:
   build_runner: ^2.15.0
-  genui_gen_builder: ^0.13.0</pre>
+  genui_gen_builder: ^0.14.0</pre>
+        <p>Add <code>a2ui_core: ^0.6.0</code> too once the app imports it, for <code>MessageProcessor</code>. Coming from genui? The <a href="https://github.com/diegolopezrm/genui_gen#migrating-from-genui">migration guide</a> covers it.</p>
       </div>
       <div class="box">
         <p class="eyebrow">2 · build.yaml</p>
@@ -1009,12 +1017,16 @@ dev_dependencies:
     </div>
 
     <div class="stack" style="max-width:var(--read); margin-top:1.6rem">
-      <p class="eyebrow">and the catalog is one line, whatever the app grows into</p>
-      <pre>import <span class="s">'genui_catalog.g.dart'</span>;
+      <p class="eyebrow">and the catalog is one call, whatever the app grows into</p>
+      <pre>import <span class="s">'package:a2ui_flutter/v0_9/basic_catalog.dart'</span>;
 
-final catalog = genUiCatalog.copyWith(
-  newItems: BasicCatalogItems.asCatalog().items.toList(),
-  newFunctions: BasicCatalogItems.asCatalog().functions.toList(),
+import <span class="s">'genui_catalog.g.dart'</span>;
+
+final catalog = basicCatalog().derive(
+  catalogId: genUiCatalog.id,
+  addComponents: genUiCatalogItems,
+  addFunctions: genUiCatalogFunctions,
+  instructions: genUiCatalog.instructions,
 );</pre>
     </div>
 
@@ -1027,7 +1039,7 @@ final catalog = genUiCatalog.copyWith(
 
   <footer>
     <span>Diego Alejandro López Camacho · MIT</span>
-    <span>genui_gen 0.14.1 · genui_gen_builder 0.13.0</span>
+    <span>genui_gen 0.15.0 · genui_gen_builder 0.14.0</span>
   </footer>
 
 </div>
@@ -1036,9 +1048,21 @@ final catalog = genUiCatalog.copyWith(
   (function () {
     var STEPS = [
       {
-        kind: 'agent', at: 1, text: 'updateComponents — TaskList + the row template',
-        stage: 'none',
-        caption: 'Nothing on screen. The components are described, not created.',
+        kind: 'agent', at: 1, text: 'createSurface: session-1',
+        stage: 'created',
+        caption: 'Surface session-1 is created against the app catalog. It holds no components yet, so nothing renders.',
+        json: `{
+  "version": "v0.9",
+  "createSurface": {
+    "surfaceId": "session-1",
+    "catalogId": "dev.dlsoft.genui_gen.example"
+  }
+}`
+      },
+      {
+        kind: 'agent', at: 2, text: 'updateComponents: TaskList + the row template',
+        stage: 'empty',
+        caption: 'TaskList renders. /tasks holds nothing yet, so it shows its emptyLabel.',
         json: `{
   "version": "v0.9",
   "updateComponents": {
@@ -1060,36 +1084,14 @@ final catalog = genUiCatalog.copyWith(
 }`
       },
       {
-        kind: 'agent', at: 8, text: 'createSurface — session-1',
-        stage: 'empty',
-        caption: 'Surface session-1 built against the app catalog. /tasks is empty, so TaskList shows its emptyLabel.',
-        json: `{
-  "version": "v0.9",
-  "createSurface": {
-    "surfaceId": "session-1",
-    "catalogId": "dev.dlsoft.genui_gen.example",
-    "sendDataModel": false
-  }
-}`
-      },
-      {
-        kind: 'data', at: 31, text: 'data model — session-1 {}',
-        stage: 'empty',
-        caption: 'The recorder keeps the data model itself, not only the messages — including writes the user makes that never go back to the agent.',
-        json: `{
-  "kind": "data",
-  "surfaceId": "session-1",
-  "data": {}
-}`
-      },
-      {
-        kind: 'agent', at: 31, text: 'updateDataModel — three tasks',
+        kind: 'agent', at: 2, text: 'updateDataModel: three tasks',
         stage: 'rows',
         caption: 'The agent never named a row. It filled a path, and the template built one row per entry.',
         json: `{
   "version": "v0.9",
   "updateDataModel": {
     "surfaceId": "session-1",
+    "path": "/",
     "value": {
       "tasks": [
         { "label": "Call the dentist" },
@@ -1101,9 +1103,9 @@ final catalog = genUiCatalog.copyWith(
 }`
       },
       {
-        kind: 'data', at: 32, text: 'data model — session-1, three entries',
+        kind: 'data', at: 71, text: 'data model: session-1, three entries',
         stage: 'rows',
-        caption: 'End of the turn. Add a fourth entry here and a fourth row appears, with no new surface composed.',
+        caption: 'The recorder keeps the data model itself, not only the messages, including writes the user makes that never go back to the agent. Add a fourth entry here and a fourth row appears, with no new surface composed.',
         json: `{
   "kind": "data",
   "surfaceId": "session-1",
@@ -1155,8 +1157,8 @@ final catalog = genUiCatalog.copyWith(
     });
 
     function renderStage(kind) {
-      if (kind === 'none') {
-        return '<div class="nosurface">no surface yet<br>the components exist only as a message</div>';
+      if (kind === 'created') {
+        return '<div class="nosurface">surface created<br>no components yet, so nothing renders</div>';
       }
       var body = kind === 'rows'
         ? ROWS.map(function (r) { return '<div class="s-row">' + r + '</div>'; }).join('')
@@ -1182,19 +1184,21 @@ final catalog = genUiCatalog.copyWith(
     select(current);
 
     var WEIGHT = [
-      ['MetricsTable', 1646, 18.2], ['StatTile', 1499, 16.5], ['TaskList', 944, 10.4],
-      ['PreferenceRow', 932, 10.3], ['ProductCard', 907, 10.0], ['Panel', 885, 9.8],
-      ['TagRow', 649, 7.2], ['(shared definitions)', 1596, 17.6]
+      ['MetricsTable', 2006, 8.9], ['Panel', 1979, 8.8], ['StatTile', 1841, 8.2],
+      ['LabeledField', 1478, 6.6], ['PreferenceRow', 1441, 6.4], ['ProductCard', 1294, 5.7],
+      ['TagRow', 1111, 4.9], ['TaskList', 1018, 4.5], ['(shared definitions)', 10368, 46.0]
     ];
+    // The bars share one scale, set by the largest entry.
+    var widest = Math.max.apply(null, WEIGHT.map(function (w) { return w[2]; }));
     var weight = document.getElementById('weight');
     weight.innerHTML =
-      '<div class="wrow"><span class="wname" style="color:var(--ink)">9058 chars</span>' +
+      '<div class="wrow"><span class="wname" style="color:var(--ink)">22536 chars</span>' +
       '<span></span><span class="wnum">total document</span></div>' +
       WEIGHT.map(function (w) {
         var shared = w[0].charAt(0) === '(' ? ' shared' : '';
         return '<div class="wrow">' +
           '<span class="wname">' + w[0] + '</span>' +
-          '<span class="wbar' + shared + '"><span style="width:' + (w[2] / 18.2 * 100) + '%"></span></span>' +
+          '<span class="wbar' + shared + '"><span style="width:' + (w[2] / widest * 100) + '%"></span></span>' +
           '<span class="wnum">' + w[1] + ' · ' + w[2].toFixed(1) + '%</span>' +
           '</div>';
       }).join('');

@@ -14,8 +14,9 @@ class GenUiCheckResult {
 
   /// Every rule passes, or there were no rules.
   ///
-  /// A rule whose condition has not resolved yet counts as passing, so a field
-  /// is not announced as invalid before the data model arrives.
+  /// a2ui_core evaluates the rules: one whose condition is anything but `true`
+  /// fails, including one whose binding holds nothing yet, so a required
+  /// field shows its message until it is filled.
   final bool isValid;
 
   /// The message of the first rule that is failing, in the order the agent

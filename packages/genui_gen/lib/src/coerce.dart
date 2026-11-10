@@ -1,27 +1,25 @@
 /// Coercions and reporting helpers used by the generated decoders.
 ///
-/// A widget property goes through genui's `Bound*` widgets, which coerce
-/// rather than throw: `BoundString` calls `toString()`, `BoundNumber` parses a
-/// numeric string, `BoundBool` accepts `"true"` / `"false"` and treats a
-/// non-zero number as `true`. The values *inside* a `@GenUiData` object never
-/// pass through those widgets, so the same rules are applied here. A model
-/// that sends `"42.5"` where a number is expected therefore degrades the same
-/// way in both places, and a malformed field never throws inside `build`.
+/// The values *inside* a `@GenUiData` object are not properties a2ui_core
+/// resolves, so a generated decoder reads them with these helpers, which
+/// coerce rather than throw: a string is the value's `toString()`, a number
+/// may come as a numeric string, and a boolean as `"true"`, `"false"` or a
+/// number. A model that sends `"42.5"` where a number is expected therefore
+/// still renders, and a malformed field never throws inside `build`.
 library;
 
 /// Reports one field of a data object that was required but missing or
 /// unusable.
 ///
 /// Generated decoders take one of these as an optional second argument; the
-/// generated widget builder passes a closure that forwards to
-/// `genUiReportMissing` with the property name prefixed, so the model sees
-/// `rows.label` rather than a bare `label`.
+/// generated widget builder passes the one `genUiMissingIn` returns, which
+/// prefixes the property name, so the model sees `rows.label` rather than a
+/// bare `label`.
 typedef GenUiMissingFieldReporter = void Function(String field);
 
 /// [value] as a `String`, or `null` when it is `null`.
 ///
-/// Matches genui's `BoundString.convert`: anything that is not already a
-/// `String` is rendered with `toString()`.
+/// Anything that is not already a `String` is rendered with `toString()`.
 String? genUiAsString(Object? value) {
   if (value == null) return null;
   if (value is String) return value;
@@ -30,8 +28,8 @@ String? genUiAsString(Object? value) {
 
 /// [value] as a `num`, or `null` when it cannot be read as one.
 ///
-/// Matches genui's `BoundNumber.convert`: a numeric `String` is parsed, and
-/// anything else that is not already a `num` gives `null`.
+/// A numeric `String` is parsed, and anything else that is not already a
+/// `num` gives `null`.
 num? genUiAsNum(Object? value) {
   if (value is num) return value;
   if (value is String) return num.tryParse(value);
@@ -40,9 +38,8 @@ num? genUiAsNum(Object? value) {
 
 /// [value] as a `bool`, or `null` when it cannot be read as one.
 ///
-/// Matches genui's `BoundBool.convert`: `"true"` / `"false"` (in any case) are
-/// parsed, a `num` is `true` when it is not zero, and anything else gives
-/// `null`.
+/// `"true"` / `"false"` (in any case) are parsed, a `num` is `true` when it is
+/// not zero, and anything else gives `null`.
 bool? genUiAsBool(Object? value) {
   if (value is bool) return value;
   if (value is String) {

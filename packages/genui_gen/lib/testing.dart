@@ -1,10 +1,10 @@
 /// Test helpers for the catalog the generator produced.
 ///
-/// A generated `CatalogItem` is a contract with a model: these components
+/// A generated component is a contract with a model: these components
 /// exist, they take these properties, and this is what the app does with them.
 /// The schema half of that contract is checked at build time. This library
 /// checks the other half — what the rendered component exposes to the person
-/// using it — by recording the semantics of each item's example and failing
+/// using it — by recording the semantics of each component's example and failing
 /// when they change.
 ///
 /// The recorded file is the same shape A2UI's rendering cases are written in,
@@ -15,25 +15,32 @@
 /// // test/genui_semantics_test.dart
 /// import 'dart:io';
 ///
+/// import 'package:a2ui_flutter/v0_9/basic_catalog.dart';
 /// import 'package:flutter/material.dart';
 /// import 'package:flutter_test/flutter_test.dart';
+/// import 'package:genui_gen/genui_gen.dart';
 /// import 'package:genui_gen/testing.dart';
 /// import 'package:my_app/genui_catalog.g.dart';
 ///
 /// void main() {
 ///   testWidgets('the catalog exposes what it did before', (tester) async {
+///     // The basic components too, which the examples compose with.
+///     final catalog = basicCatalog().derive(
+///       catalogId: genUiCatalog.id,
+///       addComponents: genUiCatalogItems,
+///     );
 ///     final recorded = <String, List<GenUiSemanticNode>>{};
-///     for (final item in genUiCatalog.items) {
+///     for (final GenUiComponent component in genUiCatalogItems) {
 ///       final handle = tester.ensureSemantics();
 ///       await tester.pumpWidget(
 ///         MaterialApp(
 ///           home: Scaffold(
-///             body: GenUiExampleSurface(catalog: genUiCatalog, item: item),
+///             body: GenUiExampleSurface(catalog: catalog, component: component),
 ///           ),
 ///         ),
 ///       );
 ///       await tester.pumpAndSettle();
-///       recorded[item.name] = genUiRenderedSemantics();
+///       recorded[component.name] = genUiRenderedSemantics();
 ///       handle.dispose();
 ///     }
 ///

@@ -1,5 +1,9 @@
 # genui_gen 0.2 — objects and lists of objects
 
+Written against genui, like `DESIGN.md`. The data class schema and decoder are
+the same on a2ui_flutter; what a2ui_core does instead of `GenUiBinding.object`
+and `genUiReportMissing` is in the package READMEs.
+
 ## The gap 0.1 leaves
 
 `GenUiBinding` only expresses `string`, `number`, `bool` and `stringList`. So

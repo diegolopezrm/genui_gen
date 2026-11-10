@@ -1,17 +1,17 @@
 # genui_gen example
 
-A small Flutter app that shows `genui_gen` end to end: five ordinary widgets
-are annotated with `@GenUiWidget`, `build_runner` derives a genui
-`CatalogItem` for each one, and the app renders every generated example with
-genui's `DebugCatalogView`. No LLM, API key or network connection is needed.
+A small Flutter app that shows `genui_gen` end to end: eight ordinary widgets
+are annotated with `@GenUiWidget`, `build_runner` derives an a2ui_flutter
+component for each one, and the app renders them through a2ui_flutter, next to
+the basic catalog. No LLM, API key or network connection is needed.
 
 ## Three tabs, three things the package does
 
 | Tab | What it shows |
 |---|---|
-| **Catalog** | Every component the model may ask for, rendered from the example the generator derived from each widget's constructor. This is the catalog as the agent sees it. |
-| **Session** | The loop: you ask for something, an agent answers with a surface built from that catalog, and what you do with it goes back. The agent is scripted, so it runs with no key and no network; everything after it is real. |
-| **Trace** | The session that already happened, replayed with no agent at all. Drag the slider and the surface goes back to what it was at that step: at step 3 the list exists and the data has not arrived, at step 5 the rows are there. |
+| **Catalog** | Every component the model may ask for, rendered by `GenUiCatalogView` from the example the generator derived from each widget's constructor. This is the catalog as the agent sees it: the same examples go into its instructions. |
+| **Session** | The loop: you ask for something, an agent answers with a surface built from that catalog, and what you do with it goes back. The agent is scripted, so it runs with no key and no network; everything after it is real: a `MessageProcessor`, an `A2uiSurface`, and the inspector over both. |
+| **Trace** | The session that already happened, replayed with no agent at all. Drag the slider and the surface goes back to what it was at that step: ask what is on your plate, and at step 2 the list exists and the data has not arrived; at step 3 the rows are there. |
 
 ```sh
 cd example
@@ -23,14 +23,18 @@ flutter run          # or: flutter run -d chrome
 | File | Demonstrates |
 |---|---|
 | `lib/widgets/product_card.dart` | required/optional `String`, `double`, a `VoidCallback` action, per-parameter doc comments |
-| `lib/widgets/stat_tile.dart` | a Dart `enum` mapped to `enumValues` |
+| `lib/widgets/stat_tile.dart` | a Dart `enum` mapped to `enumValues`, and a `List<double>` with a default |
 | `lib/widgets/tag_row.dart` | `List<String>` and an `int` with a default value |
-| `lib/widgets/panel.dart` | a `Widget` child, a `List<Widget>` with a default, and `@GenUiAction(eventName: 'panel_closed')` |
-| `lib/models/trend.dart` | a plain enum shared by a widget property and a `@GenUiData` field |
+| `lib/widgets/panel.dart` | a `Widget` child, a `List<Widget>` with a default, `@GenUiAction(eventName: 'panel_closed')`, and a `Map<String, String>` whose keys the agent chooses |
+| `lib/widgets/preference_row.dart` | a switch that writes its state back with `@GenUiWrites` |
+| `lib/widgets/labeled_field.dart` | a text field that writes back, and shows the agent's `checks` through `@GenUiChecked` |
+| `lib/widgets/task_list.dart` | a `List<Widget>` marked `@GenUiProp(template: true)`, repeated over a data path |
 | `lib/widgets/metrics_table.dart` | structured data: a Material `DataTable` driven by `List<MetricRow>`, where `MetricRow` is the `@GenUiData` class in `lib/models/metric_row.dart` |
+| `lib/models/trend.dart` | a plain enum shared by a widget property and a `@GenUiData` field |
+| `lib/functions/text_functions.dart` | three `@GenUiFunction`s, one of them taking a `MetricRow` |
 
-`MetricsTable` is the one to look at for 0.2. Its constructor takes a
-`List<MetricRow>`, so the model emits real JSON objects:
+`MetricsTable` is the one to look at for structured data. Its constructor takes
+a `List<MetricRow>`, so the model emits real JSON objects:
 
 ```json
 {
@@ -52,11 +56,12 @@ schema (`metricRowGenUiSchema`) and decoder (`metricRowFromGenUiJson`) that
 `metrics_table.genui.dart` uses.
 
 Each `lib/widgets/<name>.dart` declares `part '<name>.genui.dart';`. The part
-file holds the generated `final CatalogItem <name>CatalogItem`, and
-`lib/main.dart` assembles those five items plus genui's basic catalog into one
-`Catalog`. A `@GenUiData` file such as `lib/models/metric_row.dart` declares
-the same kind of `part`, but its generated file holds a schema and a decoder
-instead of a `CatalogItem`.
+file holds the generated `final GenUiComponent <name>CatalogItem`,
+`lib/genui_catalog.g.dart` lists all of them with the generated functions, and
+`lib/main.dart` composes them with a2ui_flutter's v0.9 basic catalog through
+`basicCatalog().derive(...)`. A `@GenUiData` file such as
+`lib/models/metric_row.dart` declares the same kind of `part`, but its
+generated file holds a schema and a decoder instead of a component.
 
 ## Run
 
@@ -68,12 +73,12 @@ cd example
 flutter run
 ```
 
-Pick any device or `-d chrome`/`-d macos`. The app lists one card per catalog
-item showing its generated example. Tapping a `ProductCard` or the close button
-of a `Panel` dispatches the corresponding user action, which the app echoes in
-a snack bar.
+Pick any device or `-d chrome`/`-d macos`. The Catalog tab shows one card per
+generated component with its example. Tapping a `ProductCard` or the close
+button of a `Panel` dispatches the corresponding action, which the app echoes
+in a snack bar.
 
-## Regenerate the catalog items
+## Regenerate the components
 
 The `*.genui.dart` files are produced by `genui_gen_builder`. After changing a
 widget's constructor, description or doc comments, regenerate them with:
@@ -105,18 +110,21 @@ flutter test test/catalog_json_test.dart --update-goldens
 
 ## What the catalog exposes
 
-`test/genui_semantics.json` records what every component gives assistive
-technology: role, name, value, state and actions, in traversal order. The test
-that keeps it honest fails when a component stops exposing what it used to.
+`test/genui_semantics.json` records what every generated component gives
+assistive technology: role, name, value, state and actions, in traversal
+order. The test that keeps it honest fails when a component stops exposing
+what it used to.
 
 ```sh
 cd example
 GENUI_UPDATE_GOLDENS=1 flutter test test/genui_semantics_test.dart
 ```
 
-Reading the file is the point. `Icon` and `Image` record nothing at all, and
-`Panel`'s close button records a button with no name — both are genui's to fix,
-and neither is visible from the Dart.
+Reading the file is the point. `Panel`'s close button, for instance, is
+announced by its tooltip and has no name of its own, which nothing in the Dart
+shows. a2ui_flutter's basic components carry no examples, so they are not in
+the file; `test/genui_audit_test.dart` writes a few of them out by hand and
+audits what they expose.
 
 ## Recording a session
 
