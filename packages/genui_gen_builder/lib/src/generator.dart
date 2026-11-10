@@ -47,10 +47,11 @@ const genUiWritesChecker = TypeChecker.typeNamedLiterally(
 /// The extension the builder appends to the annotated file name.
 const generatedPartExtension = '.genui.dart';
 
-/// Component names genui's own basic catalog already uses.
+/// Component names the basic catalog already uses.
 ///
-/// From `BasicCatalogItems` in genui 0.10; `Text` is handled separately
-/// because generated examples compose it for child components.
+/// The same in genui 0.10 and in a2ui_flutter's v0.9 and v1.0 basic catalogs;
+/// `Text` is handled separately because generated examples compose it for
+/// child components.
 const _basicCatalogNames = {
   'AudioPlayer',
   'Button',
@@ -323,17 +324,27 @@ WidgetSpec buildWidgetSpec(ClassElement cls, ConstantReader annotation) {
     );
   }
   if (_basicCatalogNames.contains(catalogName)) {
-    // Not an error: a catalog is free to leave the basic items out, and then
-    // the name is available. It is worth saying out loud, though, because
-    // `Catalog.copyWith(newItems: ...)` next to `BasicCatalogItems` gives the
-    // model two components with one name and no indication which it composed.
-    log.warning(
-      'Component name `$catalogName` on `$className` is also a genui basic '
-      'catalog item. Registering both in one catalog leaves the model with '
-      'two components under that name. Rename it with '
-      '@GenUiWidget(name: ...) if the catalog includes '
-      'BasicCatalogItems.asCatalog().',
-    );
+    // Not an error: a catalog is free to leave the basic components out, and
+    // then the name is available. It is worth saying out loud, though.
+    log.warning(switch (rendererOf(annotation)) {
+      // `Catalog.copyWith(newItems: ...)` next to `BasicCatalogItems` gives
+      // the model two components with one name and no indication which it
+      // composed.
+      Renderer.genui =>
+        'Component name `$catalogName` on `$className` is also a genui basic '
+            'catalog item. Registering both in one catalog leaves the model '
+            'with two components under that name. Rename it with '
+            '@GenUiWidget(name: ...) if the catalog includes '
+            'BasicCatalogItems.asCatalog().',
+      // `derive(addComponents: ...)` replaces the entry of the same name, so
+      // the basic component is gone rather than doubled.
+      Renderer.a2uiFlutter =>
+        'Component name `$catalogName` on `$className` is also a basic '
+            'catalog component. A catalog derived from the basic one with '
+            'derive(addComponents: ...) replaces the basic component with '
+            'this one, for every message that names it. Rename it with '
+            '@GenUiWidget(name: ...) unless that is what you want.',
+    });
   }
   if (catalogName.startsWith('_')) {
     throw InvalidGenerationSourceError(
