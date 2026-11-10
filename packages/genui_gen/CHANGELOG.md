@@ -1,3 +1,39 @@
+## 0.15.0
+
+- **Breaking:** built on [a2ui_flutter](https://pub.dev/packages/a2ui_flutter)
+  0.2 and [a2ui_core](https://pub.dev/packages/a2ui_core) 0.6, which replace
+  genui. An app cannot have both, so every app moves with it: depend on
+  `a2ui_flutter` instead of `genui`, render with a `MessageProcessor` and an
+  `A2uiSurface`, and regenerate with genui_gen_builder 0.14.0. The README walks
+  through it.
+- **Breaking:** a generated component is a `GenUiComponent`, an a2ui_flutter
+  `ComponentImplementation` that also keeps the examples the builder derived.
+  a2ui_core resolves a component against its schema before generated code
+  runs, so the helpers that bound values, ran actions, built children and
+  evaluated checks on genui are gone, and so are the re-exports of genui's
+  types. What is left is what a2ui_core does not do: `GenUiSchemas`, the shapes
+  a2ui_core resolves a property by; `genUiWriter`, which writes through the
+  binding of a property and is null for a literal, as a basic control is
+  read-only then; `genUiMissingIn`, which reports a required field missing
+  from bound data once per component; and `GenUiClientFunction`, whose async
+  and streaming forms keep one answer per set of arguments.
+- The examples reach the agent: `genUiExampleInstructions` writes them into
+  the instructions of the generated catalog, which its document carries.
+- The inspector, the recorder and player, the fuzzer, coverage, the semantics
+  tools and the surface graph follow a `MessageProcessor`.
+  `GenUiCatalogView` renders every example of a catalog, which is what genui's
+  `DebugCatalogView` was for, and runs on the web.
+- An example, a fuzz case and a recorded event use the protocol version of the
+  catalog or surface they belong to, so the generated components work on
+  a2ui_flutter's v1.0 basic catalog as well as on its v0.9 one.
+- `genUiCatalogJson` returns a2ui_core's `validationSchema`: a component is
+  closed with `unevaluatedProperties` rather than `additionalProperties`, and a
+  reference to a shared type carries that type's description.
+- `genUiCatalogDiff` reads a property the same whichever renderer wrote the
+  document, so a `catalog.json` from genui diffs cleanly against its
+  a2ui_flutter version.
+- Requires Flutter 3.38 or later, as a2ui_flutter does.
+
 ## 0.14.1
 
 - `genUiFuzz` takes `host`, the app each surface is drawn in. It was always a
