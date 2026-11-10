@@ -689,15 +689,12 @@ EmittedCode emitDataClass(DataSpec spec) {
   );
   out.writeln('///');
   out.writeln(
-    '/// Values are coerced the same way genui\'s `Bound*` widgets coerce a',
+    '/// Values are coerced rather than cast, so a field of the wrong type',
   );
   out.writeln(
-    '/// widget property, so a field of the wrong type degrades instead of',
+    '/// degrades instead of throwing. Every required field that had to fall',
   );
-  out.writeln(
-    '/// throwing. Every required field that had to fall back is reported',
-  );
-  out.writeln('/// through [onMissing], when one is given.');
+  out.writeln('/// back is reported through [onMissing], when one is given.');
   out.write(
     '${spec.className} ${spec.decoderName}(Map<String, Object?> json, '
     '[GenUiMissingFieldReporter? onMissing]) => '
@@ -828,11 +825,9 @@ String _decodeArguments(DataSpec spec, Set<String> symbols) {
 
 /// The expression that reads one field out of the decoded JSON map.
 ///
-/// Nothing is cast: the raw value goes through the `genUiAs*` coercions, which
-/// apply the very rules genui's `Bound*` widgets apply to a widget property.
-/// A model that puts a number where a string was declared therefore degrades
-/// the same way in both places instead of throwing a `TypeError` inside
-/// `build`.
+/// Nothing is cast: the raw value goes through the `genUiAs*` coercions, so a
+/// model that puts a number where a string was declared degrades instead of
+/// throwing a `TypeError` inside `build`.
 ///
 /// Required fields fall back to the same neutral values the widget builder
 /// uses and report through `onMissing`, fields with a default fall back to

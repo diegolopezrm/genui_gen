@@ -155,7 +155,7 @@ class GenUiAction {
   /// Creates a [GenUiAction] annotation.
   const GenUiAction({this.eventName, this.description});
 
-  /// The name of the `UserActionEvent` dispatched when the callback fires, as
+  /// The name of the event the action sends when the callback fires, as
   /// used in the generated example (`{"event": {"name": "<eventName>"}}`).
   ///
   /// Defaults to the parameter name (e.g. `onTap`). At runtime the event name
@@ -388,9 +388,9 @@ class GenUiFunction {
 /// - a `bool` gets whether every rule passes.
 /// - a `GenUiCheckResult` gets both.
 ///
-/// A rule whose condition has not resolved yet counts as passing, so a field
-/// is not announced as invalid before the data model arrives, and a rule with
-/// no message is skipped rather than shown as an unexplained failure.
+/// a2ui_core evaluates the rules: one fails while its condition is anything
+/// but `true`, including one whose binding holds nothing yet, so a required
+/// field shows its message until it is filled.
 @Target({TargetKind.parameter, TargetKind.field})
 class GenUiChecked {
   /// Creates a [GenUiChecked] annotation.

@@ -8,14 +8,15 @@ lockfile.
 
 | Path | Package | Tests run with |
 |---|---|---|
-| `packages/genui_gen` | annotations + runtime helpers (Flutter package) | `flutter test` |
+| `packages/genui_gen` | annotations, runtime helpers and the testing, tracing and inspector libraries (Flutter package, built on a2ui_flutter) | `flutter test` |
+| `packages/genui_gen/example` | the pub.dev example: one annotated widget and its generated part | no tests; CI checks the generated part is current |
 | `packages/genui_gen_builder` | `build_runner` generator (pure Dart) | `dart test` |
-| `example` | Flutter app with five annotated widgets and one `@GenUiData` model | `flutter test` (smoke tests over the generated catalog) |
+| `example` | Flutter app with eight annotated widgets, one `@GenUiData` model and three `@GenUiFunction`s, rendered through a2ui_flutter | `flutter test` (rendering, the catalog document, semantics, fuzzing, traces) |
 
 ## Setup
 
-Requirements: Flutter 3.35 or newer (Dart 3.10 or newer). Then, from the repo
-root:
+Requirements: Flutter 3.38 or newer (Dart 3.10 or newer), as a2ui_flutter
+needs. Then, from the repo root:
 
 ```sh
 flutter pub get
@@ -27,10 +28,11 @@ all of them.
 ## Running tests
 
 ```sh
-# Runtime helpers (GenUiBindings, genUiActionHandler)
+# Runtime helpers (GenUiSchemas, genUiWriter, ...) and the tools
 cd packages/genui_gen && flutter test
 
-# Generator: golden output per supported type, plus error cases
+# Generator: golden output per supported type, for both renderers, plus error
+# cases
 cd packages/genui_gen_builder && dart test
 
 # Example app widget tests
@@ -53,8 +55,11 @@ cd example
 dart run build_runner build
 ```
 
-Then run the app to see the generated examples rendered offline through
-genui's `DebugCatalogView` (no API key or network needed):
+The pub.dev example in `packages/genui_gen/example` is regenerated the same
+way, and CI fails when either one is stale.
+
+Then run the app to see the generated examples rendered offline by
+`GenUiCatalogView` on the Catalog tab (no API key or network needed):
 
 ```sh
 flutter run
@@ -78,10 +83,10 @@ Checklist:
 - The example regenerated if the generator output changed.
 - `CHANGELOG.md` of each affected package updated under the unreleased
   version.
-- The design docs updated when the public API, the type mapping or the
-  generated code shape changes. `DESIGN.md` is the 0.1 contract and must keep
-  holding; `DESIGN-0.2.md` covers `@GenUiData` and object bindings. Together
-  they are the contract the generator is written against.
+- The READMEs updated when the public API, the type mapping or the generated
+  code shape changes. `DESIGN.md` (the 0.1 contract) and `DESIGN-0.2.md`
+  (`@GenUiData` and object bindings) describe the genui output, which the
+  builder still produces for genui_gen 0.14, and must keep holding for it.
 
 ## Conventions
 
@@ -93,13 +98,15 @@ Checklist:
   `ConstructorElement`, `FormalParameterElement`, ...). Do not reintroduce the
   legacy element API.
 - Verify third-party behaviour against the package sources in your pub cache
-  rather than from memory; genui is pre-1.0 and changes between minors.
-- Keep generated code free of dependencies beyond `genui`, `genui_gen` and
+  rather than from memory; a2ui_core and a2ui_flutter are pre-1.0 and change
+  between minors.
+- Keep generated code free of dependencies beyond Flutter and `genui_gen`,
+  which re-exports what it needs from a2ui_core, a2ui_flutter and
   `json_schema_builder`; everything it calls must be reachable through the
   annotated file's imports.
 
 ## Reporting issues
 
 Open an issue at <https://github.com/diegolopezrm/genui_gen/issues> with the
-genui version, the annotated constructor, and the generated output or the
-build error.
+a2ui_flutter version (or the genui version, on genui_gen 0.14), the annotated
+constructor, and the generated output or the build error.

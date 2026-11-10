@@ -15,12 +15,13 @@
 ///
 /// ```dart
 /// final recorder = GenUiTraceRecorder.attach(
-///   controller,
-///   catalogId: catalog.catalogId,
+///   processor,
+///   catalogId: catalog.id,
 ///   redact: const ['/user/email'],
 /// );
 ///
-/// transport.messages.listen(recorder.handleMessage);
+/// // Recorded, then handed to the processor.
+/// transport.messages.listen(recorder.processMessages);
 /// ...
 /// await File('bug-4821.a2ui-trace').writeAsString(recorder.build().encode());
 /// ```
@@ -29,7 +30,7 @@
 ///
 /// ```dart
 /// final trace = GenUiTrace.decode(await File('bug-4821.a2ui-trace').readAsString());
-/// final player = GenUiTracePlayer(trace, catalog: genUiCatalog)..seek(7);
+/// final player = GenUiTracePlayer(trace, catalog: catalog)..seek(7);
 ///
 /// await tester.pumpWidget(MaterialApp(home: GenUiTraceView(player: player)));
 /// expect(find.text('Confirm'), findsOneWidget);
