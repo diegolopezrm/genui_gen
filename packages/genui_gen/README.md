@@ -69,8 +69,8 @@ fails. There is no second source of truth to keep in sync.
 
 ```yaml
 dependencies:
-  a2ui_core: ^0.6.0
-  a2ui_flutter: ^0.2.0
+  a2ui_core: ^0.7.0
+  a2ui_flutter: ^0.3.0
   genui_gen: ^0.15.0
 
 dev_dependencies:
@@ -670,8 +670,8 @@ genui is being redesigned as a2ui_flutter, and genui_gen 0.15 moves with it. An
 app that stays on genui keeps genui_gen 0.14.x, and genui_gen_builder 0.14.0
 still generates genui code for it.
 
-1. Depend on `a2ui_flutter: ^0.2.0` instead of `genui` (and on
-   `a2ui_core: ^0.6.0` if the app imports it), on `genui_gen: ^0.15.0` and on
+1. Depend on `a2ui_flutter: ^0.3.0` instead of `genui` (and on
+   `a2ui_core: ^0.7.0` if the app imports it), on `genui_gen: ^0.15.0` and on
    `genui_gen_builder: ^0.14.0`. a2ui_flutter needs Flutter 3.38 or later.
 2. Regenerate with `dart run build_runner build --delete-conflicting-outputs`.
    The generated variables keep their names.
@@ -704,7 +704,7 @@ walks through it, including what now behaves differently.
 
 ## Compatibility
 
-`a2ui_flutter ^0.2.0` · `a2ui_core ^0.6.0` · Flutter `>=3.38.0` · Dart
+`a2ui_flutter` 0.2 or 0.3 · `a2ui_core` 0.6 or 0.7 · Flutter `>=3.38.0` · Dart
 `>=3.10.0 <4.0.0`
 
 a2ui_core and a2ui_flutter live in

@@ -27,7 +27,7 @@ model computes a value with rather than what it composes a surface out of.
 |---|---|
 | Dart SDK | `>=3.10.0 <4.0.0` |
 | `analyzer` | `>=10.0.0 <15.0.0` |
-| renderer | `a2ui_flutter` 0.2.x, through `genui_gen` 0.15; `genui` 0.10.x, through `genui_gen` 0.14 |
+| renderer | `a2ui_flutter` 0.2.x and 0.3.x, through `genui_gen` 0.15; `genui` 0.10.x, through `genui_gen` 0.14 |
 
 The generator is written against the parts of the analyzer element model that
 are stable across major versions, so a new `analyzer` release does not require
@@ -44,7 +44,7 @@ a2ui_flutter output.
 
 ```yaml
 dependencies:
-  a2ui_flutter: ^0.2.0
+  a2ui_flutter: ^0.3.0
   genui_gen: ^0.15.0
 
 dev_dependencies:
@@ -52,7 +52,7 @@ dev_dependencies:
   genui_gen_builder: ^0.14.0
 ```
 
-Add `a2ui_core: ^0.6.0` as well once the app imports it, as rendering with a
+Add `a2ui_core: ^0.7.0` as well once the app imports it, as rendering with a
 `MessageProcessor` does. The generated part shares your file's imports and
 names `GenUiComponent`, `GenUiSchemas` and, for lists, maps and data classes,
 `S`; `genui_gen` exports all of them, so `json_schema_builder` is not a

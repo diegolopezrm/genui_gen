@@ -10,10 +10,10 @@ environment:
 resolution: workspace
 
 dependencies:
-  a2ui_core: ^0.6.0
+  a2ui_core: ^0.7.0
   flutter:
     sdk: flutter
-  a2ui_flutter: ^0.2.0
+  a2ui_flutter: ^0.3.0
   genui_gen: ^0.15.0
 
 dev_dependencies:
