@@ -1,11 +1,11 @@
 ## 0.15.0
 
 - **Breaking:** built on [a2ui_flutter](https://pub.dev/packages/a2ui_flutter)
-  0.2 and [a2ui_core](https://pub.dev/packages/a2ui_core) 0.6, which replace
-  genui. An app cannot have both, so every app moves with it: depend on
-  `a2ui_flutter` instead of `genui`, render with a `MessageProcessor` and an
-  `A2uiSurface`, and regenerate with genui_gen_builder 0.14.0. The README walks
-  through it.
+  0.2 or 0.3 and [a2ui_core](https://pub.dev/packages/a2ui_core) 0.6 or 0.7,
+  which replace genui. An app cannot have both, so every app moves with it:
+  depend on `a2ui_flutter` instead of `genui`, render with a `MessageProcessor`
+  and an `A2uiSurface`, and regenerate with genui_gen_builder 0.14.0. The README
+  walks through it.
 - **Breaking:** a generated component is a `GenUiComponent`, an a2ui_flutter
   `ComponentImplementation` that also keeps the examples the builder derived.
   a2ui_core resolves a component against its schema before generated code

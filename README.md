@@ -48,8 +48,8 @@ function of the widget.
 
 ```yaml
 dependencies:
-  a2ui_core: ^0.6.0
-  a2ui_flutter: ^0.2.0
+  a2ui_core: ^0.7.0
+  a2ui_flutter: ^0.3.0
   genui_gen: ^0.15.0
 
 dev_dependencies:
@@ -1365,7 +1365,7 @@ Two ways around it in the meantime:
   screen reader, and what it costs to send.
 - 0.8: `@GenUiProp(template: true)` — a list of children may be a template the
   data model repeats, so a list that grows does not need a new surface.
-- 0.15: built on a2ui_flutter 0.2 and a2ui_core 0.6, which replace genui. A
+- 0.15: built on a2ui_flutter 0.2 or 0.3 and a2ui_core 0.6 or 0.7, which replace genui. A
   generated component is a `GenUiComponent`, its examples reach the agent
   through the catalog's instructions, and every tool follows a
   `MessageProcessor`. Every generated component also takes `accessibility`,
@@ -1407,8 +1407,8 @@ is built on.
 
    ```yaml
    dependencies:
-     a2ui_core: ^0.6.0     # only if the app imports it, as MessageProcessor needs
-     a2ui_flutter: ^0.2.0
+     a2ui_core: ^0.7.0     # only if the app imports it, as MessageProcessor needs
+     a2ui_flutter: ^0.3.0
      genui_gen: ^0.15.0
 
    dev_dependencies:
@@ -1504,7 +1504,7 @@ before you ship. For the example app it finds no breaking change.
 
 ## Compatibility
 
-- `a2ui_flutter ^0.2.0`, with the `a2ui_core ^0.6.0` it needs
+- `a2ui_flutter` 0.2 or 0.3, with the `a2ui_core` 0.6 or 0.7 it needs
 - Flutter `>=3.38.0`
 - Dart `>=3.10.0 <4.0.0`
 - `build_runner ^2.15.0`, `source_gen ^4.1.0`, `analyzer >=10.0.0 <15.0.0`
