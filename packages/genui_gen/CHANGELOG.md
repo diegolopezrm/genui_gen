@@ -1,3 +1,8 @@
+## 0.15.1
+
+- Accepts a2ui_core 0.8 and a2ui_flutter 0.4, released on 17 November. Nothing
+  genui_gen uses changed, so 0.6 to 0.8 and 0.2 to 0.4 all work.
+
 ## 0.15.0
 
 - **Breaking:** built on [a2ui_flutter](https://pub.dev/packages/a2ui_flutter)
