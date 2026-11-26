@@ -1,3 +1,9 @@
+## 0.15.2
+
+- Accepts a2ui_core 0.9 and a2ui_flutter 0.5, released on 23 November. Nothing
+  genui_gen uses changed, so 0.6 to 0.9 and 0.2 to 0.5 all work. a2ui_flutter
+  0.5 needs Flutter 3.47; on an older Flutter, pub keeps 0.4.
+
 ## 0.15.1
 
 - Accepts a2ui_core 0.8 and a2ui_flutter 0.4, released on 17 November. Nothing

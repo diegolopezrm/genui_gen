@@ -130,12 +130,11 @@ void main() {
     printOnFailure(findings.join('\n'));
     expect(findings.map((finding) => finding.toString()).toList(), _knownBasic);
 
-    // Not an unnamed control, so the audit passes it, but named by its value:
-    // a screen reader says "40, 40%" and reads "Volume" as a separate line.
-    // When this fails, the slider carries its label and the line can go.
+    // Named by its label since a2ui_flutter 0.5. Before, it was named by its
+    // value, and a screen reader read "Volume" as a separate line.
     final GenUiSemanticNode slider = recorded['Slider']!.singleWhere(
       (node) => node.role == 'slider',
     );
-    expect(slider.name, '40');
+    expect(slider.name, 'Volume');
   });
 }
