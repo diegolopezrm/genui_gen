@@ -48,8 +48,8 @@ function of the widget.
 
 ```yaml
 dependencies:
-  a2ui_core: ^0.8.0
-  a2ui_flutter: ^0.4.0
+  a2ui_core: ^0.9.0
+  a2ui_flutter: ^0.5.0
   genui_gen: ^0.15.0
 
 dev_dependencies:
@@ -60,7 +60,7 @@ dev_dependencies:
 a2ui_flutter is the renderer, and it brings a2ui_core, the protocol core, with
 it. `a2ui_core` is listed only because step 5 imports it for
 `MessageProcessor`; a package that only declares components can leave it out.
-a2ui_flutter needs Flutter 3.38 or later.
+a2ui_flutter 0.5 needs Flutter 3.47 or later; 0.4 works from Flutter 3.38.
 
 The generated code is a `part` of your file and names `GenUiComponent`,
 `GenUiSchemas` and, for lists, maps and data classes, `S` from
@@ -1365,7 +1365,7 @@ Two ways around it in the meantime:
   screen reader, and what it costs to send.
 - 0.8: `@GenUiProp(template: true)` — a list of children may be a template the
   data model repeats, so a list that grows does not need a new surface.
-- 0.15: built on a2ui_flutter 0.2 to 0.4 and a2ui_core 0.6 to 0.8, which replace genui. A
+- 0.15: built on a2ui_flutter 0.2 to 0.5 and a2ui_core 0.6 to 0.9, which replace genui. A
   generated component is a `GenUiComponent`, its examples reach the agent
   through the catalog's instructions, and every tool follows a
   `MessageProcessor`. Every generated component also takes `accessibility`,
@@ -1403,12 +1403,13 @@ genui code for it: the builder reads which renderer the genui_gen it resolves
 is built on.
 
 1. **Dependencies.** Replace `genui` with `a2ui_flutter`, and move both
-   packages up. a2ui_flutter needs Flutter 3.38 or later.
+   packages up. a2ui_flutter 0.5 needs Flutter 3.47 or later, and 0.4 needs
+   3.38.
 
    ```yaml
    dependencies:
-     a2ui_core: ^0.8.0     # only if the app imports it, as MessageProcessor needs
-     a2ui_flutter: ^0.4.0
+     a2ui_core: ^0.9.0     # only if the app imports it, as MessageProcessor needs
+     a2ui_flutter: ^0.5.0
      genui_gen: ^0.15.0
 
    dev_dependencies:
@@ -1504,8 +1505,8 @@ before you ship. For the example app it finds no breaking change.
 
 ## Compatibility
 
-- `a2ui_flutter` 0.2 to 0.4, with the `a2ui_core` 0.6 to 0.8 it needs
-- Flutter `>=3.38.0`
+- `a2ui_flutter` 0.2 to 0.5, with the `a2ui_core` 0.6 to 0.9 it needs
+- Flutter `>=3.38.0`, and 3.47 for a2ui_flutter 0.5
 - Dart `>=3.10.0 <4.0.0`
 - `build_runner ^2.15.0`, `source_gen ^4.1.0`, `analyzer >=10.0.0 <15.0.0`
 

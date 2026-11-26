@@ -15,7 +15,7 @@ lockfile.
 
 ## Setup
 
-Requirements: Flutter 3.38 or newer (Dart 3.10 or newer), as a2ui_flutter
+Requirements: Flutter 3.47 or newer (Dart 3.13 or newer), as a2ui_flutter 0.5
 needs. Then, from the repo root:
 
 ```sh

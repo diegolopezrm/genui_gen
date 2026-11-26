@@ -69,8 +69,8 @@ fails. There is no second source of truth to keep in sync.
 
 ```yaml
 dependencies:
-  a2ui_core: ^0.8.0
-  a2ui_flutter: ^0.4.0
+  a2ui_core: ^0.9.0
+  a2ui_flutter: ^0.5.0
   genui_gen: ^0.15.0
 
 dev_dependencies:
@@ -78,10 +78,10 @@ dev_dependencies:
   genui_gen_builder: ^0.14.0
 ```
 
-a2ui_flutter is the renderer, needs Flutter 3.38 or later, and brings a2ui_core,
-the protocol core, with it. `a2ui_core` is listed only because the app imports
-it for `MessageProcessor`; a package that only declares components can leave it
-out.
+a2ui_flutter is the renderer, and it brings a2ui_core, the protocol core, with
+it. `a2ui_core` is listed only because the app imports it for
+`MessageProcessor`; a package that only declares components can leave it out.
+a2ui_flutter 0.5 needs Flutter 3.47 or later; 0.4 works from Flutter 3.38.
 
 This package is the runtime half of the pair: the annotations, and the helpers
 the generated code calls. The generator itself lives in
@@ -670,9 +670,10 @@ genui is being redesigned as a2ui_flutter, and genui_gen 0.15 moves with it. An
 app that stays on genui keeps genui_gen 0.14.x, and genui_gen_builder 0.14.0
 still generates genui code for it.
 
-1. Depend on `a2ui_flutter: ^0.4.0` instead of `genui` (and on
-   `a2ui_core: ^0.8.0` if the app imports it), on `genui_gen: ^0.15.0` and on
-   `genui_gen_builder: ^0.14.0`. a2ui_flutter needs Flutter 3.38 or later.
+1. Depend on `a2ui_flutter: ^0.5.0` instead of `genui` (and on
+   `a2ui_core: ^0.9.0` if the app imports it), on `genui_gen: ^0.15.0` and on
+   `genui_gen_builder: ^0.14.0`. a2ui_flutter 0.5 needs Flutter 3.47 or later,
+   and 0.4 needs 3.38.
 2. Regenerate with `dart run build_runner build --delete-conflicting-outputs`.
    The generated variables keep their names.
 3. Compose with `basicCatalog().derive(...)` where you had
@@ -704,8 +705,8 @@ walks through it, including what now behaves differently.
 
 ## Compatibility
 
-`a2ui_flutter` 0.2 to 0.4 · `a2ui_core` 0.6 to 0.8 · Flutter `>=3.38.0` · Dart
-`>=3.10.0 <4.0.0`
+`a2ui_flutter` 0.2 to 0.5 · `a2ui_core` 0.6 to 0.9 · Flutter `>=3.38.0` (3.47 for
+a2ui_flutter 0.5) · Dart `>=3.10.0 <4.0.0`
 
 a2ui_core and a2ui_flutter live in
 [a2ui-project/a2ui](https://github.com/a2ui-project/a2ui) and are pre-1.0;
